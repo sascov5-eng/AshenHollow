@@ -66,6 +66,18 @@ jobs:
           set -euo pipefail
           xcrun swiftc Tests/EnemyRuntimeModelTests.swift Sources/EnemyArchetype.swift Sources/EnemyRuntimeModel.swift -o build/EnemyRuntimeModelTests
           ./build/EnemyRuntimeModelTests
+      - name: Test projectile controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/ProjectileControllerTests.swift Sources/ProjectileController.swift -o build/ProjectileControllerTests
+          ./build/ProjectileControllerTests
+      - name: Test player damage inbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/PlayerDamageInboxTests.swift Sources/PlayerDamageInbox.swift -o build/PlayerDamageInboxTests
+          ./build/PlayerDamageInboxTests
       - name: Compile Ashen Hollow
         shell: bash
         run: |
