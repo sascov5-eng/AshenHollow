@@ -78,6 +78,12 @@ jobs:
           set -euo pipefail
           xcrun swiftc Tests/PlayerDamageInboxTests.swift Sources/PlayerDamageInbox.swift -o build/PlayerDamageInboxTests
           ./build/PlayerDamageInboxTests
+      - name: Test boss controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/BossControllerTests.swift Sources/BossController.swift -o build/BossControllerTests
+          ./build/BossControllerTests
       - name: Compile Ashen Hollow
         shell: bash
         run: |
