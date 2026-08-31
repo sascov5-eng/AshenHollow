@@ -7,10 +7,7 @@ final class GameScene: SKScene {
         static let world: UInt32 = 1 << 1
     }
 
-    private let player = SKShapeNode(
-        rectOf: CGSize(width: 42, height: 64),
-        cornerRadius: 10
-    )
+    private let player = SKShapeNode(rectOf: CGSize(width: 42, height: 64), cornerRadius: 10)
     private let playerVisual = SKNode()
     private let gameCamera = SKCameraNode()
     private let hud = SKNode()
@@ -61,7 +58,7 @@ final class GameScene: SKScene {
     private var touchCounter = 0
     private var rightTouchCounter = 0
     private var lastSetVY: CGFloat = 0
-    private var lastRestBeforeJump = false
+    private var lastCollisionMask: UInt32 = 0
 
     override func didMove(to view: SKView) {
         backgroundColor = UIColor(red: 0.025, green: 0.03, blue: 0.045, alpha: 1)
@@ -90,9 +87,7 @@ final class GameScene: SKScene {
         worldWidth = max(2200, size.width * 3.0)
 
         let backdropHeight = max(size.height, 520)
-        let backdrop = SKShapeNode(
-            rectOf: CGSize(width: worldWidth, height: backdropHeight)
-        )
+        let backdrop = SKShapeNode(rectOf: CGSize(width: worldWidth, height: backdropHeight))
         backdrop.fillColor = UIColor(red: 0.035, green: 0.042, blue: 0.06, alpha: 1)
         backdrop.strokeColor = .clear
         backdrop.position = CGPoint(x: worldWidth * 0.5, y: backdropHeight * 0.5)
@@ -117,10 +112,7 @@ final class GameScene: SKScene {
             addChild(pillar)
         }
 
-        addPlatform(
-            center: CGPoint(x: worldWidth * 0.5, y: 60),
-            size: CGSize(width: worldWidth, height: 80)
-        )
+        addPlatform(center: CGPoint(x: worldWidth * 0.5, y: 60), size: CGSize(width: worldWidth, height: 80))
         addPlatform(center: CGPoint(x: 520, y: 190), size: CGSize(width: 260, height: 28))
         addPlatform(center: CGPoint(x: 900, y: 255), size: CGSize(width: 230, height: 28))
         addPlatform(center: CGPoint(x: 1320, y: 175), size: CGSize(width: 310, height: 28))
@@ -199,10 +191,7 @@ final class GameScene: SKScene {
 
         let halfVisibleWidth = size.width * 0.5 * cameraZoom
         let startX = max(halfVisibleWidth, player.position.x + 120)
-        gameCamera.position = CGPoint(
-            x: startX,
-            y: size.height * 0.5 + cameraVerticalOffset
-        )
+        gameCamera.position = CGPoint(x: startX, y: size.height * 0.5 + cameraVerticalOffset)
     }
 
     private func buildHUD() {
@@ -233,7 +222,7 @@ final class GameScene: SKScene {
         jumpLabel.verticalAlignmentMode = .center
         jumpLabel.horizontalAlignmentMode = .center
 
-        buildLabel.text = "DIAG JUMP V7"
+        buildLabel.text = "DIAG JUMP V8"
         buildLabel.fontSize = 12
         buildLabel.fontColor = UIColor(white: 1, alpha: 0.82)
         buildLabel.horizontalAlignmentMode = .center
@@ -364,7 +353,8 @@ final class GameScene: SKScene {
             return
         }
 
-        lastRestBeforeJump = body.isResting
+        lastCollisionMask = body.collisionBitMask
+        body.collisionBitMask = 0
         body.isResting = false
         lastSetVY = jumpVelocity
         body.velocity = CGVector(dx: body.velocity.dx, dy: jumpVelocity)
@@ -396,9 +386,7 @@ final class GameScene: SKScene {
     }
 
     override func update(_ currentTime: TimeInterval) {
-        let dt: TimeInterval = lastUpdateTime == 0
-            ? 1.0 / 60.0
-            : min(currentTime - lastUpdateTime, 1.0 / 20.0)
+        let dt: TimeInterval = lastUpdateTime == 0 ? 1.0 / 60.0 : min(currentTime - lastUpdateTime, 1.0 / 20.0)
         lastUpdateTime = currentTime
 
         updateHorizontal(CGFloat(dt))
@@ -424,11 +412,7 @@ final class GameScene: SKScene {
             ? (isGrounded ? groundAcceleration : airAcceleration)
             : (isGrounded ? groundDeceleration : airAcceleration * 0.5)
 
-        var vx = moveToward(
-            body.velocity.dx,
-            targetVX,
-            maxDelta: acceleration * dt
-        )
+        var vx = moveToward(body.velocity.dx, targetVX, maxDelta: acceleration * dt)
         if !accelerating && abs(vx) < 2 {
             vx = 0
         }
@@ -481,7 +465,7 @@ final class GameScene: SKScene {
             debugVYLabel.text = "LIVEVY: NO BODY"
             debugDynamicLabel.text = "DYN: false"
             debugGravityLabel.text = "G: false"
-            debugRestLabel.text = "REST: n/a"
+            debugRestLabel.text = "MASK: n/a"
             debugTouchLabel.text = "TOUCH: \(touchCounter)"
             debugRightLabel.text = "RIGHT: \(rightTouchCounter)"
             debugSetVYLabel.text = "SETVY: \(Int(lastSetVY.rounded()))"
@@ -492,7 +476,7 @@ final class GameScene: SKScene {
         debugVYLabel.text = "LIVEVY: \(Int(body.velocity.dy.rounded()))"
         debugDynamicLabel.text = "DYN: \(body.isDynamic)"
         debugGravityLabel.text = "G: \(body.affectedByGravity)"
-        debugRestLabel.text = "REST: \(body.isResting) BEFORE:\(lastRestBeforeJump)"
+        debugRestLabel.text = "MASK: \(body.collisionBitMask) BEFORE:\(lastCollisionMask)"
         debugTouchLabel.text = "TOUCH: \(touchCounter)"
         debugRightLabel.text = "RIGHT: \(rightTouchCounter)"
         debugSetVYLabel.text = "SETVY: \(Int(lastSetVY.rounded()))"
@@ -555,9 +539,7 @@ final class GameScene: SKScene {
 
         let visibleHalfWidth = size.width * 0.5 * cameraZoom
         let speedFactor = min(abs(body.velocity.dx) / runSpeed, 1)
-        let direction: CGFloat = abs(body.velocity.dx) > 6
-            ? (body.velocity.dx > 0 ? 1 : -1)
-            : facing
+        let direction: CGFloat = abs(body.velocity.dx) > 6 ? (body.velocity.dx > 0 ? 1 : -1) : facing
         let lookAhead = direction * cameraLookAhead * speedFactor
         let rawX = player.position.x + lookAhead
         let minX = visibleHalfWidth
