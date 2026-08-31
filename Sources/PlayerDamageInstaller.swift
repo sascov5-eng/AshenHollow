@@ -136,7 +136,6 @@ enum PlayerDamageInstaller {
 
             refreshHUD()
 
-            // Keep knockback isolated from the stable kinematic controller.
             let knockbackDirection: CGFloat = node.position.x >= enemy.position.x ? 1 : -1
             let targetX = node.position.x + knockbackDirection * 34
             let worldMaxX = max(18, scene.size.width * 3.2 - 18)
@@ -167,8 +166,6 @@ enum PlayerDamageInstaller {
     ) {
         guard let skView = scene.view else { return }
 
-        // Freeze the entire old scene immediately. This guarantees that no stale
-        // touch, velocity, AI state, or attack can continue during the death pause.
         scene.isPaused = true
         skView.isUserInteractionEnabled = false
 
@@ -193,6 +190,7 @@ enum PlayerDamageInstaller {
 
             EnemyAIInstaller.install(on: replacement)
             PlayerDamageInstaller.install(on: replacement)
+            RoomRuntimeInstaller.install(on: replacement)
 
             UIView.animate(
                 withDuration: sequence.fadeInDuration,
