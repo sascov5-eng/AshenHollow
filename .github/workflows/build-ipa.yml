@@ -30,6 +30,12 @@ jobs:
           set -euo pipefail
           xcrun swiftc Tests/PlayerAttackDirectionTests.swift Sources/PlayerAttackDirection.swift -o build/PlayerAttackDirectionTests
           ./build/PlayerAttackDirectionTests
+      - name: Test attack gesture resolver
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/AttackGestureResolverTests.swift Sources/AttackGestureResolver.swift Sources/PlayerAttackDirection.swift -o build/AttackGestureResolverTests
+          ./build/AttackGestureResolverTests
       - name: Test combat impulse
         shell: bash
         run: |
