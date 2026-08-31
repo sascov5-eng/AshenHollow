@@ -44,6 +44,13 @@ struct PlayerHealth {
         return true
     }
 
+    @discardableResult
+    mutating func heal(_ amount: Int) -> Bool {
+        guard isAlive, amount > 0, hp < maxHP else { return false }
+        hp = min(maxHP, hp + amount)
+        return true
+    }
+
     mutating func update(_ dt: TimeInterval) {
         guard dt > 0 else { return }
         invulnerabilityRemaining = max(0, invulnerabilityRemaining - dt)
