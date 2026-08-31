@@ -24,6 +24,12 @@ jobs:
           set -euo pipefail
           xcrun swiftc Tests/AttackControllerTests.swift Sources/AttackController.swift -o build/AttackControllerTests
           ./build/AttackControllerTests
+      - name: Test enemy health
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/EnemyHealthTests.swift Sources/EnemyHealth.swift -o build/EnemyHealthTests
+          ./build/EnemyHealthTests
       - name: Compile Ashen Hollow
         shell: bash
         run: |
