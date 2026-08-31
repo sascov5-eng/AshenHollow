@@ -19,7 +19,9 @@ struct RoomControllerTestsMain {
         expectRoom(roomA != nil, "Room A exists")
         expectRoom(roomB != nil, "Room B exists")
         expectRoom(roomA!.bounds.width == 1200, "Room A width is 1200")
-        expectRoom(roomB!.platforms.count != roomA!.platforms.count, "rooms use different geometry")
+        expectRoom(roomB!.bounds.width == 1200, "Room B width is 1200")
+        expectRoom(roomA!.platforms[1].center != roomB!.platforms[1].center, "rooms use different geometry")
+        expectRoom(roomB!.platforms[1].center == RoomPoint(x: 120, y: 175), "Room B first raised platform matches stable backing geometry")
 
         let noTransition = controller.transitionIfNeeded(
             playerCenter: RoomPoint(x: 500, y: 130),
