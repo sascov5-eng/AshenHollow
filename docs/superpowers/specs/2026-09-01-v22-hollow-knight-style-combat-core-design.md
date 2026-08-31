@@ -1,561 +1,517 @@
 # V22 — Hollow Knight–Style Combat Core Design
 
-Date: 2026-09-01
-Status: Proposed for implementation after user review
+Date: 2026-09-01  
+Status: Proposed for implementation after user review  
 Baseline: V21 stable commit `c8f97734feb50f7ed2884b58260ec06f326ba425`
 
 ## 1. Goal
 
-V22 replaces the current prototype combat feel with a skill-based 2D action combat loop inspired by the structural principles of Hollow Knight: spacing, fast readable melee, directional attacks, attacker recoil, enemy knockback, pogo, contact danger, stagger, readable boss patterns, safe punish opportunities created by positioning rather than arbitrary invulnerability, and a resource-driven Focus heal decision.
+V22 replaces the prototype combat feel with a skill-based 2D action loop inspired by the structural principles of Hollow Knight: spacing, fast readable melee, directional attacks, attacker recoil, enemy knockback, pogo, contact danger, stagger, readable boss patterns, safe punish opportunities created by positioning, and a resource-driven Focus heal decision.
 
-This is a mechanical inspiration target, not a content/art/audio clone. Ashen Hollow keeps its own characters, visuals, enemy designs, names, timing values, encounters, and progression systems.
+This is a mechanical inspiration target, not a content/art/audio clone. Ashen Hollow keeps its own characters, visuals, names, enemy designs, encounters, timings, progression, and presentation.
 
-The primary success criterion is that combat stops feeling like `stand inside enemy -> trade HP` and instead becomes `read -> position -> strike -> recoil/reset spacing -> choose next action`.
+Primary success criterion:
 
-## 2. Non-negotiable V21 baseline constraints
+`stand inside enemy -> trade HP`
 
-The following confirmed systems must remain stable unless a V22 change explicitly requires a narrow extension:
+must become:
 
-- landscape presentation;
-- existing kinematic player controller;
+`read -> position -> strike -> recoil/reset spacing -> choose next action`.
+
+## 2. V21 baseline constraints
+
+The following confirmed systems remain stable unless V22 explicitly adds a narrow combat hook:
+
+- landscape only;
+- kinematic player controller remains authoritative;
 - no `SKPhysicsBody` on player;
 - gravity `-1700`;
 - jump `610`;
 - jump release `285`;
-- run speed `315`;
+- run `315`;
 - ground acceleration `1900`;
 - air acceleration `1050`;
 - ground deceleration `2400`;
-- max fall speed `-900`;
+- max fall `-900`;
 - camera zoom `1.55`;
-- V21 six-room architecture;
-- multi-enemy support;
+- six-room V21 level architecture;
+- multi-enemy runtime;
 - Grunt / Runner / Heavy / Ranged / Ash Warden;
-- combat-gated room exits;
-- V19 death -> fade -> full level restart -> 5/5 HP;
+- combat-gated exits;
+- V19 death -> fade -> fresh level restart -> 5/5 HP;
 - PlayerHealth i-frames remain authoritative for accepted damage.
 
-V22 may extend input/combat state in `GameScene`, but must not replace the stable movement/collision solver.
+The existing movement/collision solver is not replaced.
 
 ## 3. Root problem in V21
 
-The current boss contract has stages `idle / telegraph / committed / recovery`, but `BossController.applyPlayerHit()` accepts damage in every living state. Therefore `recovery` is only presentation text and does not create a mechanically distinct combat opportunity.
+The current Ash Warden state machine already has `idle / telegraph / committed / recovery`, but `BossController.applyPlayerHit()` accepts damage in every living state. Therefore recovery is currently presentation-only.
 
-At the same time, simply making Ash Warden invulnerable outside recovery would move the design in the wrong direction. The intended Hollow Knight–style model is:
+However, making the boss invulnerable outside recovery would also be wrong for the requested combat style.
 
-- bosses are usually damageable whenever the player's weapon can genuinely reach them;
-- attack states create danger, not arbitrary immunity;
-- recovery creates a safer punish opportunity, not the only legal damage window;
-- explicit guard/parry states may block damage, but must be visually readable and exceptional;
-- high-skill players can often attack during telegraphs or attacks if their positioning permits it.
+V22 rule:
+
+- bosses are usually damageable whenever the player's weapon genuinely reaches them;
+- telegraph/attack states create danger, not generic immunity;
+- recovery is a safer punish opportunity, not the only legal damage window;
+- explicit guard/parry may block damage, but must be exceptional and visually obvious;
+- skilled players may damage the boss during telegraph/committed states if their positioning is safe.
 
 ## 4. Core combat loop
 
-The V22 loop is:
-
 `READ -> POSITION -> ATTACK -> RECOIL / SEPARATION -> REASSESS -> ATTACK / JUMP / POGO / FOCUS`
 
-The game must reward correct spacing and timing rather than holding ATTACK in overlap range.
-
-### 4.1 Player melee properties
-
-Player melee remains fast and responsive.
-
-Initial target values for tuning:
-
-- attack duration: approximately `0.22 s`;
-- damage window remains a subset of the animation;
-- attack cooldown target: approximately `0.30–0.34 s`;
-- damage: `1` base melee damage;
-- per-swing de-duplication remains mandatory per target;
-- movement is not globally frozen by attacking;
-- facing is locked at attack start for horizontal attack consistency.
-
-Exact timing can be tuned after device testing, but tests should encode the chosen values once implementation begins.
+Combat must reward spacing and timing rather than ATTACK spam while bodies overlap.
 
 ## 5. Directional melee
 
-V22 introduces three melee directions:
+V22 introduces three attack directions:
 
-1. horizontal attack;
-2. upward attack;
-3. downward aerial attack.
+- horizontal;
+- upward;
+- downward aerial.
 
-### 5.1 Horizontal attack
+Base melee remains `1` damage and preserves per-swing target deduplication.
 
-Default ATTACK action.
+Initial timing targets:
 
-Hitbox extends in facing direction.
+- attack duration around `0.22 s`;
+- cooldown around `0.30–0.34 s`;
+- damage window remains shorter than full animation;
+- movement is not globally frozen by attacking;
+- horizontal facing locks at attack start.
 
-On accepted hit:
+### 5.1 Horizontal
 
-- target takes damage;
-- player receives attacker recoil away from target;
-- normal enemy receives archetype-specific knockback;
-- hit feedback is triggered.
+Default attack. Hitbox extends in facing direction.
 
-### 5.2 Upward attack
+Accepted hit:
 
-Hitbox extends above the player with limited horizontal overlap.
+`damage -> target reaction -> player recoil -> Essence gain -> impact feedback`.
+
+### 5.2 Upward
+
+Hitbox extends above player with limited horizontal overlap.
 
 Purpose:
 
-- hit airborne or elevated enemies;
-- attack enemies while staying below some attack zones;
-- create a vertical combat option without changing player movement physics.
+- aerial/elevated targets;
+- attack from below;
+- vertical combat without changing movement physics.
 
-Upward attack does not launch the player.
+No upward launch is applied to player.
 
-### 5.3 Downward aerial attack / pogo
+### 5.3 Downward aerial / pogo
 
-Available only while airborne.
+Only available while airborne.
 
-Hitbox extends below the player.
+Hitbox extends below player.
 
-If the hitbox connects with a valid enemy/hazard target:
+Accepted hit:
 
-- target takes normal melee damage unless protected by an explicit block rule;
-- player receives an immediate upward pogo impulse;
-- the pogo impulse is applied through the existing kinematic velocity path, not SpriteKit physics;
-- normal enemy hit reaction still applies where appropriate;
-- one swing cannot pogo repeatedly from the same target through frame overlap.
+- target takes normal melee damage unless explicitly blocked;
+- player receives a kinematic upward pogo impulse;
+- horizontal velocity is preserved unless a separate recoil component modifies it;
+- same swing cannot pogo repeatedly from the same target through frame overlap.
 
-Initial pogo vertical velocity target: around `430–500`, to be tuned below the full jump impulse and verified on device.
+Initial pogo target: vertical velocity around `430–500`, tuned below full jump impulse on device.
 
-Pogo must preserve horizontal player velocity unless an explicit recoil component modifies it.
+## 6. Mobile attack-direction input
 
-## 6. Mobile input design
+The screen should not gain separate UP-ATTACK and DOWN-ATTACK buttons.
 
-V22 must add directional attack intent without cluttering the screen with separate UP-ATTACK and DOWN-ATTACK buttons.
+V22 changes the ATTACK control into a directional touch control with a very short intent-resolution window:
 
-Proposed touch contract:
+- normal tap / no meaningful vertical displacement -> horizontal;
+- upward displacement past threshold -> upward attack;
+- downward displacement past threshold while airborne -> down attack/pogo;
+- downward intent while grounded falls back to horizontal;
+- ambiguous movement defaults to horizontal;
+- movement/jump touches remain independent and multi-touch compatible.
 
-- tap ATTACK -> horizontal attack;
-- drag/flick upward on the ATTACK control before activation threshold -> upward attack;
-- while airborne, drag/flick downward on ATTACK -> downward attack / pogo;
-- short ambiguous movement around the ATTACK button defaults to horizontal attack;
-- JUMP and movement remain independently multi-touch compatible.
+To preserve responsiveness, attack intent resolution must be short and deterministic. Initial target:
 
-The ATTACK gesture only selects attack direction; it must not modify movement input.
+- vertical displacement threshold about `22–28 pt`;
+- maximum intent-resolution delay about `45–60 ms` before defaulting to horizontal.
 
-Thresholds must be forgiving enough for phone use and tested on device.
+This is a starting mobile UX contract, not final tuning. A temporary direction indicator may be used in acceptance builds.
 
-A small temporary directional indicator may be used during V22 acceptance testing, then removed or polished later.
+## 7. Player combat impulse interface
 
-## 7. Attacker recoil and separation
+V22 requires recoil and pogo, but `GameScene.velocity` is currently private and must remain under the kinematic controller's authority.
 
-This is a core V22 mechanic.
+Therefore V22 adds a narrow combat-only interface on GameScene rather than moving or duplicating movement state.
 
-When the player lands a valid horizontal/upward melee hit, the player receives a short horizontal recoil away from the target.
+Conceptual API:
 
-Goals:
+- apply horizontal combat recoil away from source;
+- apply upward pogo impulse;
+- optionally expose grounded/airborne state required by attack selection.
 
-- prevent automatic body overlap after a successful hit;
-- create a natural rhythm between strikes;
-- allow the player to re-engage intentionally;
-- reduce guaranteed retaliation from ordinary enemies;
-- preserve control rather than create a long stun.
+Requirements:
 
-Initial target:
+- recoil/pogo update the existing kinematic velocity/state;
+- never create `SKPhysicsBody`;
+- never directly teleport through platforms;
+- recoil never zeroes vertical velocity;
+- pogo preserves horizontal velocity;
+- room/world bounds and collision logic remain authoritative on subsequent integration.
 
-- player recoil displacement/velocity equivalent: roughly `18–28 px` horizontal separation per successful close hit;
-- recoil is short and should not cancel vertical velocity;
-- recoil cannot push player outside active room bounds;
-- recoil must not bypass platform collision.
+Initial player horizontal recoil should produce roughly `18–28 px` of separation in normal close hits without feeling like a long stun.
 
-Implementation should use a narrow kinematic combat impulse path, not direct teleporting through geometry.
+## 8. Normal enemy reaction
 
-## 8. Enemy knockback and hit reaction
+V21 hit-stun/knockback remains, coordinated with player recoil.
 
-Normal enemies keep the V21 hit-stun + knockback concept, but it becomes coordinated with player recoil.
+- Grunt: medium knockback / medium hit-stun;
+- Runner: strong knockback / slightly longer hit-stun;
+- Heavy: low knockback / short hit-stun;
+- Ranged: strong knockback / medium hit-stun;
+- Boss: negligible positional knockback / no ordinary per-hit stun.
 
-Per-archetype target behavior:
+Normal enemy accepted hit:
 
-- Grunt: medium knockback, medium hit-stun;
-- Runner: strong knockback, slightly longer hit-stun;
-- Heavy: low knockback, short hit-stun;
-- Ranged: strong knockback, medium hit-stun;
-- Boss: negligible positional knockback; no ordinary stun on every hit.
+`damage -> cancel active normal-enemy damage window -> hit-stun -> enemy knockback -> player recoil`.
 
-Successful melee hit on a normal enemy:
-
-`damage -> cancel active normal-enemy damage window -> hit-stun -> enemy knockback -> player recoil`
-
-This rule does not apply to already committed boss attacks unless the boss is in an explicit stagger state.
+Boss committed attacks are not cancelled by ordinary hits unless an explicit stagger threshold is reached.
 
 ## 9. Contact damage
 
-Enemy bodies remain dangerous where the archetype/encounter requires it.
-
-Contact danger is important because spacing must matter, but V22 must avoid unfair damage chains.
+Bodies remain dangerous where the archetype/state requires it, because spacing must matter.
 
 Rules:
 
-- PlayerHealth i-frames apply to contact damage exactly as to attack/projectile damage.
-- A successful player strike should generally create enough separation that the player is not guaranteed to eat contact damage on the same exchange.
-- Contact damage must use the central `PlayerDamageInbox` rather than bypassing it.
-- Dead, staggered, or explicitly harmless states cannot generate contact damage.
-- Boss contact damage must be state-aware: e.g. charge body is dangerous; idle/recovery body may use a smaller or disabled contact hurt source depending on acceptance tuning.
+- all contact damage goes through `PlayerDamageInbox`;
+- PlayerHealth i-frames apply normally;
+- successful player strikes should generally create enough separation to prevent guaranteed same-exchange body damage;
+- dead/staggered/harmless states cannot deal contact damage;
+- boss contact danger is state-aware: charge body is dangerous; idle/recovery may use reduced or disabled body danger depending on device tuning.
 
-## 10. Boss philosophy
+## 10. Ash Warden damageability
 
-Ash Warden is rebuilt around readable danger and positional punish opportunities.
+Default:
 
-### 10.1 Boss damageability
+- idle -> damageable;
+- telegraph -> damageable;
+- committed attack -> damageable if safely reachable;
+- recovery -> damageable and safer to punish;
+- stagger -> damageable and safest to punish;
+- explicit guard/parry -> blocked;
+- defeated -> no damage.
 
-Default rule:
+There is no global `damage only during recovery` flag.
 
-- idle: damageable;
-- telegraph: damageable;
-- committed attack: damageable if weapon reaches the boss safely;
-- recovery: damageable and safer to punish;
-- stagger: damageable and safest to punish;
-- explicit parry/guard: blocked;
-- defeated: no further damage.
-
-There is no generic `bossCanTakeDamageOnlyDuringRecovery` rule.
-
-### 10.2 Recovery
+## 11. Recovery semantics
 
 Recovery is a tactical opening, not a vulnerability switch.
 
 During recovery:
 
-- boss stops dealing attack damage from the completed pattern;
-- movement is reduced or stopped;
-- core/visual state clearly communicates safety;
-- player can choose DPS or Focus heal;
+- previous attack's damage source is off;
+- boss movement is reduced/stopped;
+- visual state clearly communicates an opening;
+- player may choose DPS or Focus;
 - Phase II shortens recovery but never removes every safe opportunity.
 
-Initial recovery targets:
+Initial targets:
 
-- Slash Phase I: ~`0.70–0.80 s`;
-- Charge Phase I: ~`0.90–1.05 s`;
-- Volley Phase I: ~`1.00–1.15 s`;
-- Phase II multipliers approximately `0.70–0.78` of Phase I.
+- Slash P1: `0.70–0.80 s`;
+- Charge P1: `0.90–1.05 s`;
+- Volley P1: `1.00–1.15 s`;
+- Phase II around `70–78%` of Phase I recovery duration.
 
-These are tuning targets, not immutable Hollow Knight values.
+These are Ashen Hollow tuning values, not copied constants.
 
-## 11. Ash Warden attack patterns
+## 12. Ash Warden patterns
 
-V22 keeps the three existing pattern identities but rewrites their combat contracts.
-
-### 11.1 Slash
-
-Stages:
+### Slash
 
 `telegraph -> active slash -> recovery`
 
-Properties:
-
 - clear facing tell;
-- active hitbox exists only for a short committed window;
-- player can jump over, backstep through spacing, or potentially hit from a safe side/vertical angle;
-- boss remains damageable;
+- short active damage window;
+- jump/spacing/vertical attack can create counters;
+- boss remains damageable throughout;
 - recovery is short but reliable.
 
-### 11.2 Charge
+### Charge
 
-Stages:
+`telegraph -> locked horizontal charge -> deceleration/recovery`
 
-`telegraph -> committed horizontal charge -> deceleration/recovery`
+- direction locks at commit;
+- no instant mid-charge retarget;
+- dedicated charge/body damage source;
+- jumping or pogoing over charge is valid;
+- readable recovery follows.
 
-Properties:
-
-- charge direction locks at commit;
-- charge body/dedicated hitbox deals damage once per commit per i-frame rules;
-- boss should not instantly reverse mid-charge to track player;
-- jumping/pogoing over the charge is a valid high-skill response;
-- charge ends in a readable recovery.
-
-### 11.3 Ash Volley
-
-Stages:
+### Ash Volley
 
 `telegraph -> projectile release -> recovery`
 
-Properties:
-
 - projectiles use central damage inbox;
 - projectile disappears on player contact even if i-frames reject HP loss;
-- projectile arrangement is readable and dodgeable;
-- Phase II increases pressure through pattern density/speed, not by removing all recovery.
+- pattern is readable/dodgeable;
+- Phase II adds pressure through density/speed, not removal of recovery.
 
-## 12. Boss stagger system
+## 13. Boss stagger
 
 Ash Warden gains a hit-count stagger meter independent from HP.
 
-Purpose:
+Initial targets:
 
-- reward sustained successful offense;
-- create a predictable large opening;
-- support the Focus-heal decision;
-- avoid making every individual hit interrupt the boss.
+- Phase I threshold: `6` accepted hits;
+- Phase II threshold: `7` accepted hits;
+- stagger duration: `1.35–1.55 s`;
+- entering Phase II resets/rebases stagger progress so phase transition does not accidentally trigger an immediate second stagger;
+- hits during stagger still deal damage but do not end stagger immediately;
+- after stagger, counter resets.
 
-Initial target:
+Normal accepted hits below threshold do not cancel committed attacks.
 
-- Phase I stagger threshold: `6` accepted player hits;
-- Phase II threshold: `7` accepted player hits;
-- stagger duration target: `1.35–1.55 s`;
-- entering Phase II resets or explicitly re-bases stagger progress to avoid accidental immediate double-stagger;
-- hits during stagger deal damage but do not instantly end stagger;
-- after stagger ends, hit counter resets.
+Reaching stagger threshold may explicitly interrupt the current boss action.
 
-Boss committed attacks are not cancelled by normal player hits. Stagger may interrupt the boss only when the threshold is reached, by explicit rule.
+## 14. Explicit guard/parry
 
-## 13. Explicit guard/parry state
+Optional within V22 only if core implementation remains stable.
 
-V22 may add one short readable Ash Warden guard/parry pattern if implementation scope remains controlled.
+If included:
 
-Rules if included:
+- unmistakable visual guard;
+- melee returns `BLOCKED`;
+- no HP loss;
+- no Essence gain;
+- small player recoil may occur;
+- guard cannot chain continuously.
 
-- visually unmistakable guard state;
-- melee hit during guard returns `BLOCKED`;
-- boss HP does not change;
-- a small player recoil may occur;
-- guard is an explicit pattern/state, never a hidden immunity flag;
-- parry cannot chain continuously without an opening.
+If this risks V22 core stability, it is deferred rather than partially implemented.
 
-This feature is secondary to the main combat loop. If it risks destabilizing core V22, it is deferred to V23 rather than partially implemented.
+## 15. Essence and Focus healing
 
-## 14. Essence resource and Focus healing
+Working resource name: `ESSENCE`.
 
-V22 adds a combat resource inspired by the risk/reward role of Soul but using Ashen Hollow's own naming and values.
+Initial economy:
 
-Working name: `ESSENCE`.
+- max Essence: `100`;
+- accepted melee hit: `+34`;
+- heal cost: `100`;
+- blocked/dead/duplicate hits grant `0`.
 
-### 14.1 Essence gain
+This yields one heal after three accepted hits.
 
-Initial economy target:
+### Focus
 
-- successful melee hit on an enemy/boss grants Essence;
-- approximately three normal successful hits provide enough Essence for one heal;
-- duplicate hit frames from the same swing do not generate duplicate Essence;
-- hits on blocked/parried targets do not grant Essence;
-- hitting dead targets grants nothing.
+A dedicated `FOCUS` button is added near the right-side action controls.
 
-Suggested initial numbers:
+Rules:
 
-- Essence capacity: `100`;
-- gain per accepted melee hit: `34`;
-- Focus heal cost: `100`.
-
-This gives one heal after three accepted hits while leaving clean integer bookkeeping.
-
-### 14.2 Focus heal
-
-Add a dedicated `FOCUS` control near the existing right-side action controls.
-
-Contract:
-
-- Focus must be held continuously;
-- player cannot start Focus without enough Essence and missing HP;
-- initial channel duration target: `0.95–1.10 s`;
-- successful completion restores `1 HP` and consumes the configured Essence cost;
-- if player takes accepted damage during channel, Focus cancels and does not heal;
+- hold continuously to channel;
+- requires missing HP and enough Essence;
+- target channel around `0.95–1.10 s`;
+- successful completion heals `1 HP` and consumes cost;
+- accepted incoming damage cancels Focus;
+- attack/jump cancel Focus;
 - movement is strongly reduced or disabled during Focus;
-- jump/attack cancel Focus;
-- interrupted Focus should not consume the full cost unless design testing proves partial-cost behavior is better;
-- death overrides Focus immediately.
+- interrupted Focus does not consume full cost in V22;
+- death cancels Focus immediately.
 
-Focus creates a tactical decision during boss recovery/stagger instead of every opening being pure DPS.
+## 16. Shared PlayerHealth authority
 
-## 15. Hit-stop and impact feedback
+V21 currently keeps `PlayerHealth` privately inside `PlayerDamageInstaller`. That is incompatible with Focus healing because two independent health copies would be incorrect.
 
-V22 adds mechanical hit feedback on accepted melee hits.
+V22 therefore moves the authoritative `PlayerHealth` instance into the shared runtime context (or an equivalent single owner) used by both damage and Focus systems.
 
-Required:
+Required authority rules:
 
-- very short hit-stop/freeze impression;
+- exactly one PlayerHealth instance per live scene;
+- PlayerDamageInstaller reads/writes that instance;
+- Focus completion heals that same instance;
+- HUD reads that same instance;
+- accepted-damage notification from that authority interrupts Focus;
+- respawn creates a fresh context with 5/5 HP and empty/reset combat state according to V22 rules.
+
+No duplicate shadow HP state is allowed.
+
+## 17. Essence/Focus pure controller
+
+Add a pure model responsible for:
+
+- Essence amount/capacity;
+- per-hit gain;
+- Focus eligibility;
+- channel state/time;
+- cancel reasons;
+- cost consumption only on completion;
+- heal-completion event.
+
+The controller does not directly mutate SpriteKit nodes.
+
+## 18. Hit-stop and impact feedback
+
+Accepted melee hits require:
+
+- short hit-stop impression;
 - target flash;
 - slash impact visual;
 - player recoil;
-- target knockback where applicable;
-- small camera impulse/shake;
-- stronger feedback on enemy death/boss phase/stagger.
+- enemy knockback where applicable;
+- small camera impulse;
+- stronger feedback for death/stagger/phase milestones.
 
-Hit-stop must not globally corrupt timer-based systems.
+Initial standard hit-stop target: `35–55 ms`.
 
-Preferred architecture:
+Do not pause the entire SKScene for ordinary hits if that would corrupt attack/projectile/timer windows. Prefer combat-local gating/presentation freeze with deterministic timer behavior.
 
-- do not pause the entire SKScene for normal hit-stop;
-- use a combat-specific short presentation/runtime freeze or local timescale/action gating;
-- player input buffering should remain predictable;
-- projectile and boss timers must not accidentally skip damage windows after hit-stop.
+## 19. Damage/event flow
 
-Initial hit-stop target: roughly `35–55 ms` for standard melee, slightly stronger for heavy/boss milestone impacts.
+Player:
 
-## 16. Damage authority and event flow
+`attack intent -> directional AttackController state -> computed hitbox -> target model validates swing -> accepted/blocked result -> HP/stagger/reaction -> recoil/pogo -> Essence -> presentation`.
 
-V22 should reduce combat coupling by using explicit accepted-hit events/contracts.
+Enemy/boss:
 
-Recommended flow:
+`active source intersects player -> PlayerDamageInbox -> authoritative PlayerHealth validates -> accepted damage event -> HP/HUD/blink -> Focus interruption -> death pipeline`.
 
-Player attack intent
--> AttackController directional attack state
--> runtime computes attack hitbox
--> target combat model validates per-swing hit
--> accepted hit event
--> target HP / stagger / hit reaction
--> player recoil / pogo
--> Essence gain
--> impact presentation
+Visual alpha is not authoritative combat state when a pure state can represent it.
 
-Enemy/boss attack
--> active damage source intersects player
--> PlayerDamageInbox
--> PlayerHealth validates i-frames/dedup
--> accepted player damage event
--> HP update / blink / Focus interruption / death pipeline
+## 20. Expected code architecture
 
-No visual node alpha alone should be the authoritative source of combat state when a pure model can represent it.
+Likely revised/new pure components:
 
-## 17. Architecture changes
+- `AttackDirection` / directional attack contract;
+- combat impulse result model;
+- `EssenceFocusController`;
+- boss stagger logic;
+- explicit boss hit result: accepted / blocked / defeated / staggered;
+- accepted damage event/sequence token if needed.
 
-Expected new or revised pure components:
+Likely SpriteKit integration:
 
-- directional attack model / attack direction enum;
-- player combat recoil/pogo result model;
-- Essence/Focus controller;
-- boss stagger state integrated into `BossController` or a dedicated model;
-- explicit boss damage response (`accepted`, `blocked`, `defeated`, possibly `staggered`);
-- accepted-hit event data shared by runtime presentation.
+- `GameScene.swift`: narrow directional-input and kinematic combat-impulse hooks only;
+- `AttackController.swift`: directional attack state/timing;
+- `V21RuntimeContext.swift` or V22 successor: single PlayerHealth + Essence/Focus authority;
+- `MultiEnemyRuntimeInstaller.swift`: directional hurtboxes, recoil/pogo, Essence gain;
+- `BossController.swift`: stagger + explicit hit result;
+- `BossRuntimeInstaller.swift`: rewritten pattern/hitbox/recovery/stagger loop;
+- `PlayerDamageInstaller.swift`: use shared health and emit accepted-damage interruption signal;
+- HUD/bootstrap files only as required.
 
-Expected SpriteKit integration areas:
+The movement collision functions remain intact.
 
-- `GameScene.swift`: narrow input/attack-direction hooks and safe kinematic combat impulse application only;
-- `AttackController.swift`: directional attack state and timing contract;
-- `MultiEnemyRuntimeInstaller.swift`: accepted-hit event + player recoil/pogo + Essence gain;
-- `BossController.swift`: stagger and explicit state-aware damage response;
-- `BossRuntimeInstaller.swift`: rewritten boss pattern/hitbox/presentation loop;
-- `PlayerDamageInstaller.swift`: emit accepted-damage signal for Focus interruption;
-- `GameView.swift` / runtime bootstrap only if needed for shared combat context;
-- new pure `EssenceFocusController.swift` (name may vary);
-- new tests for each pure contract.
+## 21. Input safety
 
-The existing kinematic collision movement functions are not to be replaced.
-
-## 18. Input and control safety
-
-V22 must preserve simultaneous inputs:
+Must preserve:
 
 - left/right + jump;
 - left/right + attack;
 - jump + attack;
-- airborne down-attack;
-- attack direction gesture must not steal unrelated touches;
-- FOCUS uses its own touch identity and cancels correctly on touch end/cancel.
+- airborne down attack;
+- attack touch must not steal movement/jump touches;
+- Focus touch has independent identity and cancels correctly on touch end/cancel.
 
-The control layout should remain readable in landscape on current target iPhone dimensions.
+## 22. Boss HP tuning
 
-## 19. Boss HP tuning
+Do not reduce Ash Warden HP pre-emptively.
 
-Because V22 allows damage during more boss states and adds stagger/Focus decisions, final Ash Warden HP should be tuned after the mechanical loop works.
+V22 acceptance build may keep `20 HP` so combat mechanics can be evaluated independently. After real-device testing, HP is tuned based on observed fight duration and attack cycles.
 
-Do not mechanically reduce HP before measuring device combat duration.
+This supersedes the earlier speculative `14 HP` recommendation.
 
-Starting acceptance build may keep `20 HP` so the new combat loop can be evaluated independently. If the fight is too long, HP is then tuned in a bounded follow-up based on observed number of attack cycles and player DPS.
+## 23. TDD requirements
 
-This supersedes the earlier speculative recommendation to immediately lower boss HP to 14.
-
-## 20. TDD / verification requirements
-
-V22 must use RED -> GREEN tests for pure combat contracts before SpriteKit integration.
-
-Minimum tests:
+RED -> GREEN pure tests before SpriteKit integration.
 
 ### Directional attack
-- horizontal attack produces horizontal direction;
-- up attack produces upward hitbox intent;
-- down attack only allowed in air;
-- same swing ID cannot hit same target twice;
-- facing locks correctly for horizontal swing.
 
-### Recoil / pogo
-- horizontal accepted hit creates recoil away from target;
-- recoil never zeros vertical velocity;
-- downward accepted hit produces upward pogo impulse;
-- same down swing cannot pogo multiple times from same target.
+- horizontal direction;
+- up direction;
+- down only while airborne;
+- facing locks correctly;
+- same swing cannot damage same target twice.
 
-### Essence / Focus
-- accepted hit grants Essence exactly once;
+### Recoil/pogo
+
+- recoil points away from target;
+- recoil does not zero vertical velocity;
+- down hit produces upward pogo impulse;
+- same down swing cannot pogo repeatedly from same target.
+
+### Essence/Focus
+
+- accepted hit grants exactly once;
 - blocked hit grants none;
-- insufficient Essence cannot start Focus;
-- full channel heals 1 HP and consumes cost;
-- accepted player damage cancels Focus;
-- attack/jump cancels Focus;
-- Focus cannot heal above max HP.
+- insufficient Essence cannot Focus;
+- completed channel requests exactly 1 HP heal and consumes cost;
+- accepted incoming damage cancels;
+- attack/jump cancel;
+- max HP cannot be exceeded.
 
 ### Boss
-- normal boss states accept damage;
-- explicit guard returns blocked;
-- recovery is safe-state metadata, not the only damageable state;
-- accepted hits increment stagger counter;
+
+- normal states accept damage;
+- explicit guard blocks;
+- recovery is metadata/opening, not sole damage state;
+- hits increment stagger;
 - threshold enters stagger;
-- stagger duration and reset work;
-- Phase II threshold/profile changes correctly;
-- committed attack is not cancelled by ordinary hit below stagger threshold;
-- reaching stagger threshold may explicitly interrupt according to contract.
+- stagger resets correctly;
+- Phase II threshold/profile updates;
+- committed attack survives normal hit below threshold;
+- threshold hit may explicitly interrupt into stagger.
+
+### Shared health
+
+- damage and Focus operate on same health authority;
+- damage during Focus cancels before completion;
+- respawn creates fresh 5/5 authority.
 
 ### Regression
-All existing V21 tests remain green unless intentionally updated to the new combat contract.
 
-Final acceptance requires:
+All existing V21 tests remain green unless intentionally updated to match the new contract.
 
-1. full GitHub Actions suite success on exact final SHA;
-2. arm64 iOS compile success;
-3. unsigned IPA package/upload success;
-4. artifact `workflow_run.head_sha` equals final SHA;
-5. downloaded IPA passes ZIP integrity check;
-6. user device test before V22 is called stable.
+## 24. Device acceptance checklist
 
-## 21. Device acceptance checklist
-
-User should specifically test:
-
-- horizontal melee no longer causes guaranteed body-trade after every hit;
-- player recoil feels short and controllable;
-- Grunt/Runner/Heavy/Ranged reactions still feel distinct;
-- upward attack is reliable;
-- downward pogo works on enemies and does not break jump physics;
-- several consecutive pogo attempts cannot double-trigger from one swing;
-- Ash Warden can be damaged during telegraph/attack when safely reached;
-- recovery clearly feels safer without being an artificial damage switch;
-- boss stagger is readable and useful;
-- Phase II remains aggressive but fair;
-- FOCUS can be used during genuine openings;
-- taking damage cancels FOCUS;
-- Essence gain does not duplicate per frame;
+- horizontal hits no longer force guaranteed body-trade;
+- recoil is short/control-preserving;
+- Grunt/Runner/Heavy/Ranged remain distinct;
+- up attack is reliable;
+- down attack/pogo is reliable;
+- one swing cannot multi-pogo from frame overlap;
+- Ash Warden can be hit during telegraph/attack when safely reached;
+- recovery feels safer without being an immunity switch;
+- boss stagger is readable/useful;
+- Phase II is aggressive but fair;
+- Focus works in genuine openings;
+- accepted damage cancels Focus;
+- Essence cannot duplicate per frame;
 - run/jump/collision/camera remain stable;
-- death/respawn still returns to Room 1 with 5/5 HP;
+- death/respawn returns to Room 1 at 5/5;
 - all six rooms remain traversable.
 
-## 22. Deferred beyond V22
+## 25. Deferred beyond V22
 
-Not required for V22 acceptance:
-
-- spells using Essence;
-- charm/equipment equivalents;
-- complex aerial enemies designed around pogo;
-- wall-jump/dash mechanics;
-- multiple boss phases beyond current two-phase Ash Warden;
-- advanced parry system for player;
-- final animation/art/audio pass;
+- offensive Essence spells;
+- charm/equipment equivalent;
+- advanced player parry;
+- dash/wall-jump;
+- final art/audio pass;
+- save/progression changes;
 - controller support;
-- save/progression changes.
+- new boss beyond Ash Warden.
 
-## 23. Definition of done
+## 26. Definition of done
 
-V22 is complete as an acceptance build when:
+V22 acceptance build is complete when:
 
-- combat uses directional attacks;
-- accepted melee hits create controlled separation;
-- pogo works through the kinematic controller;
-- normal enemies retain distinct hit reactions;
-- boss is generally damageable and no longer relies on fake recovery-only vulnerability;
-- boss attacks have explicit telegraph/active/recovery semantics;
+- directional melee works;
+- accepted melee creates controlled separation;
+- pogo works through existing kinematic velocity;
+- normal enemies retain distinct reactions;
+- boss is generally damageable and uses readable attack/recovery semantics;
 - stagger creates a real large opening;
-- Essence/Focus adds a heal-vs-DPS decision;
-- hit-stop/impact feedback makes accepted hits mechanically legible;
-- all CI/build/artifact checks pass;
-- real-device testing confirms the loop feels materially closer to the requested Hollow Knight–style combat philosophy.
+- Essence/Focus creates a heal-vs-DPS decision;
+- hit-stop/impact feedback makes hits legible;
+- one PlayerHealth authority is shared by damage/heal/HUD;
+- full CI passes on exact final SHA;
+- arm64 iOS compile/package/upload succeeds;
+- artifact SHA matches final commit;
+- downloaded IPA passes integrity check;
+- user device test is required before V22 is called stable.
