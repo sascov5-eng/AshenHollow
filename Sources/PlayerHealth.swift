@@ -48,10 +48,4 @@ struct PlayerHealth {
         guard dt > 0 else { return }
         invulnerabilityRemaining = max(0, invulnerabilityRemaining - dt)
     }
-
-    mutating func reset() {
-        hp = maxHP
-        invulnerabilityRemaining = 0
-        lastAttackID = nil
-    }
 }
