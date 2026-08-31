@@ -30,6 +30,22 @@ final class GameScene: SKScene {
         rectOf: CGSize(width: 62, height: 42),
         cornerRadius: 8
     )
+
+    private let testEnemy = SKNode()
+    private let enemyVisual = SKShapeNode(
+        rectOf: CGSize(width: 44, height: 62),
+        cornerRadius: 9
+    )
+    private let enemyHPBackground = SKSpriteNode(
+        color: UIColor(white: 0.08, alpha: 0.88),
+        size: CGSize(width: 54, height: 8)
+    )
+    private let enemyHPFill = SKSpriteNode(
+        color: UIColor(red: 0.92, green: 0.25, blue: 0.20, alpha: 1),
+        size: CGSize(width: 50, height: 5)
+    )
+    private let enemyHPLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+
     private let gameCamera = SKCameraNode()
     private let hud = SKNode()
 
@@ -72,8 +88,15 @@ final class GameScene: SKScene {
 
     private var attackController = AttackController()
     private var attackFacing: CGFloat = 1
+    private var attackSequenceID = 0
     private let attackHitboxSize = CGSize(width: 62, height: 42)
     private let attackHitboxOffset: CGFloat = 50
+
+    // MARK: - Test enemy
+
+    private var enemyHealth = EnemyHealth(maxHP: 3)
+    private let enemyColliderSize = CGSize(width: 40, height: 60)
+    private var enemyHitFlashRemaining: CGFloat = 0
 
     // MARK: - Temporary player animation state machine
 
@@ -113,6 +136,7 @@ final class GameScene: SKScene {
 
         buildWorld()
         buildPlayer()
+        buildTestEnemy()
         buildCamera()
         buildHUD()
         layoutHUD()
@@ -127,11 +151,21 @@ final class GameScene: SKScene {
         camera = nil
         removeAllChildren()
         worldRoot.removeAllChildren()
+
         player.removeAllChildren()
         player.removeAllActions()
         playerVisual.removeAllChildren()
         playerVisual.removeAllActions()
         attackHitboxVisual.removeAllActions()
+
+        testEnemy.removeAllChildren()
+        testEnemy.removeAllActions()
+        enemyVisual.removeAllChildren()
+        enemyVisual.removeAllActions()
+        enemyHPBackground.removeAllActions()
+        enemyHPFill.removeAllActions()
+        enemyHPLabel.removeAllActions()
+
         gameCamera.removeAllChildren()
         gameCamera.removeAllActions()
         hud.removeAllChildren()
@@ -148,7 +182,10 @@ final class GameScene: SKScene {
         smoothedMoveInput = 0
         facing = 1
         attackFacing = 1
+        attackSequenceID = 0
         attackController.reset()
+        enemyHealth = EnemyHealth(maxHP: 3)
+        enemyHitFlashRemaining = 0
         animationState = .idle
         animationStateTime = 0
         landedThisFrame = false
@@ -293,7 +330,7 @@ final class GameScene: SKScene {
         )
     }
 
-    /// Scene-space damage rectangle for the next combat stage.
+    /// Scene-space damage rectangle for the active melee damage window.
     private var currentAttackHitbox: CGRect? {
         guard attackController.isHitboxActive else { return nil }
         let centerX = player.position.x + attackFacing * attackHitboxOffset
@@ -303,6 +340,103 @@ final class GameScene: SKScene {
             width: attackHitboxSize.width,
             height: attackHitboxSize.height
         )
+    }
+
+    // MARK: - Test enemy
+
+    private func buildTestEnemy() {
+        testEnemy.name = "testEnemy"
+        testEnemy.position = CGPoint(x: 400, y: 130)
+        testEnemy.zPosition = 45
+        testEnemy.alpha = 1
+        testEnemy.setScale(1)
+        testEnemy.isHidden = false
+
+        enemyVisual.fillColor = UIColor(red: 0.56, green: 0.20, blue: 0.23, alpha: 1)
+        enemyVisual.strokeColor = UIColor(red: 0.95, green: 0.45, blue: 0.38, alpha: 0.55)
+        enemyVisual.lineWidth = 2
+        enemyVisual.position = .zero
+        enemyVisual.alpha = 1
+
+        let eye = SKShapeNode(rectOf: CGSize(width: 21, height: 6), cornerRadius: 3)
+        eye.fillColor = UIColor(red: 1.0, green: 0.48, blue: 0.34, alpha: 1)
+        eye.strokeColor = .clear
+        eye.position = CGPoint(x: -3, y: 9)
+        enemyVisual.addChild(eye)
+
+        enemyHPBackground.position = CGPoint(x: 0, y: 43)
+        enemyHPBackground.zPosition = 4
+
+        enemyHPFill.anchorPoint = CGPoint(x: 0, y: 0.5)
+        enemyHPFill.position = CGPoint(x: -25, y: 43)
+        enemyHPFill.zPosition = 5
+        enemyHPFill.xScale = 1
+
+        enemyHPLabel.text = "HP 3/3"
+        enemyHPLabel.fontSize = 11
+        enemyHPLabel.fontColor = UIColor(white: 0.96, alpha: 0.9)
+        enemyHPLabel.horizontalAlignmentMode = .center
+        enemyHPLabel.verticalAlignmentMode = .center
+        enemyHPLabel.position = CGPoint(x: 0, y: 57)
+        enemyHPLabel.zPosition = 6
+
+        testEnemy.addChild(enemyVisual)
+        testEnemy.addChild(enemyHPBackground)
+        testEnemy.addChild(enemyHPFill)
+        testEnemy.addChild(enemyHPLabel)
+        addChild(testEnemy)
+
+        updateEnemyHealthHUD()
+    }
+
+    private var enemyRect: CGRect {
+        CGRect(
+            x: testEnemy.position.x - enemyColliderSize.width * 0.5,
+            y: testEnemy.position.y - enemyColliderSize.height * 0.5,
+            width: enemyColliderSize.width,
+            height: enemyColliderSize.height
+        )
+    }
+
+    private func resolveAttackHitOnEnemy() {
+        guard enemyHealth.isAlive,
+              let hitbox = currentAttackHitbox,
+              hitbox.intersects(enemyRect) else {
+            return
+        }
+
+        guard enemyHealth.applyHit(damage: 1, attackID: attackSequenceID) else {
+            return
+        }
+
+        enemyHitFlashRemaining = 0.11
+        updateEnemyHealthHUD()
+
+        if !enemyHealth.isAlive {
+            enemyHPLabel.text = "DEAD"
+            let fade = SKAction.fadeOut(withDuration: 0.24)
+            let shrink = SKAction.scale(to: 0.76, duration: 0.24)
+            let death = SKAction.group([fade, shrink])
+            death.timingMode = .easeIn
+            testEnemy.run(death, withKey: "death")
+        }
+    }
+
+    private func updateEnemyHealthHUD() {
+        let ratio = CGFloat(enemyHealth.hp) / CGFloat(enemyHealth.maxHP)
+        enemyHPFill.xScale = max(0, ratio)
+        enemyHPLabel.text = "HP \(enemyHealth.hp)/\(enemyHealth.maxHP)"
+    }
+
+    private func updateEnemyPresentation(_ dt: CGFloat) {
+        guard enemyHealth.isAlive else { return }
+
+        enemyHitFlashRemaining = max(0, enemyHitFlashRemaining - dt)
+        if enemyHitFlashRemaining > 0 {
+            enemyVisual.fillColor = UIColor(red: 1.0, green: 0.54, blue: 0.28, alpha: 1)
+        } else {
+            enemyVisual.fillColor = UIColor(red: 0.56, green: 0.20, blue: 0.23, alpha: 1)
+        }
     }
 
     // MARK: - Camera / HUD
@@ -510,6 +644,7 @@ final class GameScene: SKScene {
     private func tryAttack() {
         guard attackController.tryStart() else { return }
         attackFacing = facing
+        attackSequenceID += 1
         animationState = .attack
         animationStateTime = 0
     }
@@ -545,6 +680,8 @@ final class GameScene: SKScene {
         velocity.dy = max(maxFallSpeed, velocity.dy + gravity * CGFloat(dt))
         integrateKinematicMotion(CGFloat(dt))
 
+        resolveAttackHitOnEnemy()
+        updateEnemyPresentation(CGFloat(dt))
         updateAnimationState(CGFloat(dt))
         updatePlayerVisuals(CGFloat(dt))
         updateAttackHitboxVisual()
@@ -858,7 +995,6 @@ final class GameScene: SKScene {
     private func updateAttackHitboxVisual() {
         attackHitboxVisual.position = CGPoint(x: attackFacing * attackHitboxOffset, y: 2)
         attackHitboxVisual.alpha = attackController.isHitboxActive ? 1 : 0
-        _ = currentAttackHitbox
     }
 
     private func refreshButtonVisuals() {
