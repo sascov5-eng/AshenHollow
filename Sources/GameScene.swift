@@ -12,7 +12,6 @@ final class GameScene: SKScene {
     private let gameCamera = SKCameraNode()
     private let hud = SKNode()
 
-    private var platforms: [SKShapeNode] = []
     private var worldWidth: CGFloat = 2200
 
     private let runSpeed: CGFloat = 315
@@ -21,6 +20,7 @@ final class GameScene: SKScene {
     private let groundDeceleration: CGFloat = 2400
     private let jumpVelocity: CGFloat = 610
     private let maxFallSpeed: CGFloat = -900
+    private let jumpSeparationNudge: CGFloat = 4
 
     private var moveInput: CGFloat = 0
     private var targetMoveInput: CGFloat = 0
@@ -44,12 +44,12 @@ final class GameScene: SKScene {
 
     private let debugYLabel = SKLabelNode(fontNamed: "Menlo-Bold")
     private let debugVYLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    private let debugDynamicLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    private let debugGravityLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    private let debugRestLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+    private let debugGroundLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+    private let debugMaskLabel = SKLabelNode(fontNamed: "Menlo-Bold")
     private let debugTouchLabel = SKLabelNode(fontNamed: "Menlo-Bold")
     private let debugRightLabel = SKLabelNode(fontNamed: "Menlo-Bold")
     private let debugSetVYLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+    private let debugNudgeLabel = SKLabelNode(fontNamed: "Menlo-Bold")
 
     private var leftTouches = Set<ObjectIdentifier>()
     private var rightTouches = Set<ObjectIdentifier>()
@@ -58,7 +58,8 @@ final class GameScene: SKScene {
     private var touchCounter = 0
     private var rightTouchCounter = 0
     private var lastSetVY: CGFloat = 0
-    private var lastCollisionMask: UInt32 = 0
+    private var lastNudge: CGFloat = 0
+    private var lastYBeforeJump: CGFloat = 0
 
     override func didMove(to view: SKView) {
         backgroundColor = UIColor(red: 0.025, green: 0.03, blue: 0.045, alpha: 1)
@@ -83,7 +84,6 @@ final class GameScene: SKScene {
     }
 
     private func buildWorld() {
-        platforms.removeAll()
         worldWidth = max(2200, size.width * 3.0)
 
         let backdropHeight = max(size.height, 520)
@@ -135,9 +135,7 @@ final class GameScene: SKScene {
         body.collisionBitMask = PhysicsCategory.player
         body.contactTestBitMask = 0
         platform.physicsBody = body
-
         addChild(platform)
-        platforms.append(platform)
     }
 
     private func buildPlayer() {
@@ -222,7 +220,7 @@ final class GameScene: SKScene {
         jumpLabel.verticalAlignmentMode = .center
         jumpLabel.horizontalAlignmentMode = .center
 
-        buildLabel.text = "DIAG JUMP V8"
+        buildLabel.text = "DIAG JUMP V9"
         buildLabel.fontSize = 12
         buildLabel.fontColor = UIColor(white: 1, alpha: 0.82)
         buildLabel.horizontalAlignmentMode = .center
@@ -237,18 +235,11 @@ final class GameScene: SKScene {
         hud.addChild(jumpButton)
         hud.addChild(buildLabel)
 
-        let debugLabels = [
-            debugYLabel,
-            debugVYLabel,
-            debugDynamicLabel,
-            debugGravityLabel,
-            debugRestLabel,
-            debugTouchLabel,
-            debugRightLabel,
-            debugSetVYLabel
+        let labels = [
+            debugYLabel, debugVYLabel, debugGroundLabel, debugMaskLabel,
+            debugTouchLabel, debugRightLabel, debugSetVYLabel, debugNudgeLabel
         ]
-
-        for label in debugLabels {
+        for label in labels {
             label.fontSize = 11
             label.fontColor = UIColor(white: 1, alpha: 0.86)
             label.horizontalAlignmentMode = .left
@@ -277,14 +268,13 @@ final class GameScene: SKScene {
 
         let debugX = -halfW + 22
         let debugTopY = halfH - 28
-        debugYLabel.position = CGPoint(x: debugX, y: debugTopY)
-        debugVYLabel.position = CGPoint(x: debugX, y: debugTopY - 16)
-        debugDynamicLabel.position = CGPoint(x: debugX, y: debugTopY - 32)
-        debugGravityLabel.position = CGPoint(x: debugX, y: debugTopY - 48)
-        debugRestLabel.position = CGPoint(x: debugX, y: debugTopY - 64)
-        debugTouchLabel.position = CGPoint(x: debugX, y: debugTopY - 80)
-        debugRightLabel.position = CGPoint(x: debugX, y: debugTopY - 96)
-        debugSetVYLabel.position = CGPoint(x: debugX, y: debugTopY - 112)
+        let labels = [
+            debugYLabel, debugVYLabel, debugGroundLabel, debugMaskLabel,
+            debugTouchLabel, debugRightLabel, debugSetVYLabel, debugNudgeLabel
+        ]
+        for (index, label) in labels.enumerated() {
+            label.position = CGPoint(x: debugX, y: debugTopY - CGFloat(index) * 16)
+        }
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -353,14 +343,17 @@ final class GameScene: SKScene {
             return
         }
 
-        lastCollisionMask = body.collisionBitMask
-        body.collisionBitMask = 0
+        lastYBeforeJump = player.position.y
+        lastNudge = jumpSeparationNudge
+
+        body.collisionBitMask = PhysicsCategory.world
+        player.position.y += jumpSeparationNudge
         body.isResting = false
         lastSetVY = jumpVelocity
         body.velocity = CGVector(dx: body.velocity.dx, dy: jumpVelocity)
 
         isGrounded = false
-        buildLabel.text = "RIGHT TOUCH = JUMP"
+        buildLabel.text = "RIGHT TOUCH = NUDGE + JUMP"
         playJumpAnimation()
         updateDebugHUD()
     }
@@ -372,7 +365,6 @@ final class GameScene: SKScene {
             leftTouches.remove(id)
             rightTouches.remove(id)
         }
-
         updateInputTarget()
         refreshButtonVisuals()
     }
@@ -386,7 +378,9 @@ final class GameScene: SKScene {
     }
 
     override func update(_ currentTime: TimeInterval) {
-        let dt: TimeInterval = lastUpdateTime == 0 ? 1.0 / 60.0 : min(currentTime - lastUpdateTime, 1.0 / 20.0)
+        let dt: TimeInterval = lastUpdateTime == 0
+            ? 1.0 / 60.0
+            : min(currentTime - lastUpdateTime, 1.0 / 20.0)
         lastUpdateTime = currentTime
 
         updateHorizontal(CGFloat(dt))
@@ -463,23 +457,23 @@ final class GameScene: SKScene {
         guard let body = player.physicsBody else {
             debugYLabel.text = "Y: NO BODY"
             debugVYLabel.text = "LIVEVY: NO BODY"
-            debugDynamicLabel.text = "DYN: false"
-            debugGravityLabel.text = "G: false"
-            debugRestLabel.text = "MASK: n/a"
+            debugGroundLabel.text = "GROUND: n/a"
+            debugMaskLabel.text = "MASK: n/a"
             debugTouchLabel.text = "TOUCH: \(touchCounter)"
             debugRightLabel.text = "RIGHT: \(rightTouchCounter)"
             debugSetVYLabel.text = "SETVY: \(Int(lastSetVY.rounded()))"
+            debugNudgeLabel.text = "NUDGE: \(Int(lastNudge))"
             return
         }
 
         debugYLabel.text = "Y: \(Int(player.position.y.rounded()))"
         debugVYLabel.text = "LIVEVY: \(Int(body.velocity.dy.rounded()))"
-        debugDynamicLabel.text = "DYN: \(body.isDynamic)"
-        debugGravityLabel.text = "G: \(body.affectedByGravity)"
-        debugRestLabel.text = "MASK: \(body.collisionBitMask) BEFORE:\(lastCollisionMask)"
+        debugGroundLabel.text = "GROUND: \(isGrounded)"
+        debugMaskLabel.text = "MASK: \(body.collisionBitMask)"
         debugTouchLabel.text = "TOUCH: \(touchCounter)"
         debugRightLabel.text = "RIGHT: \(rightTouchCounter)"
         debugSetVYLabel.text = "SETVY: \(Int(lastSetVY.rounded()))"
+        debugNudgeLabel.text = "NUDGE: \(Int(lastNudge)) FROM:\(Int(lastYBeforeJump.rounded()))"
     }
 
     private func updatePlayerVisuals(_ dt: CGFloat) {
@@ -539,7 +533,9 @@ final class GameScene: SKScene {
 
         let visibleHalfWidth = size.width * 0.5 * cameraZoom
         let speedFactor = min(abs(body.velocity.dx) / runSpeed, 1)
-        let direction: CGFloat = abs(body.velocity.dx) > 6 ? (body.velocity.dx > 0 ? 1 : -1) : facing
+        let direction: CGFloat = abs(body.velocity.dx) > 6
+            ? (body.velocity.dx > 0 ? 1 : -1)
+            : facing
         let lookAhead = direction * cameraLookAhead * speedFactor
         let rawX = player.position.x + lookAhead
         let minX = visibleHalfWidth
