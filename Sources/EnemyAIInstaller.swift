@@ -24,6 +24,10 @@ enum EnemyAIInstaller {
         // Put the first AI enemy far enough away to visibly demonstrate idle/patrol
         // before the player enters its detection range.
         enemy.position.x = 520
+        enemy.userData = enemy.userData ?? NSMutableDictionary()
+        enemy.userData?["enemyAttackActive"] = NSNumber(value: false)
+        enemy.userData?["enemyAttackID"] = NSNumber(value: 0)
+        enemy.userData?["enemyAttackFacing"] = NSNumber(value: -1.0)
 
         let stateLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
         stateLabel.name = "enemyAIState"
@@ -60,6 +64,7 @@ enum EnemyAIInstaller {
             if node.action(forKey: "death") != nil || node.alpha < 0.98 || node.isHidden {
                 stateLabel.text = "DEAD"
                 attackVisual.alpha = 0
+                node.userData?["enemyAttackActive"] = NSNumber(value: false)
                 return
             }
 
@@ -101,6 +106,10 @@ enum EnemyAIInstaller {
             attackVisual.position = CGPoint(x: facing * 50, y: 2)
             attackVisual.alpha = output.isAttackSwingActive ? 1 : 0
             stateLabel.text = output.state.rawValue.uppercased()
+
+            node.userData?["enemyAttackActive"] = NSNumber(value: output.isAttackSwingActive)
+            node.userData?["enemyAttackID"] = NSNumber(value: output.attackID)
+            node.userData?["enemyAttackFacing"] = NSNumber(value: output.facing)
 
             if output.startedAttack {
                 let pulse = SKAction.sequence([
