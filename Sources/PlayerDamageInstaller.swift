@@ -2,13 +2,12 @@ import SpriteKit
 import UIKit
 
 private final class PlayerDamageRuntime {
-    var health = PlayerHealth(maxHP: 5, invulnerabilityDuration: 0.65)
     var lastElapsed: CGFloat = 0
     var deathPresented = false
 }
 
 enum PlayerDamageInstaller {
-    static func install(on scene: SKScene, inbox: PlayerDamageInbox) {
+    static func install(on scene: SKScene, context: V21RuntimeContext) {
         guard let player = scene.childNode(withName: "player"),
               let camera = scene.camera else {
             return
@@ -17,7 +16,7 @@ enum PlayerDamageInstaller {
         player.removeAction(forKey: "playerDamageRuntime")
         player.removeAction(forKey: "playerIFrameBlink")
         camera.childNode(withName: "playerHealthHUD")?.removeFromParent()
-        inbox.clear()
+        context.damageInbox.clear()
 
         let hud = SKNode()
         hud.name = "playerHealthHUD"
@@ -60,10 +59,11 @@ enum PlayerDamageInstaller {
         let respawnSequence = PlayerRespawnSequence()
 
         func refreshHUD() {
-            let ratio = CGFloat(runtime.health.hp) / CGFloat(runtime.health.maxHP)
+            let health = context.vitals.health
+            let ratio = CGFloat(health.hp) / CGFloat(health.maxHP)
             fill.xScale = max(0, ratio)
-            if runtime.health.isAlive {
-                title.text = "PLAYER  HP \(runtime.health.hp)/\(runtime.health.maxHP)"
+            if health.isAlive {
+                title.text = "PLAYER  HP \(health.hp)/\(health.maxHP)"
                 title.fontColor = UIColor(white: 0.96, alpha: 0.95)
             } else {
                 title.text = "PLAYER  DEAD"
@@ -74,7 +74,8 @@ enum PlayerDamageInstaller {
         func beginDeathAndRespawn() {
             guard !runtime.deathPresented else { return }
             runtime.deathPresented = true
-            inbox.clear()
+            context.damageInbox.clear()
+            context.focus.cancelFocus()
             player.removeAction(forKey: "playerIFrameBlink")
             player.alpha = 0.38
             refreshHUD()
@@ -94,18 +95,18 @@ enum PlayerDamageInstaller {
                 dt = min(max(elapsed - runtime.lastElapsed, 0), 1.0 / 30.0)
             }
             runtime.lastElapsed = elapsed
-            runtime.health.update(Double(dt))
+            context.vitals.update(Double(dt))
 
-            guard runtime.health.isAlive else {
+            guard context.vitals.health.isAlive else {
                 beginDeathAndRespawn()
                 return
             }
 
-            let events = inbox.drain()
+            let events = context.damageInbox.drain()
             guard !events.isEmpty else { return }
 
             for event in events {
-                guard runtime.health.applyHit(
+                guard context.vitals.applyDamage(
                     damage: event.damage,
                     attackID: event.token
                 ) else {
@@ -117,19 +118,13 @@ enum PlayerDamageInstaller {
                 let sourceX = CGFloat(event.sourceX)
                 let knockbackDirection: CGFloat = node.position.x >= sourceX ? 1 : -1
                 let targetX = node.position.x + knockbackDirection * 34
-
-                if let context = V21RuntimeBootstrap.context(from: scene) {
-                    let minX = context.physicalRoomMinX + 18
-                    let maxX = context.physicalRoomMaxX - 18
-                    node.position.x = max(minX, min(maxX, targetX))
-                } else {
-                    let worldMaxX = max(18, scene.size.width * 3.2 - 18)
-                    node.position.x = max(18, min(worldMaxX, targetX))
-                }
+                let minX = context.physicalRoomMinX + 18
+                let maxX = context.physicalRoomMaxX - 18
+                node.position.x = max(minX, min(maxX, targetX))
 
                 node.removeAction(forKey: "playerIFrameBlink")
 
-                if runtime.health.isAlive {
+                if context.vitals.health.isAlive {
                     let blink = SKAction.repeat(
                         SKAction.sequence([
                             SKAction.fadeAlpha(to: 0.34, duration: 0.055),
@@ -157,7 +152,7 @@ enum PlayerDamageInstaller {
             context = V21RuntimeContext()
             scene.userData?["v21RuntimeContext"] = context
         }
-        install(on: scene, inbox: context.damageInbox)
+        install(on: scene, context: context)
     }
 
     private static func startRespawnTransition(
