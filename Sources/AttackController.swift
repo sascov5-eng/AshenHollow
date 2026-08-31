@@ -3,6 +3,7 @@ import Foundation
 struct AttackController {
     private(set) var attackRemaining: TimeInterval = 0
     private(set) var cooldownRemaining: TimeInterval = 0
+    private(set) var currentDirection: PlayerAttackDirection = .horizontal
 
     let attackDuration: TimeInterval = 0.22
     let cooldownDuration: TimeInterval = 0.32
@@ -21,8 +22,14 @@ struct AttackController {
 
     @discardableResult
     mutating func tryStart() -> Bool {
+        tryStart(direction: .horizontal)
+    }
+
+    @discardableResult
+    mutating func tryStart(direction: PlayerAttackDirection) -> Bool {
         guard cooldownRemaining <= 0 else { return false }
 
+        currentDirection = direction
         attackRemaining = attackDuration
         cooldownRemaining = cooldownDuration
         return true
@@ -37,5 +44,6 @@ struct AttackController {
     mutating func reset() {
         attackRemaining = 0
         cooldownRemaining = 0
+        currentDirection = .horizontal
     }
 }
