@@ -14,6 +14,7 @@ struct GameView: UIViewRepresentable {
         let scene = GameScene(size: CGSize(width: 844, height: 390))
         scene.scaleMode = .resizeFill
         skView.presentScene(scene)
+        EnemyAIInstaller.install(on: scene)
 
         return skView
     }
@@ -24,5 +25,6 @@ struct GameView: UIViewRepresentable {
         let scene = GameScene(size: CGSize(width: 844, height: 390))
         scene.scaleMode = .resizeFill
         skView.presentScene(scene)
+        EnemyAIInstaller.install(on: scene)
     }
 }
