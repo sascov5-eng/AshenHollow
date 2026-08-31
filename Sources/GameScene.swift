@@ -7,6 +7,13 @@ final class GameScene: SKScene {
         static let world: UInt32 = 1 << 1
     }
 
+    private enum JumpDiagnosticPhase: String {
+        case idle = "IDLE"
+        case breakContact = "BREAK"
+        case impulse = "IMPULSE"
+        case restore = "RESTORE"
+    }
+
     private let player = SKShapeNode(rectOf: CGSize(width: 42, height: 64), cornerRadius: 10)
     private let playerVisual = SKNode()
     private let gameCamera = SKCameraNode()
@@ -20,7 +27,7 @@ final class GameScene: SKScene {
     private let groundDeceleration: CGFloat = 2400
     private let jumpVelocity: CGFloat = 610
     private let maxFallSpeed: CGFloat = -900
-    private let jumpSeparationNudge: CGFloat = 4
+    private let contactBreakNudge: CGFloat = 4
 
     private var moveInput: CGFloat = 0
     private var targetMoveInput: CGFloat = 0
@@ -44,12 +51,12 @@ final class GameScene: SKScene {
 
     private let debugYLabel = SKLabelNode(fontNamed: "Menlo-Bold")
     private let debugVYLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    private let debugGroundLabel = SKLabelNode(fontNamed: "Menlo-Bold")
     private let debugMaskLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+    private let debugGravityLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+    private let debugPhaseLabel = SKLabelNode(fontNamed: "Menlo-Bold")
     private let debugTouchLabel = SKLabelNode(fontNamed: "Menlo-Bold")
     private let debugRightLabel = SKLabelNode(fontNamed: "Menlo-Bold")
     private let debugSetVYLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    private let debugNudgeLabel = SKLabelNode(fontNamed: "Menlo-Bold")
 
     private var leftTouches = Set<ObjectIdentifier>()
     private var rightTouches = Set<ObjectIdentifier>()
@@ -58,8 +65,8 @@ final class GameScene: SKScene {
     private var touchCounter = 0
     private var rightTouchCounter = 0
     private var lastSetVY: CGFloat = 0
-    private var lastNudge: CGFloat = 0
     private var lastYBeforeJump: CGFloat = 0
+    private var jumpPhase: JumpDiagnosticPhase = .idle
 
     override func didMove(to view: SKView) {
         backgroundColor = UIColor(red: 0.025, green: 0.03, blue: 0.045, alpha: 1)
@@ -220,7 +227,7 @@ final class GameScene: SKScene {
         jumpLabel.verticalAlignmentMode = .center
         jumpLabel.horizontalAlignmentMode = .center
 
-        buildLabel.text = "DIAG JUMP V9"
+        buildLabel.text = "DIAG JUMP V10"
         buildLabel.fontSize = 12
         buildLabel.fontColor = UIColor(white: 1, alpha: 0.82)
         buildLabel.horizontalAlignmentMode = .center
@@ -236,8 +243,8 @@ final class GameScene: SKScene {
         hud.addChild(buildLabel)
 
         let labels = [
-            debugYLabel, debugVYLabel, debugGroundLabel, debugMaskLabel,
-            debugTouchLabel, debugRightLabel, debugSetVYLabel, debugNudgeLabel
+            debugYLabel, debugVYLabel, debugMaskLabel, debugGravityLabel,
+            debugPhaseLabel, debugTouchLabel, debugRightLabel, debugSetVYLabel
         ]
         for label in labels {
             label.fontSize = 11
@@ -269,8 +276,8 @@ final class GameScene: SKScene {
         let debugX = -halfW + 22
         let debugTopY = halfH - 28
         let labels = [
-            debugYLabel, debugVYLabel, debugGroundLabel, debugMaskLabel,
-            debugTouchLabel, debugRightLabel, debugSetVYLabel, debugNudgeLabel
+            debugYLabel, debugVYLabel, debugMaskLabel, debugGravityLabel,
+            debugPhaseLabel, debugTouchLabel, debugRightLabel, debugSetVYLabel
         ]
         for (index, label) in labels.enumerated() {
             label.position = CGPoint(x: debugX, y: debugTopY - CGFloat(index) * 16)
@@ -288,7 +295,7 @@ final class GameScene: SKScene {
             if viewPoint.x >= skView.bounds.midX {
                 rightTouchCounter += 1
                 diagnosticRightTouches.insert(id)
-                directDiagnosticJump()
+                beginTwoPhaseDiagnosticJump()
                 continue
             }
 
@@ -337,25 +344,58 @@ final class GameScene: SKScene {
         releaseTouches(touches)
     }
 
-    private func directDiagnosticJump() {
+    private func beginTwoPhaseDiagnosticJump() {
         guard let body = player.physicsBody else {
             buildLabel.text = "RIGHT TOUCH = NO BODY"
             return
         }
 
         lastYBeforeJump = player.position.y
-        lastNudge = jumpSeparationNudge
+        lastSetVY = 0
 
-        body.collisionBitMask = PhysicsCategory.world
-        player.position.y += jumpSeparationNudge
+        // Phase 1: completely clear the existing floor contact for one physics step.
+        body.collisionBitMask = 0
+        body.affectedByGravity = false
         body.isResting = false
-        lastSetVY = jumpVelocity
-        body.velocity = CGVector(dx: body.velocity.dx, dy: jumpVelocity)
+        body.velocity = CGVector(dx: body.velocity.dx, dy: 0)
+        player.position.y += contactBreakNudge
 
         isGrounded = false
-        buildLabel.text = "RIGHT TOUCH = NUDGE + JUMP"
-        playJumpAnimation()
+        jumpPhase = .breakContact
+        buildLabel.text = "V10 BREAK CONTACT"
         updateDebugHUD()
+    }
+
+    private func advanceDiagnosticJumpAfterPhysics() {
+        guard let body = player.physicsBody else { return }
+
+        switch jumpPhase {
+        case .idle:
+            updateGroundedState()
+
+        case .breakContact:
+            // The old collision manifold has now had one simulation step with MASK=0.
+            // Keep collisions disabled for the impulse frame, restore gravity, then launch.
+            body.isResting = false
+            body.affectedByGravity = true
+            lastSetVY = jumpVelocity
+            body.velocity = CGVector(dx: body.velocity.dx, dy: jumpVelocity)
+            jumpPhase = .impulse
+            buildLabel.text = "V10 IMPULSE"
+            playJumpAnimation()
+
+        case .impulse:
+            // One full physics step has now occurred with no world collision and DY=610.
+            // Restore normal world collisions only after the body had a chance to separate.
+            body.collisionBitMask = PhysicsCategory.world
+            jumpPhase = .restore
+            buildLabel.text = "V10 RESTORE MASK"
+
+        case .restore:
+            jumpPhase = .idle
+            updateGroundedState()
+            buildLabel.text = "V10 NORMAL"
+        }
     }
 
     private func releaseTouches(_ touches: Set<UITouch>) {
@@ -390,7 +430,7 @@ final class GameScene: SKScene {
     }
 
     override func didSimulatePhysics() {
-        updateGroundedState()
+        advanceDiagnosticJumpAfterPhysics()
         updateDebugHUD()
     }
 
@@ -457,23 +497,23 @@ final class GameScene: SKScene {
         guard let body = player.physicsBody else {
             debugYLabel.text = "Y: NO BODY"
             debugVYLabel.text = "LIVEVY: NO BODY"
-            debugGroundLabel.text = "GROUND: n/a"
             debugMaskLabel.text = "MASK: n/a"
+            debugGravityLabel.text = "GRAV: n/a"
+            debugPhaseLabel.text = "PHASE: \(jumpPhase.rawValue)"
             debugTouchLabel.text = "TOUCH: \(touchCounter)"
             debugRightLabel.text = "RIGHT: \(rightTouchCounter)"
             debugSetVYLabel.text = "SETVY: \(Int(lastSetVY.rounded()))"
-            debugNudgeLabel.text = "NUDGE: \(Int(lastNudge))"
             return
         }
 
-        debugYLabel.text = "Y: \(Int(player.position.y.rounded()))"
+        debugYLabel.text = "Y: \(Int(player.position.y.rounded())) FROM:\(Int(lastYBeforeJump.rounded()))"
         debugVYLabel.text = "LIVEVY: \(Int(body.velocity.dy.rounded()))"
-        debugGroundLabel.text = "GROUND: \(isGrounded)"
         debugMaskLabel.text = "MASK: \(body.collisionBitMask)"
+        debugGravityLabel.text = "GRAV: \(body.affectedByGravity)"
+        debugPhaseLabel.text = "PHASE: \(jumpPhase.rawValue)"
         debugTouchLabel.text = "TOUCH: \(touchCounter)"
         debugRightLabel.text = "RIGHT: \(rightTouchCounter)"
         debugSetVYLabel.text = "SETVY: \(Int(lastSetVY.rounded()))"
-        debugNudgeLabel.text = "NUDGE: \(Int(lastNudge)) FROM:\(Int(lastYBeforeJump.rounded()))"
     }
 
     private func updatePlayerVisuals(_ dt: CGFloat) {
