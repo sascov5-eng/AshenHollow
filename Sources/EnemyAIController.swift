@@ -7,6 +7,44 @@ enum EnemyAIState: String {
     case attack
 }
 
+struct EnemyAIProfile: Equatable {
+    let patrolHalfWidth: Double
+    let detectionRange: Double
+    let attackRange: Double
+    let initialIdleDuration: TimeInterval
+    let edgeIdleDuration: TimeInterval
+    let attackDuration: TimeInterval
+    let attackCooldown: TimeInterval
+    let patrolSpeed: Double
+    let chaseSpeed: Double
+
+    static func from(stats: EnemyStats) -> EnemyAIProfile {
+        EnemyAIProfile(
+            patrolHalfWidth: stats.attackKind == .projectile ? 85 : 110,
+            detectionRange: stats.detectionRange,
+            attackRange: stats.attackRange,
+            initialIdleDuration: stats.attackKind == .projectile ? 0.30 : 0.45,
+            edgeIdleDuration: 0.28,
+            attackDuration: stats.attackDuration,
+            attackCooldown: stats.attackCooldown,
+            patrolSpeed: stats.patrolSpeed,
+            chaseSpeed: stats.chaseSpeed
+        )
+    }
+
+    static let v17Baseline = EnemyAIProfile(
+        patrolHalfWidth: 110,
+        detectionRange: 240,
+        attackRange: 62,
+        initialIdleDuration: 0.45,
+        edgeIdleDuration: 0.28,
+        attackDuration: 0.30,
+        attackCooldown: 0.82,
+        patrolSpeed: 72,
+        chaseSpeed: 138
+    )
+}
+
 struct EnemyAIOutput {
     let state: EnemyAIState
     let moveDirection: Double
@@ -18,13 +56,7 @@ struct EnemyAIOutput {
 
 struct EnemyAIController {
     private let spawnX: Double
-    private let patrolHalfWidth: Double = 110
-    private let detectionRange: Double = 240
-    private let attackRange: Double = 62
-    private let initialIdleDuration: TimeInterval = 0.45
-    private let edgeIdleDuration: TimeInterval = 0.28
-    private let attackDuration: TimeInterval = 0.30
-    private let attackCooldown: TimeInterval = 0.82
+    let profile: EnemyAIProfile
 
     private var idleRemaining: TimeInterval
     private var attackRemaining: TimeInterval = 0
@@ -33,12 +65,17 @@ struct EnemyAIController {
     private(set) var attackID: Int = 0
 
     init(spawnX: Double) {
+        self.init(spawnX: spawnX, profile: .v17Baseline)
+    }
+
+    init(spawnX: Double, profile: EnemyAIProfile) {
         self.spawnX = spawnX
-        self.idleRemaining = initialIdleDuration
+        self.profile = profile
+        self.idleRemaining = profile.initialIdleDuration
     }
 
     mutating func reset() {
-        idleRemaining = initialIdleDuration
+        idleRemaining = profile.initialIdleDuration
         attackRemaining = 0
         attackCooldownRemaining = 0
         patrolDirection = 1
@@ -60,12 +97,12 @@ struct EnemyAIController {
         let distance = abs(delta)
         let playerDirection: Double = delta >= 0 ? 1 : -1
 
-        if distance <= attackRange {
+        if distance <= profile.attackRange {
             var startedAttack = false
             if cooldownWasReady {
                 attackID += 1
-                attackRemaining = attackDuration
-                attackCooldownRemaining = attackCooldown
+                attackRemaining = profile.attackDuration
+                attackCooldownRemaining = profile.attackCooldown
                 startedAttack = true
             }
 
@@ -79,7 +116,7 @@ struct EnemyAIController {
             )
         }
 
-        if distance <= detectionRange {
+        if distance <= profile.detectionRange {
             idleRemaining = 0
             return EnemyAIOutput(
                 state: .chase,
@@ -105,12 +142,12 @@ struct EnemyAIController {
             }
         }
 
-        let leftEdge = spawnX - patrolHalfWidth
-        let rightEdge = spawnX + patrolHalfWidth
+        let leftEdge = spawnX - profile.patrolHalfWidth
+        let rightEdge = spawnX + profile.patrolHalfWidth
 
         if enemyX >= rightEdge && patrolDirection > 0 {
             patrolDirection = -1
-            idleRemaining = edgeIdleDuration
+            idleRemaining = profile.edgeIdleDuration
             return EnemyAIOutput(
                 state: .idle,
                 moveDirection: 0,
@@ -123,7 +160,7 @@ struct EnemyAIController {
 
         if enemyX <= leftEdge && patrolDirection < 0 {
             patrolDirection = 1
-            idleRemaining = edgeIdleDuration
+            idleRemaining = profile.edgeIdleDuration
             return EnemyAIOutput(
                 state: .idle,
                 moveDirection: 0,
