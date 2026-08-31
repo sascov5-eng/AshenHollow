@@ -8,6 +8,14 @@ final class GameScene: SKScene {
         case jump
     }
 
+    private enum PlayerAnimationState {
+        case idle
+        case run
+        case jumpRise
+        case fall
+        case land
+    }
+
     // MARK: - Scene graph
 
     private let worldRoot = SKNode()
@@ -53,6 +61,13 @@ final class GameScene: SKScene {
     private var moveInput: CGFloat = 0
     private var smoothedMoveInput: CGFloat = 0
     private var facing: CGFloat = 1
+
+    // MARK: - Temporary player animation state machine
+
+    private var animationState: PlayerAnimationState = .idle
+    private var animationStateTime: CGFloat = 0
+    private var landedThisFrame = false
+    private let landingStateDuration: CGFloat = 0.11
 
     // MARK: - Camera
 
@@ -116,6 +131,9 @@ final class GameScene: SKScene {
         moveInput = 0
         smoothedMoveInput = 0
         facing = 1
+        animationState = .idle
+        animationStateTime = 0
+        landedThisFrame = false
     }
 
     // MARK: - World
@@ -193,6 +211,10 @@ final class GameScene: SKScene {
         playerVisual.fillColor = UIColor(red: 0.78, green: 0.82, blue: 0.9, alpha: 1)
         playerVisual.strokeColor = UIColor(white: 1, alpha: 0.22)
         playerVisual.lineWidth = 2
+        playerVisual.position = .zero
+        playerVisual.xScale = 1
+        playerVisual.yScale = 1
+        playerVisual.zRotation = 0
 
         let face = SKShapeNode(rectOf: CGSize(width: 20, height: 6), cornerRadius: 3)
         face.fillColor = UIColor(red: 0.48, green: 0.82, blue: 1, alpha: 1)
@@ -201,11 +223,26 @@ final class GameScene: SKScene {
         face.name = "face"
         playerVisual.addChild(face)
 
+        let leftFoot = SKShapeNode(rectOf: CGSize(width: 14, height: 8), cornerRadius: 3)
+        leftFoot.fillColor = UIColor(red: 0.48, green: 0.54, blue: 0.66, alpha: 1)
+        leftFoot.strokeColor = .clear
+        leftFoot.position = CGPoint(x: -9, y: -30)
+        leftFoot.name = "leftFoot"
+        playerVisual.addChild(leftFoot)
+
+        let rightFoot = SKShapeNode(rectOf: CGSize(width: 14, height: 8), cornerRadius: 3)
+        rightFoot.fillColor = UIColor(red: 0.48, green: 0.54, blue: 0.66, alpha: 1)
+        rightFoot.strokeColor = .clear
+        rightFoot.position = CGPoint(x: 9, y: -30)
+        rightFoot.name = "rightFoot"
+        playerVisual.addChild(rightFoot)
+
         let glow = SKShapeNode(ellipseOf: CGSize(width: 54, height: 14))
         glow.fillColor = UIColor(red: 0.35, green: 0.7, blue: 1, alpha: 0.1)
         glow.strokeColor = .clear
         glow.position = CGPoint(x: 0, y: -35)
         glow.zPosition = -1
+        glow.name = "glow"
         playerVisual.addChild(glow)
 
         player.addChild(playerVisual)
@@ -433,6 +470,7 @@ final class GameScene: SKScene {
         velocity.dy = max(maxFallSpeed, velocity.dy + gravity * CGFloat(dt))
         integrateKinematicMotion(CGFloat(dt))
 
+        updateAnimationState(CGFloat(dt))
         updatePlayerVisuals(CGFloat(dt))
         updateCamera(CGFloat(dt))
     }
@@ -455,7 +493,6 @@ final class GameScene: SKScene {
         coyoteRemaining = 0
         jumpBufferRemaining = 0
         bufferedJumpWasReleased = false
-        playJumpAnimation()
     }
 
     private func updateHorizontalVelocity(_ dt: CGFloat) {
@@ -491,11 +528,17 @@ final class GameScene: SKScene {
         let stepDX = totalDX / CGFloat(steps)
         let stepDY = totalDY / CGFloat(steps)
 
+        let wasGrounded = isGrounded
+        landedThisFrame = false
         isGrounded = false
 
         for _ in 0..<steps {
             moveHorizontally(stepDX)
             moveVertically(stepDY)
+        }
+
+        if isGrounded && !wasGrounded {
+            landedThisFrame = true
         }
 
         let halfW = colliderSize.width * 0.5
@@ -569,45 +612,128 @@ final class GameScene: SKScene {
         gameCamera.position.y += (targetY - gameCamera.position.y) * min(1, 3.2 * dt)
     }
 
+    private func updateAnimationState(_ dt: CGFloat) {
+        animationStateTime += dt
+
+        let nextState: PlayerAnimationState
+        if landedThisFrame {
+            nextState = .land
+        } else if !isGrounded {
+            nextState = velocity.dy > 18 ? .jumpRise : .fall
+        } else if abs(velocity.dx) > 20 || abs(moveInput) > 0.01 {
+            nextState = .run
+        } else {
+            nextState = .idle
+        }
+
+        if animationState == .land,
+           animationStateTime < landingStateDuration,
+           isGrounded,
+           nextState != .jumpRise,
+           nextState != .fall {
+            return
+        }
+
+        if nextState != animationState {
+            animationState = nextState
+            animationStateTime = 0
+        }
+    }
+
     private func updatePlayerVisuals(_ dt: CGFloat) {
         let speedRatio = min(abs(velocity.dx) / runSpeed, 1)
-        let verticalRatio = max(-1, min(1, velocity.dy / jumpVelocity))
-        let targetRotation = -facing * speedRatio * 0.055
-        playerVisual.zRotation += (targetRotation - playerVisual.zRotation) * min(1, dt * 11)
 
         var targetScaleX: CGFloat = 1
         var targetScaleY: CGFloat = 1
+        var targetVisualY: CGFloat = 0
+        var targetRotation: CGFloat = 0
 
-        if !isGrounded {
-            if verticalRatio > 0 {
-                targetScaleX = 0.96
-                targetScaleY = 1.045
-            } else {
-                targetScaleX = 1.035
-                targetScaleY = 0.97
-            }
-        } else if speedRatio > 0.08 {
-            let wave = sin(CGFloat(lastUpdateTime) * 11) * 0.015 * speedRatio
-            targetScaleX += wave
-            targetScaleY -= wave
+        var leftFootTarget = CGPoint(x: -9, y: -30)
+        var rightFootTarget = CGPoint(x: 9, y: -30)
+        var leftFootRotation: CGFloat = 0
+        var rightFootRotation: CGFloat = 0
+
+        switch animationState {
+        case .idle:
+            let breath = sin(animationStateTime * 3.2)
+            targetScaleX = 1 - breath * 0.006
+            targetScaleY = 1 + breath * 0.012
+            targetVisualY = breath * 0.8
+
+        case .run:
+            let phase = animationStateTime * (10 + 6 * speedRatio)
+            let stride = sin(phase)
+            let bounce = abs(sin(phase))
+            targetScaleX = 1 + bounce * 0.012
+            targetScaleY = 1 - bounce * 0.014
+            targetVisualY = bounce * 1.8
+            targetRotation = -facing * 0.045 * speedRatio
+
+            leftFootTarget.y = -30 + max(0, stride) * 3
+            rightFootTarget.y = -30 + max(0, -stride) * 3
+            leftFootTarget.x = -9 + stride * 2.4
+            rightFootTarget.x = 9 - stride * 2.4
+            leftFootRotation = stride * 0.32
+            rightFootRotation = -stride * 0.32
+
+        case .jumpRise:
+            targetScaleX = 0.94
+            targetScaleY = 1.06
+            targetVisualY = 1.5
+            targetRotation = -facing * 0.025
+            leftFootTarget = CGPoint(x: -7, y: -27)
+            rightFootTarget = CGPoint(x: 7, y: -27)
+            leftFootRotation = 0.18
+            rightFootRotation = -0.18
+
+        case .fall:
+            targetScaleX = 1.04
+            targetScaleY = 0.97
+            targetVisualY = -0.6
+            targetRotation = facing * 0.018
+            leftFootTarget = CGPoint(x: -10, y: -31)
+            rightFootTarget = CGPoint(x: 10, y: -31)
+            leftFootRotation = -0.08
+            rightFootRotation = 0.08
+
+        case .land:
+            let progress = min(animationStateTime / landingStateDuration, 1)
+            let squash = 1 - progress
+            targetScaleX = 1 + 0.10 * squash
+            targetScaleY = 1 - 0.12 * squash
+            targetVisualY = -2.2 * squash
+            leftFootTarget = CGPoint(x: -10, y: -29)
+            rightFootTarget = CGPoint(x: 10, y: -29)
         }
 
-        playerVisual.xScale += (targetScaleX - playerVisual.xScale) * min(1, dt * 12)
-        playerVisual.yScale += (targetScaleY - playerVisual.yScale) * min(1, dt * 12)
+        let bodyBlend = min(1, dt * 15)
+        playerVisual.xScale += (targetScaleX - playerVisual.xScale) * bodyBlend
+        playerVisual.yScale += (targetScaleY - playerVisual.yScale) * bodyBlend
+        playerVisual.position.y += (targetVisualY - playerVisual.position.y) * bodyBlend
+        playerVisual.zRotation += (targetRotation - playerVisual.zRotation) * min(1, dt * 13)
 
         if let face = playerVisual.childNode(withName: "face") {
             let targetX = facing * 5
             face.position.x += (targetX - face.position.x) * min(1, dt * 16)
         }
-    }
 
-    private func playJumpAnimation() {
-        playerVisual.removeAction(forKey: "jump")
-        let stretch = SKAction.scaleX(to: 0.93, y: 1.08, duration: 0.06)
-        stretch.timingMode = .easeOut
-        let settle = SKAction.scale(to: 1, duration: 0.11)
-        settle.timingMode = .easeOut
-        playerVisual.run(SKAction.sequence([stretch, settle]), withKey: "jump")
+        if let leftFoot = playerVisual.childNode(withName: "leftFoot") {
+            leftFoot.position.x += (leftFootTarget.x - leftFoot.position.x) * min(1, dt * 18)
+            leftFoot.position.y += (leftFootTarget.y - leftFoot.position.y) * min(1, dt * 18)
+            leftFoot.zRotation += (leftFootRotation - leftFoot.zRotation) * min(1, dt * 18)
+        }
+
+        if let rightFoot = playerVisual.childNode(withName: "rightFoot") {
+            rightFoot.position.x += (rightFootTarget.x - rightFoot.position.x) * min(1, dt * 18)
+            rightFoot.position.y += (rightFootTarget.y - rightFoot.position.y) * min(1, dt * 18)
+            rightFoot.zRotation += (rightFootRotation - rightFoot.zRotation) * min(1, dt * 18)
+        }
+
+        if let glow = playerVisual.childNode(withName: "glow") {
+            let targetGlowScale: CGFloat = isGrounded ? 1 : 0.78
+            glow.xScale += (targetGlowScale - glow.xScale) * min(1, dt * 10)
+            glow.alpha += ((isGrounded ? 1 : 0.45) - glow.alpha) * min(1, dt * 10)
+        }
     }
 
     private func refreshButtonVisuals() {
