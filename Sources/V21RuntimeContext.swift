@@ -20,6 +20,8 @@ final class RoomCombatStatus: NSObject {
 final class V21RuntimeContext: NSObject {
     let damageInbox = PlayerDamageInbox()
     let combatStatus = RoomCombatStatus()
+    let vitals = PlayerVitalState()
+    var focus = EssenceFocusController()
 
     var activeRoomID: RoomID = .approach
     var physicalRoomMinX: CGFloat = 0
@@ -34,7 +36,7 @@ enum V21RuntimeBootstrap {
         let context = V21RuntimeContext()
         scene.userData?["v21RuntimeContext"] = context
 
-        PlayerDamageInstaller.install(on: scene, inbox: context.damageInbox)
+        PlayerDamageInstaller.install(on: scene, context: context)
         RoomRuntimeInstaller.install(on: scene, context: context)
     }
 
