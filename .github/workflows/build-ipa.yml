@@ -22,8 +22,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          xcrun swiftc Tests/AttackControllerTests.swift Sources/AttackController.swift -o build/AttackControllerTests
+          xcrun swiftc Tests/AttackControllerTests.swift Sources/AttackController.swift Sources/PlayerAttackDirection.swift -o build/AttackControllerTests
           ./build/AttackControllerTests
+      - name: Test player attack direction
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/PlayerAttackDirectionTests.swift Sources/PlayerAttackDirection.swift -o build/PlayerAttackDirectionTests
+          ./build/PlayerAttackDirectionTests
       - name: Test enemy health
         shell: bash
         run: |
