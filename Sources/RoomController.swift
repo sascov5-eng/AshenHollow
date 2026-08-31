@@ -47,6 +47,7 @@ struct RoomExit: Equatable {
 
 struct RoomDefinition: Equatable {
     let id: RoomID
+    let worldOrigin: RoomPoint
     let bounds: RoomRect
     let playerSpawn: RoomPoint
     let platforms: [RoomPlatform]
@@ -70,6 +71,14 @@ struct RoomController {
 
     func room(_ id: RoomID) -> RoomDefinition? {
         definitions[id]
+    }
+
+    func worldPoint(_ localPoint: RoomPoint, in roomID: RoomID) -> RoomPoint? {
+        guard let room = definitions[roomID] else { return nil }
+        return RoomPoint(
+            x: room.worldOrigin.x + localPoint.x,
+            y: room.worldOrigin.y + localPoint.y
+        )
     }
 
     func transitionIfNeeded(
@@ -116,6 +125,7 @@ struct RoomController {
     static func makeV20TestLayout() -> RoomController {
         let roomA = RoomDefinition(
             id: .entry,
+            worldOrigin: RoomPoint(x: 0, y: 0),
             bounds: RoomRect(x: 0, y: 0, width: 1200, height: 560),
             playerSpawn: RoomPoint(x: 120, y: 130),
             platforms: [
@@ -144,6 +154,7 @@ struct RoomController {
 
         let roomB = RoomDefinition(
             id: .combat,
+            worldOrigin: RoomPoint(x: 1200, y: 0),
             bounds: RoomRect(x: 0, y: 0, width: 1200, height: 560),
             playerSpawn: RoomPoint(x: 110, y: 130),
             platforms: [
