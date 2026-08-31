@@ -11,6 +11,7 @@ func expectAI(_ condition: @autoclosure () -> Bool, _ message: String) {
 @main
 struct EnemyAIControllerTests {
     static func main() {
+        // Compatibility baseline: Grunt-equivalent V17 behavior remains unchanged.
         var ai = EnemyAIController(spawnX: 500)
 
         var output = ai.update(dt: 0.10, enemyX: 500, playerX: 1000)
@@ -41,6 +42,19 @@ struct EnemyAIControllerTests {
         output = ai.update(dt: 0.02, enemyX: 500, playerX: 455)
         expectAI(output.startedAttack, "enemy attacks again after cooldown")
         expectAI(output.attackID == firstAttackID + 1, "new attack receives a new id")
+
+        let gruntProfile = EnemyAIProfile.from(stats: EnemyArchetype.grunt.stats)
+        let runnerProfile = EnemyAIProfile.from(stats: EnemyArchetype.runner.stats)
+        let heavyProfile = EnemyAIProfile.from(stats: EnemyArchetype.heavy.stats)
+
+        expectAI(runnerProfile.detectionRange > gruntProfile.detectionRange, "Runner detects farther than Grunt")
+        expectAI(runnerProfile.chaseSpeed > gruntProfile.chaseSpeed, "Runner profile is faster than Grunt")
+        expectAI(heavyProfile.chaseSpeed < gruntProfile.chaseSpeed, "Heavy profile is slower than Grunt")
+        expectAI(heavyProfile.attackCooldown > gruntProfile.attackCooldown, "Heavy attacks less frequently")
+
+        var runnerAI = EnemyAIController(spawnX: 500, profile: runnerProfile)
+        output = runnerAI.update(dt: 0.50, enemyX: 500, playerX: 790)
+        expectAI(output.state == .chase, "Runner uses its wider detection range")
 
         print("EnemyAIControllerTests: PASS")
     }
