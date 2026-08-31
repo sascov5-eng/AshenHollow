@@ -132,7 +132,7 @@ struct RoomController {
                     size: RoomSize(width: 230, height: 28)
                 )
             ],
-            enemySpawn: RoomPoint(x: 760, y: 130),
+            enemySpawn: nil,
             exits: [
                 RoomExit(
                     trigger: RoomRect(x: 1128, y: 100, width: 72, height: 160),
