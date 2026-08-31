@@ -16,6 +16,7 @@ struct GameView: UIViewRepresentable {
         skView.presentScene(scene)
         EnemyAIInstaller.install(on: scene)
         PlayerDamageInstaller.install(on: scene)
+        RoomRuntimeInstaller.install(on: scene)
 
         return skView
     }
@@ -28,5 +29,6 @@ struct GameView: UIViewRepresentable {
         skView.presentScene(scene)
         EnemyAIInstaller.install(on: scene)
         PlayerDamageInstaller.install(on: scene)
+        RoomRuntimeInstaller.install(on: scene)
     }
 }
