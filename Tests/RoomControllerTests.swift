@@ -22,6 +22,8 @@ struct RoomControllerTestsMain {
         expectRoom(roomB!.bounds.width == 1200, "Room B width is 1200")
         expectRoom(roomA!.platforms[1].center != roomB!.platforms[1].center, "rooms use different geometry")
         expectRoom(roomB!.platforms[1].center == RoomPoint(x: 120, y: 175), "Room B first raised platform matches stable backing geometry")
+        expectRoom(roomA!.enemySpawn == nil, "Room A is traversal-only so combat state cannot be consumed before Room B")
+        expectRoom(roomB!.enemySpawn == RoomPoint(x: 760, y: 130), "Room B owns the V20 combat enemy")
 
         let noTransition = controller.transitionIfNeeded(
             playerCenter: RoomPoint(x: 500, y: 130),
