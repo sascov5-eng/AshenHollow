@@ -21,9 +21,6 @@ enum EnemyAIInstaller {
         enemy.childNode(withName: "enemyAIState")?.removeFromParent()
         enemy.childNode(withName: "enemyAttackVisual")?.removeFromParent()
 
-        // Put the first AI enemy far enough away to visibly demonstrate idle/patrol
-        // before the player enters its detection range.
-        enemy.position.x = 520
         enemy.userData = enemy.userData ?? NSMutableDictionary()
         enemy.userData?["enemyAttackActive"] = NSNumber(value: false)
         enemy.userData?["enemyAttackID"] = NSNumber(value: 0)
@@ -76,8 +73,6 @@ enum EnemyAIInstaller {
             }
             runtime.lastElapsed = elapsed
 
-            // Ignore the player while they are well above/below the ground enemy.
-            // This keeps the first AI from swinging at a player on an overhead platform.
             let verticalDistance = abs(livePlayer.position.y - node.position.y)
             let sensedPlayerX: CGFloat = verticalDistance <= 90
                 ? livePlayer.position.x
