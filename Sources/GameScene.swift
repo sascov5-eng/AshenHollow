@@ -49,12 +49,19 @@ final class GameScene: SKScene {
     private let debugVYLabel = SKLabelNode(fontNamed: "Menlo-Bold")
     private let debugDynamicLabel = SKLabelNode(fontNamed: "Menlo-Bold")
     private let debugGravityLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+    private let debugRestLabel = SKLabelNode(fontNamed: "Menlo-Bold")
     private let debugTouchLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+    private let debugRightLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+    private let debugSetVYLabel = SKLabelNode(fontNamed: "Menlo-Bold")
 
     private var leftTouches = Set<ObjectIdentifier>()
     private var rightTouches = Set<ObjectIdentifier>()
     private var diagnosticRightTouches = Set<ObjectIdentifier>()
+
     private var touchCounter = 0
+    private var rightTouchCounter = 0
+    private var lastSetVY: CGFloat = 0
+    private var lastRestBeforeJump = false
 
     override func didMove(to view: SKView) {
         backgroundColor = UIColor(red: 0.025, green: 0.03, blue: 0.045, alpha: 1)
@@ -226,7 +233,7 @@ final class GameScene: SKScene {
         jumpLabel.verticalAlignmentMode = .center
         jumpLabel.horizontalAlignmentMode = .center
 
-        buildLabel.text = "DIAG JUMP V6"
+        buildLabel.text = "DIAG JUMP V7"
         buildLabel.fontSize = 12
         buildLabel.fontColor = UIColor(white: 1, alpha: 0.82)
         buildLabel.horizontalAlignmentMode = .center
@@ -246,7 +253,10 @@ final class GameScene: SKScene {
             debugVYLabel,
             debugDynamicLabel,
             debugGravityLabel,
-            debugTouchLabel
+            debugRestLabel,
+            debugTouchLabel,
+            debugRightLabel,
+            debugSetVYLabel
         ]
 
         for label in debugLabels {
@@ -282,7 +292,10 @@ final class GameScene: SKScene {
         debugVYLabel.position = CGPoint(x: debugX, y: debugTopY - 16)
         debugDynamicLabel.position = CGPoint(x: debugX, y: debugTopY - 32)
         debugGravityLabel.position = CGPoint(x: debugX, y: debugTopY - 48)
-        debugTouchLabel.position = CGPoint(x: debugX, y: debugTopY - 64)
+        debugRestLabel.position = CGPoint(x: debugX, y: debugTopY - 64)
+        debugTouchLabel.position = CGPoint(x: debugX, y: debugTopY - 80)
+        debugRightLabel.position = CGPoint(x: debugX, y: debugTopY - 96)
+        debugSetVYLabel.position = CGPoint(x: debugX, y: debugTopY - 112)
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -292,11 +305,9 @@ final class GameScene: SKScene {
             let id = ObjectIdentifier(touch)
             touchCounter += 1
 
-            // DIAG JUMP V6: use the real SKView coordinate space. Any new touch
-            // on the right half bypasses HUD hit-testing, grounded state,
-            // coyote time, jump buffering and variable-height jump logic.
             let viewPoint = touch.location(in: skView)
             if viewPoint.x >= skView.bounds.midX {
+                rightTouchCounter += 1
                 diagnosticRightTouches.insert(id)
                 directDiagnosticJump()
                 continue
@@ -353,10 +364,15 @@ final class GameScene: SKScene {
             return
         }
 
+        lastRestBeforeJump = body.isResting
+        body.isResting = false
+        lastSetVY = jumpVelocity
         body.velocity = CGVector(dx: body.velocity.dx, dy: jumpVelocity)
+
         isGrounded = false
         buildLabel.text = "RIGHT TOUCH = JUMP"
         playJumpAnimation()
+        updateDebugHUD()
     }
 
     private func releaseTouches(_ touches: Set<UITouch>) {
@@ -385,8 +401,6 @@ final class GameScene: SKScene {
             : min(currentTime - lastUpdateTime, 1.0 / 20.0)
         lastUpdateTime = currentTime
 
-        // Deliberately no normal jump state machine in V6. This keeps the
-        // diagnostic touch impulse isolated from coyote/buffer/jump-cut code.
         updateHorizontal(CGFloat(dt))
         updatePlayerVisuals(CGFloat(dt))
         updateCamera(CGFloat(dt))
@@ -419,7 +433,6 @@ final class GameScene: SKScene {
             vx = 0
         }
 
-        // Preserve vertical velocity. Horizontal movement must never zero DY.
         let vy = max(body.velocity.dy, maxFallSpeed)
         body.velocity = CGVector(dx: vx, dy: vy)
 
@@ -465,18 +478,24 @@ final class GameScene: SKScene {
     private func updateDebugHUD() {
         guard let body = player.physicsBody else {
             debugYLabel.text = "Y: NO BODY"
-            debugVYLabel.text = "VY: NO BODY"
+            debugVYLabel.text = "LIVEVY: NO BODY"
             debugDynamicLabel.text = "DYN: false"
             debugGravityLabel.text = "G: false"
+            debugRestLabel.text = "REST: n/a"
             debugTouchLabel.text = "TOUCH: \(touchCounter)"
+            debugRightLabel.text = "RIGHT: \(rightTouchCounter)"
+            debugSetVYLabel.text = "SETVY: \(Int(lastSetVY.rounded()))"
             return
         }
 
         debugYLabel.text = "Y: \(Int(player.position.y.rounded()))"
-        debugVYLabel.text = "VY: \(Int(body.velocity.dy.rounded()))"
+        debugVYLabel.text = "LIVEVY: \(Int(body.velocity.dy.rounded()))"
         debugDynamicLabel.text = "DYN: \(body.isDynamic)"
         debugGravityLabel.text = "G: \(body.affectedByGravity)"
+        debugRestLabel.text = "REST: \(body.isResting) BEFORE:\(lastRestBeforeJump)"
         debugTouchLabel.text = "TOUCH: \(touchCounter)"
+        debugRightLabel.text = "RIGHT: \(rightTouchCounter)"
+        debugSetVYLabel.text = "SETVY: \(Int(lastSetVY.rounded()))"
     }
 
     private func updatePlayerVisuals(_ dt: CGFloat) {
