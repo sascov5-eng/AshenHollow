@@ -18,6 +18,12 @@ jobs:
           set -euo pipefail
           rm -rf build
           mkdir -p build/Payload/AshenHollow.app
+      - name: Test attack controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/AttackControllerTests.swift Sources/AttackController.swift -o build/AttackControllerTests
+          ./build/AttackControllerTests
       - name: Compile Ashen Hollow
         shell: bash
         run: |
