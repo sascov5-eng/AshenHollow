@@ -52,7 +52,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          xcrun swiftc Tests/RoomControllerTests.swift Sources/RoomController.swift -o build/RoomControllerTests
+          xcrun swiftc Tests/RoomControllerTests.swift Sources/RoomController.swift Sources/EnemyArchetype.swift -o build/RoomControllerTests
           ./build/RoomControllerTests
       - name: Test enemy archetypes
         shell: bash
