@@ -54,6 +54,18 @@ jobs:
           set -euo pipefail
           xcrun swiftc Tests/RoomControllerTests.swift Sources/RoomController.swift -o build/RoomControllerTests
           ./build/RoomControllerTests
+      - name: Test enemy archetypes
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/EnemyArchetypeTests.swift Sources/EnemyArchetype.swift -o build/EnemyArchetypeTests
+          ./build/EnemyArchetypeTests
+      - name: Test enemy runtime model
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/EnemyRuntimeModelTests.swift Sources/EnemyArchetype.swift Sources/EnemyRuntimeModel.swift -o build/EnemyRuntimeModelTests
+          ./build/EnemyRuntimeModelTests
       - name: Compile Ashen Hollow
         shell: bash
         run: |
