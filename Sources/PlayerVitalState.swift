@@ -21,6 +21,11 @@ final class PlayerVitalState {
         return true
     }
 
+    @discardableResult
+    func heal(_ amount: Int) -> Bool {
+        health.heal(amount)
+    }
+
     func update(_ dt: TimeInterval) {
         health.update(dt)
     }
