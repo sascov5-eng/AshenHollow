@@ -57,6 +57,7 @@ enum PlayerDamageInstaller {
         camera.addChild(hud)
 
         let runtime = PlayerDamageRuntime()
+        let respawnSequence = PlayerRespawnSequence()
 
         func refreshHUD() {
             let ratio = CGFloat(runtime.health.hp) / CGFloat(runtime.health.maxHP)
@@ -68,6 +69,18 @@ enum PlayerDamageInstaller {
                 title.text = "PLAYER  DEAD"
                 title.fontColor = UIColor(red: 1.0, green: 0.32, blue: 0.28, alpha: 1)
             }
+        }
+
+        func beginDeathAndRespawn() {
+            guard !runtime.deathPresented else { return }
+            runtime.deathPresented = true
+            player.removeAction(forKey: "playerIFrameBlink")
+            player.alpha = 0.38
+            refreshHUD()
+            startRespawnTransition(
+                from: scene,
+                sequence: respawnSequence
+            )
         }
 
         refreshHUD()
@@ -83,12 +96,7 @@ enum PlayerDamageInstaller {
             runtime.health.update(Double(dt))
 
             guard runtime.health.isAlive else {
-                if !runtime.deathPresented {
-                    runtime.deathPresented = true
-                    node.removeAction(forKey: "playerIFrameBlink")
-                    node.run(SKAction.fadeAlpha(to: 0.38, duration: 0.16), withKey: "playerDeadVisual")
-                    refreshHUD()
-                }
+                beginDeathAndRespawn()
                 return
             }
 
@@ -128,8 +136,7 @@ enum PlayerDamageInstaller {
 
             refreshHUD()
 
-            // V18 keeps knockback isolated from the stable kinematic controller:
-            // a short horizontal shove is applied only when a hit is accepted.
+            // Keep knockback isolated from the stable kinematic controller.
             let knockbackDirection: CGFloat = node.position.x >= enemy.position.x ? 1 : -1
             let targetX = node.position.x + knockbackDirection * 34
             let worldMaxX = max(18, scene.size.width * 3.2 - 18)
@@ -147,12 +154,56 @@ enum PlayerDamageInstaller {
                 )
                 node.run(blink, withKey: "playerIFrameBlink")
             } else {
-                runtime.deathPresented = true
-                node.run(SKAction.fadeAlpha(to: 0.38, duration: 0.16), withKey: "playerDeadVisual")
-                refreshHUD()
+                beginDeathAndRespawn()
             }
         }
 
         player.run(damageRuntime, withKey: "playerDamageRuntime")
+    }
+
+    private static func startRespawnTransition(
+        from scene: SKScene,
+        sequence: PlayerRespawnSequence
+    ) {
+        guard let skView = scene.view else { return }
+
+        // Freeze the entire old scene immediately. This guarantees that no stale
+        // touch, velocity, AI state, or attack can continue during the death pause.
+        scene.isPaused = true
+        skView.isUserInteractionEnabled = false
+
+        let blackout = UIView(frame: skView.bounds)
+        blackout.backgroundColor = .black
+        blackout.alpha = 0
+        blackout.isUserInteractionEnabled = true
+        blackout.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        skView.addSubview(blackout)
+        skView.bringSubviewToFront(blackout)
+
+        UIView.animate(
+            withDuration: sequence.fadeOutDuration,
+            delay: sequence.deathPauseDuration,
+            options: [.curveEaseInOut, .beginFromCurrentState]
+        ) {
+            blackout.alpha = 1
+        } completion: { _ in
+            let replacement = GameScene(size: scene.size)
+            replacement.scaleMode = scene.scaleMode
+            skView.presentScene(replacement)
+
+            EnemyAIInstaller.install(on: replacement)
+            PlayerDamageInstaller.install(on: replacement)
+
+            UIView.animate(
+                withDuration: sequence.fadeInDuration,
+                delay: sequence.blackHoldDuration,
+                options: [.curveEaseInOut, .beginFromCurrentState]
+            ) {
+                blackout.alpha = 0
+            } completion: { _ in
+                blackout.removeFromSuperview()
+                skView.isUserInteractionEnabled = true
+            }
+        }
     }
 }
