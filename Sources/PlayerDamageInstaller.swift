@@ -8,9 +8,8 @@ private final class PlayerDamageRuntime {
 }
 
 enum PlayerDamageInstaller {
-    static func install(on scene: SKScene) {
+    static func install(on scene: SKScene, inbox: PlayerDamageInbox) {
         guard let player = scene.childNode(withName: "player"),
-              let enemy = scene.childNode(withName: "testEnemy"),
               let camera = scene.camera else {
             return
         }
@@ -18,6 +17,7 @@ enum PlayerDamageInstaller {
         player.removeAction(forKey: "playerDamageRuntime")
         player.removeAction(forKey: "playerIFrameBlink")
         camera.childNode(withName: "playerHealthHUD")?.removeFromParent()
+        inbox.clear()
 
         let hud = SKNode()
         hud.name = "playerHealthHUD"
@@ -74,6 +74,7 @@ enum PlayerDamageInstaller {
         func beginDeathAndRespawn() {
             guard !runtime.deathPresented else { return }
             runtime.deathPresented = true
+            inbox.clear()
             player.removeAction(forKey: "playerIFrameBlink")
             player.alpha = 0.38
             refreshHUD()
@@ -100,64 +101,63 @@ enum PlayerDamageInstaller {
                 return
             }
 
-            guard enemy.action(forKey: "death") == nil,
-                  enemy.alpha >= 0.98,
-                  !enemy.isHidden,
-                  let userData = enemy.userData,
-                  (userData["enemyAttackActive"] as? NSNumber)?.boolValue == true,
-                  let attackID = (userData["enemyAttackID"] as? NSNumber)?.intValue,
-                  attackID > 0,
-                  let facingNumber = userData["enemyAttackFacing"] as? NSNumber else {
-                return
-            }
+            let events = inbox.drain()
+            guard !events.isEmpty else { return }
 
-            let facing: CGFloat = facingNumber.doubleValue >= 0 ? 1 : -1
-            let attackCenter = CGPoint(
-                x: enemy.position.x + facing * 50,
-                y: enemy.position.y + 2
-            )
-            let attackRect = CGRect(
-                x: attackCenter.x - 29,
-                y: attackCenter.y - 19,
-                width: 58,
-                height: 38
-            )
-            let playerRect = CGRect(
-                x: node.position.x - 18,
-                y: node.position.y - 30,
-                width: 36,
-                height: 60
-            )
+            for event in events {
+                guard runtime.health.applyHit(
+                    damage: event.damage,
+                    attackID: event.token
+                ) else {
+                    continue
+                }
 
-            guard attackRect.intersects(playerRect),
-                  runtime.health.applyHit(damage: 1, attackID: attackID) else {
-                return
-            }
+                refreshHUD()
 
-            refreshHUD()
+                let sourceX = CGFloat(event.sourceX)
+                let knockbackDirection: CGFloat = node.position.x >= sourceX ? 1 : -1
+                let targetX = node.position.x + knockbackDirection * 34
 
-            let knockbackDirection: CGFloat = node.position.x >= enemy.position.x ? 1 : -1
-            let targetX = node.position.x + knockbackDirection * 34
-            let worldMaxX = max(18, scene.size.width * 3.2 - 18)
-            node.position.x = max(18, min(worldMaxX, targetX))
+                if let context = V21RuntimeBootstrap.context(from: scene) {
+                    let minX = context.physicalRoomMinX + 18
+                    let maxX = context.physicalRoomMaxX - 18
+                    node.position.x = max(minX, min(maxX, targetX))
+                } else {
+                    let worldMaxX = max(18, scene.size.width * 3.2 - 18)
+                    node.position.x = max(18, min(worldMaxX, targetX))
+                }
 
-            node.removeAction(forKey: "playerIFrameBlink")
+                node.removeAction(forKey: "playerIFrameBlink")
 
-            if runtime.health.isAlive {
-                let blink = SKAction.repeat(
-                    SKAction.sequence([
-                        SKAction.fadeAlpha(to: 0.34, duration: 0.055),
-                        SKAction.fadeAlpha(to: 1.0, duration: 0.055)
-                    ]),
-                    count: 4
-                )
-                node.run(blink, withKey: "playerIFrameBlink")
-            } else {
-                beginDeathAndRespawn()
+                if runtime.health.isAlive {
+                    let blink = SKAction.repeat(
+                        SKAction.sequence([
+                            SKAction.fadeAlpha(to: 0.34, duration: 0.055),
+                            SKAction.fadeAlpha(to: 1.0, duration: 0.055)
+                        ]),
+                        count: 4
+                    )
+                    node.run(blink, withKey: "playerIFrameBlink")
+                } else {
+                    beginDeathAndRespawn()
+                    break
+                }
             }
         }
 
         player.run(damageRuntime, withKey: "playerDamageRuntime")
+    }
+
+    static func install(on scene: SKScene) {
+        scene.userData = scene.userData ?? NSMutableDictionary()
+        let context: V21RuntimeContext
+        if let existing = V21RuntimeBootstrap.context(from: scene) {
+            context = existing
+        } else {
+            context = V21RuntimeContext()
+            scene.userData?["v21RuntimeContext"] = context
+        }
+        install(on: scene, inbox: context.damageInbox)
     }
 
     private static func startRespawnTransition(
@@ -187,10 +187,7 @@ enum PlayerDamageInstaller {
             let replacement = GameScene(size: scene.size)
             replacement.scaleMode = scene.scaleMode
             skView.presentScene(replacement)
-
-            EnemyAIInstaller.install(on: replacement)
-            PlayerDamageInstaller.install(on: replacement)
-            RoomRuntimeInstaller.install(on: replacement)
+            V21RuntimeBootstrap.install(on: replacement)
 
             UIView.animate(
                 withDuration: sequence.fadeInDuration,
