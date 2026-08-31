@@ -34,7 +34,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          xcrun swiftc Tests/EnemyAIControllerTests.swift Sources/EnemyAIController.swift -o build/EnemyAIControllerTests
+          xcrun swiftc Tests/EnemyAIControllerTests.swift Sources/EnemyAIController.swift Sources/EnemyArchetype.swift -o build/EnemyAIControllerTests
           ./build/EnemyAIControllerTests
       - name: Test player health
         shell: bash
