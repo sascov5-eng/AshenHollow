@@ -56,6 +56,7 @@ final class GameScene: SKScene {
     private var worldWidth: CGFloat = 2600
 
     private var velocity = CGVector.zero
+    private var pendingCombatImpulses: [CombatImpulse] = []
     private var isGrounded = false
     private var lastUpdateTime: TimeInterval = 0
 
@@ -91,6 +92,10 @@ final class GameScene: SKScene {
     private var attackSequenceID = 0
     private let attackHitboxSize = CGSize(width: 62, height: 42)
     private let attackHitboxOffset: CGFloat = 50
+
+    func enqueueCombatImpulse(_ impulse: CombatImpulse) {
+        pendingCombatImpulses.append(impulse)
+    }
 
     // MARK: - Test enemy
 
@@ -172,6 +177,7 @@ final class GameScene: SKScene {
 
         platformRects.removeAll(keepingCapacity: true)
         activeControls.removeAll(keepingCapacity: true)
+        pendingCombatImpulses.removeAll(keepingCapacity: true)
         velocity = .zero
         isGrounded = true
         lastUpdateTime = 0
@@ -676,6 +682,7 @@ final class GameScene: SKScene {
         updateTimers(dt)
         consumeBufferedJumpIfPossible()
         updateHorizontalVelocity(CGFloat(dt))
+        applyPendingCombatImpulses()
 
         velocity.dy = max(maxFallSpeed, velocity.dy + gravity * CGFloat(dt))
         integrateKinematicMotion(CGFloat(dt))
@@ -686,6 +693,23 @@ final class GameScene: SKScene {
         updatePlayerVisuals(CGFloat(dt))
         updateAttackHitboxVisual()
         updateCamera(CGFloat(dt))
+    }
+
+    private func applyPendingCombatImpulses() {
+        guard !pendingCombatImpulses.isEmpty else { return }
+
+        for impulse in pendingCombatImpulses {
+            if let velocityX = impulse.velocityX {
+                velocity.dx = CGFloat(velocityX)
+            }
+            if let velocityY = impulse.velocityY {
+                velocity.dy = CGFloat(velocityY)
+                isGrounded = false
+                coyoteRemaining = 0
+            }
+        }
+
+        pendingCombatImpulses.removeAll(keepingCapacity: true)
     }
 
     private func updateTimers(_ dt: TimeInterval) {
