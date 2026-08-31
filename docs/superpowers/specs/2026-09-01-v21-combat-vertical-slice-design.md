@@ -4,12 +4,7 @@
 
 Approved design direction for the first full combat-focused vertical slice on top of the user-confirmed V20 room architecture.
 
-V20 remains the stable baseline for:
-- player movement and jump;
-- camera follow;
-- melee input and player attack timing;
-- player HP, i-frames, death, and respawn;
-- room-local coordinates, world origins, transitions, and camera clamping.
+V20 remains the stable baseline for player movement/jump, camera follow, melee input/timing, player HP/i-frames/death/respawn, and room-local coordinates/world origins/transitions/camera clamping.
 
 V21 expands enemy/combat/content architecture without intentionally changing the feel of the confirmed player controller.
 
@@ -26,6 +21,7 @@ Build the first complete playable level that demonstrates:
 - one multi-pattern boss with a second phase;
 - a boss health bar;
 - six-room linear level progression;
+- combat-gated exits;
 - a final exit that unlocks only after the boss dies;
 - full compatibility with V19/V20 player death and level restart.
 
@@ -58,9 +54,9 @@ Each live enemy instance owns independent:
 - attack cooldown/timing;
 - facing;
 - hit-stun timer;
-- knockback velocity/state;
+- knockback state;
 - death state;
-- SpriteKit node and presentation state.
+- SpriteKit node/presentation state.
 
 Room definitions own arrays of enemy spawns rather than one optional enemy spawn.
 
@@ -74,13 +70,13 @@ Rejected alternatives:
    - Does not scale to mixed groups or bosses.
 
 2. Separate independent classes for every enemy type.
-   - More object-oriented isolation.
-   - Too much duplication while the four normal archetypes still share most of their locomotion/combat lifecycle.
+   - More isolation.
+   - Too much duplication while the four normal archetypes still share most locomotion/combat lifecycle behavior.
 
 3. Shared enemy runtime + archetype data — chosen.
    - Normal enemies reuse one lifecycle.
    - Archetypes vary stats and AI parameters.
-   - Boss can use the same health/damage/hit-reaction contract while owning a dedicated pattern controller.
+   - Boss reuses common health/damage/hurt-reaction contracts while owning a dedicated pattern controller.
 
 ---
 
@@ -123,19 +119,37 @@ Approximate initial tuning:
 | Grunt | 0.16 s | medium | baseline reaction |
 | Runner | 0.18 s | strong | light enemy, displaced easily |
 | Heavy | 0.10 s | weak | high poise / mass |
-| Ranged | 0.16 s | strong | punishes player for reaching it, but is easy to displace |
-| Boss | 0.06 s | very weak | visible reaction without allowing stun-lock |
+| Ranged | 0.16 s | strong | easy to displace once reached |
+| Boss | 0.06 s | very weak | feedback only; not a normal interrupt loop |
 
 Exact pixel velocities/distances are implementation tuning values and may be adjusted during real-device testing while preserving the relative ordering above.
 
-### Hit-stun rules
+### Normal-enemy hit-stun rules
 
-During hit-stun, an enemy:
+During hit-stun, a normal enemy:
 - cannot start a new attack;
 - cannot deal damage from a melee hitbox that was active before the player's accepted hit;
 - does not run normal patrol/chase movement;
 - may still be damaged by a later distinct player attack after normal player attack cooldown permits;
 - remains subject to room boundaries.
+
+### Boss poise / interruption rule
+
+The boss is intentionally different from normal mobs.
+
+A player hit on Ash Warden:
+- always applies valid player damage;
+- always gives a brief visual/physical reaction;
+- may apply the very short boss hit-stun value;
+- does **not** cancel a boss attack once that attack has entered its committed phase.
+
+Examples:
+- a Slash still in early telegraph may be briefly flinched before commitment if the pattern controller explicitly allows it;
+- a committed Slash damage window is not deleted by every player tap;
+- a committed Charge continues to its recovery/end condition;
+- an already-fired Volley projectile remains independent of later boss hit reactions.
+
+This prevents the boss from being permanently interrupted by the player's normal melee cadence while still making hits feel responsive.
 
 ### Knockback rules
 
@@ -193,7 +207,7 @@ Initial stats/behavior:
 - damage: 2 player HP
 - slow movement
 - slower attack cadence
-- visibly longer wind-up / telegraph than Grunt
+- visibly longer wind-up/telegraph than Grunt
 - larger body/hurtbox than normal enemies
 - weak knockback response
 - short hit-stun compared with lighter enemies
@@ -234,14 +248,17 @@ A projectile owns:
 Projectile rules:
 - travels horizontally in V21;
 - does not home after spawning;
-- damages the player only if its hitbox intersects the player's damage rectangle and player i-frame rules accept the hit;
-- is removed after an accepted player hit;
+- checks collision against the player's damage rectangle;
+- if player i-frames allow damage, applies its configured damage through the same central player-health authority;
+- on **any physical collision with the player**, the projectile is consumed even if player i-frames reject the damage;
 - is removed when lifetime expires;
 - is removed when it leaves the active room bounds;
 - is removed during room transitions and full death/respawn reset;
 - cannot damage its owner or other enemies.
 
-The system should be reusable by the boss volley pattern.
+Consuming the projectile on contact prevents a projectile from sitting inside an invulnerable player and dealing delayed damage when i-frames expire.
+
+The system should be reusable by the boss Volley pattern.
 
 ---
 
@@ -273,6 +290,7 @@ Initial target:
 - dedicated boss HP bar at the top of the camera HUD
 - very weak knockback response
 - very short hit-stun reaction
+- committed attacks resist interruption
 - cannot be stun-locked by normal player melee cadence
 
 ### Boss arena rule
@@ -289,8 +307,9 @@ After boss death:
 ### Boss Pattern A — Heavy Slash
 
 Sequence:
-- approach or face player at valid melee distance;
-- clear visible telegraph/wind-up;
+- approach/face player at valid melee distance;
+- clear telegraph/wind-up;
+- enter committed state;
 - wide melee damage window;
 - 2 player HP damage;
 - recovery period.
@@ -301,19 +320,19 @@ The player must have time to disengage after recognizing the telegraph.
 
 Sequence:
 - short preparation/telegraph;
-- commit to a horizontal charge;
-- travel through a meaningful portion of the arena;
+- lock charge direction and enter committed state;
+- horizontal charge through a meaningful portion of the arena;
 - attack/contact window during charge;
 - recovery after charge ends or reaches arena constraint.
 
-Charge direction is locked at the start of the committed movement rather than perfectly tracking the player throughout the charge.
+Charge direction is locked at commitment rather than perfectly tracking the player throughout the charge.
 
 ### Boss Pattern C — Ash Volley
 
 Sequence:
 - stop/telegraph;
-- fire multiple horizontal projectiles;
-- use the shared projectile runtime;
+- enter committed firing state;
+- fire multiple horizontal projectiles through the shared projectile runtime;
 - recover before choosing another pattern.
 
 The initial V21 volley should be readable and avoid unavoidable projectile overlap.
@@ -328,7 +347,7 @@ Phase 2 changes:
 - denser Ash Volley pattern;
 - visible presentation change such as stronger glow/color shift.
 
-Phase transition should not restore HP.
+Phase transition does not restore HP.
 
 The boss remains one entity; Phase 2 is a state change, not a new boss spawn.
 
@@ -410,9 +429,9 @@ After boss death:
 
 ## Room Transition Rules
 
-Normal room exits in V21 should be gated by the room's combat status when the room contains required enemies.
+Normal room exits in V21 are gated by combat status when the room contains required enemies.
 
-Recommended V21 rule:
+V21 rule:
 - traversal-only Room 1 exit is immediately usable;
 - combat-room exit is locked while any required enemy instance in that room remains alive;
 - when all required enemies die, exit becomes active;
@@ -420,7 +439,7 @@ Recommended V21 rule:
 
 This prevents the player from simply sprinting through combat rooms without engaging the V21 systems.
 
-If an exit is locked, it should be visibly different from an active exit.
+If an exit is locked, it is visibly different from an active exit.
 
 ---
 
@@ -429,7 +448,7 @@ If an exit is locked, it should be visibly different from an active exit.
 V21 does not require persistent cleared-room state across player death.
 
 During a normal forward room transition:
-- old room enemy nodes/actions/projectiles are removed or deactivated;
+- old room enemy nodes/actions/projectiles are removed/deactivated;
 - next room's enemy instances are spawned fresh from its `EnemySpawn` data;
 - player HP is preserved;
 - player controller state is neutralized in the same deterministic way V20 already uses for room entry.
@@ -446,7 +465,7 @@ Current-room checkpoints are deferred.
 
 ## Visual Communication in Temporary Art
 
-V21 still uses temporary generated/procedural SpriteKit shapes, but enemy archetypes must be visually distinguishable even without final art.
+V21 still uses temporary procedural SpriteKit shapes, but enemy archetypes must be visually distinguishable even without final art.
 
 Minimum differentiation:
 - Grunt: baseline size/color;
@@ -457,7 +476,7 @@ Minimum differentiation:
 
 Hit reaction must have visible feedback in addition to movement:
 - short flash, scale/pulse, or equivalent;
-- boss phase 2 visibly changes presentation.
+- boss Phase 2 visibly changes presentation.
 
 The exact final art style is out of scope.
 
@@ -499,19 +518,19 @@ Likely V21 production files:
   - SpriteKit creation/update/removal of normal enemy instances.
 
 - `Sources/ProjectileController.swift`
-  - pure projectile lifetime/movement contract.
+  - pure projectile lifetime/movement/contact contract.
 
 - `Sources/ProjectileRuntimeInstaller.swift`
   - SpriteKit projectile presentation/collision integration.
 
 - `Sources/BossController.swift`
-  - pure Ash Warden state/pattern/phase decisions where practical.
+  - pure Ash Warden pattern/phase/commit decisions where practical.
 
 - `Sources/BossRuntimeInstaller.swift`
   - SpriteKit boss presentation, boss HP HUD, attacks and phase presentation.
 
 - `Sources/RoomController.swift`
-  - evolve `RoomDefinition` from one `enemySpawn` to `[EnemySpawn]`, add combat gating/final exit metadata.
+  - evolve `RoomDefinition` from one `enemySpawn` to `[EnemySpawn]`; add combat gating/final exit metadata.
 
 - `Sources/RoomRuntimeInstaller.swift`
   - spawn/despawn groups, lock/unlock exits, level progression.
@@ -525,9 +544,9 @@ The exact split may be adjusted during implementation if a smaller boundary is c
 
 ## TDD / Verification Strategy
 
-V21 must preserve all existing tests and add focused pure tests before production implementation.
+V21 preserves all existing tests and adds focused pure tests before production implementation.
 
-Minimum new test coverage:
+Minimum new coverage:
 
 ### Enemy archetypes
 - Grunt HP/damage/speed family;
@@ -542,23 +561,25 @@ Minimum new test coverage:
 
 ### Hit reaction
 - accepted player hit starts archetype hit-stun;
-- current enemy attack damage window is cancelled on interruptible normal enemies;
+- current normal-enemy attack damage window is cancelled on accepted hit;
 - hit-stun blocks starting a new normal attack;
 - knockback direction is away from player;
 - Heavy knockback is weaker than Grunt;
 - Runner/Ranged knockback is stronger than Grunt;
+- boss committed pattern is not cancelled by ordinary melee hit reaction;
 - boss hit reaction does not create long stun-lock windows.
 
 ### Projectile contract
 - projectile advances horizontally;
 - projectile expires after lifetime;
-- projectile deactivates after accepted player hit;
-- projectile cannot remain active outside room bounds.
+- projectile is consumed on player contact whether or not i-frames accept damage;
+- projectile deactivates outside room bounds.
 
 ### Boss
-- starts in phase 1;
-- transitions to phase 2 at HP <= 10;
+- starts in Phase 1;
+- transitions to Phase 2 at HP <= 10;
 - phase transition does not heal;
+- committed attack state survives ordinary boss hit reaction;
 - boss death is detectable;
 - final exit unlock condition requires boss dead.
 
@@ -574,18 +595,14 @@ Minimum new test coverage:
 ### Regression
 Existing tests continue to cover:
 - player attack controller;
-- legacy enemy health semantics as long as still retained/reused;
 - player health/i-frames;
 - player respawn sequence;
-- room coordinate/camera contracts.
+- room coordinate/camera contracts;
+- existing AI behavior where retained/reused.
 
-Final CI must run:
-- all unit tests;
-- full arm64 iOS 15 compile;
-- unsigned IPA packaging;
-- artifact upload.
+Final CI must run all unit tests, full arm64 iOS 15 compile, unsigned IPA packaging, and artifact upload.
 
-Final artifact must be verified against the exact final HEAD and pass ZIP integrity checks before it is presented for device testing.
+Final artifact must be verified against exact final HEAD and pass ZIP integrity checks before device testing.
 
 ---
 
@@ -601,14 +618,15 @@ V21 becomes stable only after device confirmation that:
 6. Runner feels materially faster than Grunt.
 7. Heavy survives more hits, is harder to knock back, and its 2-HP attack is readable.
 8. Ranged fires working projectiles and can be pressured/knocked back in melee.
-9. Mixed Room 5 combat functions without instant multi-hit deletion through overlapping damage sources.
-10. Boss HP bar works.
-11. Ash Warden uses Slash, Charge and Volley patterns.
-12. Boss visibly enters Phase 2 at half HP.
-13. Boss cannot be permanently stun-locked by normal player melee.
-14. Boss death unlocks the final exit.
-15. Final exit produces `LEVEL COMPLETE`.
-16. Player death anywhere in the level still performs the V19 fade/respawn cycle and restarts at Room 1 with 5/5 HP.
+9. Projectiles do not linger on an invulnerable player after contact.
+10. Mixed Room 5 combat functions without instant multi-hit deletion through overlapping damage sources.
+11. Boss HP bar works.
+12. Ash Warden uses Slash, Charge and Volley patterns.
+13. Boss visibly enters Phase 2 at half HP.
+14. Boss cannot be permanently stun-locked or have every committed attack cancelled by normal player melee.
+15. Boss death unlocks the final exit.
+16. Final exit produces `LEVEL COMPLETE`.
+17. Player death anywhere in the level still performs the V19 fade/respawn cycle and restarts at Room 1 with 5/5 HP.
 
 ---
 
