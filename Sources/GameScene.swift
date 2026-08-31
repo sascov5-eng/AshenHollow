@@ -28,10 +28,10 @@ final class GameScene: SKScene {
     private var velocity = CGVector.zero
     private var isGrounded = false
     private var lastUpdateTime: TimeInterval = 0
-    private var frameCollisionCount = 0
 
     private let gravity: CGFloat = -1700
     private let jumpVelocity: CGFloat = 610
+    private let jumpReleaseVelocity: CGFloat = 285
     private let maxFallSpeed: CGFloat = -900
     private let runSpeed: CGFloat = 315
     private let groundAcceleration: CGFloat = 1900
@@ -42,8 +42,9 @@ final class GameScene: SKScene {
     private let jumpBufferDuration: TimeInterval = 0.12
     private var coyoteRemaining: TimeInterval = 0
     private var jumpBufferRemaining: TimeInterval = 0
+    private var bufferedJumpWasReleased = false
 
-    // Small substeps prevent tunnelling through thin platforms even after a long frame.
+    // Small motion substeps keep the controller from tunnelling through platforms.
     private let maxMotionPerSubstep: CGFloat = 5
 
     // MARK: - Input
@@ -52,8 +53,6 @@ final class GameScene: SKScene {
     private var moveInput: CGFloat = 0
     private var smoothedMoveInput: CGFloat = 0
     private var facing: CGFloat = 1
-    private var touchCounter = 0
-    private var jumpCounter = 0
 
     // MARK: - Camera
 
@@ -71,16 +70,6 @@ final class GameScene: SKScene {
     private let leftArrow = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private let rightArrow = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private let jumpLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
-    private let buildLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
-
-    private let debugModeLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    private let debugYLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    private let debugVYLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    private let debugGroundLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    private let debugCoyoteLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    private let debugBufferLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    private let debugCollisionLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    private let debugTouchLabel = SKLabelNode(fontNamed: "Menlo-Bold")
 
     // MARK: - Lifecycle
 
@@ -97,7 +86,6 @@ final class GameScene: SKScene {
         buildCamera()
         buildHUD()
         layoutHUD()
-        updateDebugHUD()
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -124,12 +112,10 @@ final class GameScene: SKScene {
         lastUpdateTime = 0
         coyoteRemaining = coyoteDuration
         jumpBufferRemaining = 0
+        bufferedJumpWasReleased = false
         moveInput = 0
         smoothedMoveInput = 0
         facing = 1
-        frameCollisionCount = 0
-        touchCounter = 0
-        jumpCounter = 0
     }
 
     // MARK: - World
@@ -168,8 +154,10 @@ final class GameScene: SKScene {
             worldRoot.addChild(pillar)
         }
 
-        // All collision geometry is stored explicitly as scene-space rectangles.
-        addPlatform(center: CGPoint(x: worldWidth * 0.5, y: 60), size: CGSize(width: worldWidth, height: 80))
+        addPlatform(
+            center: CGPoint(x: worldWidth * 0.5, y: 60),
+            size: CGSize(width: worldWidth, height: 80)
+        )
         addPlatform(center: CGPoint(x: 520, y: 190), size: CGSize(width: 260, height: 28))
         addPlatform(center: CGPoint(x: 900, y: 255), size: CGSize(width: 230, height: 28))
         addPlatform(center: CGPoint(x: 1320, y: 175), size: CGSize(width: 310, height: 28))
@@ -177,13 +165,14 @@ final class GameScene: SKScene {
     }
 
     private func addPlatform(center: CGPoint, size: CGSize) {
-        let rect = CGRect(
-            x: center.x - size.width * 0.5,
-            y: center.y - size.height * 0.5,
-            width: size.width,
-            height: size.height
+        platformRects.append(
+            CGRect(
+                x: center.x - size.width * 0.5,
+                y: center.y - size.height * 0.5,
+                width: size.width,
+                height: size.height
+            )
         )
-        platformRects.append(rect)
 
         let visual = SKShapeNode(rectOf: size, cornerRadius: 7)
         visual.fillColor = UIColor(red: 0.15, green: 0.17, blue: 0.21, alpha: 1)
@@ -273,12 +262,6 @@ final class GameScene: SKScene {
         jumpLabel.verticalAlignmentMode = .center
         jumpLabel.horizontalAlignmentMode = .center
 
-        buildLabel.text = "RESET CONTROLLER V12"
-        buildLabel.fontSize = 12
-        buildLabel.fontColor = UIColor(white: 1, alpha: 0.86)
-        buildLabel.horizontalAlignmentMode = .center
-        buildLabel.verticalAlignmentMode = .center
-
         leftButton.addChild(leftArrow)
         rightButton.addChild(rightArrow)
         jumpButton.addChild(jumpLabel)
@@ -286,26 +269,6 @@ final class GameScene: SKScene {
         hud.addChild(leftButton)
         hud.addChild(rightButton)
         hud.addChild(jumpButton)
-        hud.addChild(buildLabel)
-
-        let labels = [
-            debugModeLabel,
-            debugYLabel,
-            debugVYLabel,
-            debugGroundLabel,
-            debugCoyoteLabel,
-            debugBufferLabel,
-            debugCollisionLabel,
-            debugTouchLabel
-        ]
-
-        for label in labels {
-            label.fontSize = 11
-            label.fontColor = UIColor(white: 1, alpha: 0.86)
-            label.horizontalAlignmentMode = .left
-            label.verticalAlignmentMode = .center
-            hud.addChild(label)
-        }
     }
 
     private func configureButton(_ button: SKShapeNode) {
@@ -313,8 +276,8 @@ final class GameScene: SKScene {
         button.removeAllActions()
         button.setScale(1)
         button.alpha = 1
-        button.fillColor = UIColor(white: 0.12, alpha: 0.62)
-        button.strokeColor = UIColor(white: 1, alpha: 0.16)
+        button.fillColor = UIColor(white: 0.12, alpha: 0.52)
+        button.strokeColor = UIColor(white: 1, alpha: 0.14)
         button.lineWidth = 2
     }
 
@@ -323,40 +286,22 @@ final class GameScene: SKScene {
 
         let halfW = size.width * 0.5
         let halfH = size.height * 0.5
-        let bottomPadding = max(72, size.height * 0.14)
+        let bottomPadding = max(76, size.height * 0.15)
 
-        leftButton.position = CGPoint(x: -halfW + 82, y: -halfH + bottomPadding)
-        rightButton.position = CGPoint(x: -halfW + 182, y: -halfH + bottomPadding)
-        jumpButton.position = CGPoint(x: halfW - 92, y: -halfH + bottomPadding + 4)
-        buildLabel.position = CGPoint(x: 0, y: halfH - 28)
-
-        let debugX = -halfW + 18
-        let debugTopY = halfH - 28
-        let labels = [
-            debugModeLabel,
-            debugYLabel,
-            debugVYLabel,
-            debugGroundLabel,
-            debugCoyoteLabel,
-            debugBufferLabel,
-            debugCollisionLabel,
-            debugTouchLabel
-        ]
-
-        for (index, label) in labels.enumerated() {
-            label.position = CGPoint(x: debugX, y: debugTopY - CGFloat(index) * 16)
-        }
+        leftButton.position = CGPoint(x: -halfW + 86, y: -halfH + bottomPadding)
+        rightButton.position = CGPoint(x: -halfW + 190, y: -halfH + bottomPadding)
+        jumpButton.position = CGPoint(x: halfW - 96, y: -halfH + bottomPadding + 4)
     }
 
-    // MARK: - Touch input in SKView coordinates
+    // MARK: - Touch input
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let skView = view else { return }
 
         for touch in touches {
-            touchCounter += 1
             let id = ObjectIdentifier(touch)
             let control = classifyControl(at: touch.location(in: skView), in: skView)
+
             if let control {
                 activeControls[id] = control
                 if control == .jump {
@@ -376,6 +321,10 @@ final class GameScene: SKScene {
             let id = ObjectIdentifier(touch)
             let oldControl = activeControls[id]
             let newControl = classifyControl(at: touch.location(in: skView), in: skView)
+
+            if oldControl == .jump && newControl != .jump {
+                releaseJump()
+            }
 
             if let newControl {
                 activeControls[id] = newControl
@@ -401,8 +350,13 @@ final class GameScene: SKScene {
 
     private func releaseTouches(_ touches: Set<UITouch>) {
         for touch in touches {
-            activeControls.removeValue(forKey: ObjectIdentifier(touch))
+            let id = ObjectIdentifier(touch)
+            if activeControls[id] == .jump {
+                releaseJump()
+            }
+            activeControls.removeValue(forKey: id)
         }
+
         recalculateMoveInput()
         refreshButtonVisuals()
     }
@@ -410,27 +364,43 @@ final class GameScene: SKScene {
     private func classifyControl(at point: CGPoint, in skView: SKView) -> Control? {
         let width = skView.bounds.width
         let height = skView.bounds.height
+        guard width > 0, height > 0 else { return nil }
 
-        // Intentionally generous view-space hit zones for real iPhone testing.
-        // Any touch on the right 45% of the physical SKView is jump.
-        if point.x >= width * 0.55 {
-            return .jump
+        // UIKit/SKView touch coordinates have their origin at the top-left.
+        // These centers match the visible HUD buttons but keep a slightly larger hit area.
+        let controlY = height * 0.80
+        let candidates: [(control: Control, center: CGPoint, radius: CGFloat)] = [
+            (.left, CGPoint(x: width * 0.10, y: controlY), 70),
+            (.right, CGPoint(x: width * 0.225, y: controlY), 70),
+            (.jump, CGPoint(x: width * 0.89, y: controlY), 82)
+        ]
+
+        var best: (control: Control, distance: CGFloat)?
+
+        for candidate in candidates {
+            let distance = hypot(point.x - candidate.center.x, point.y - candidate.center.y)
+            guard distance <= candidate.radius else { continue }
+
+            if best == nil || distance < best!.distance {
+                best = (candidate.control, distance)
+            }
         }
 
-        // Movement lives in the lower-left half.
-        guard point.y >= height * 0.45 else { return nil }
-        if point.x < width * 0.24 {
-            return .left
-        }
-        if point.x < width * 0.50 {
-            return .right
-        }
-        return nil
+        return best?.control
     }
 
     private func queueJump() {
-        jumpCounter += 1
         jumpBufferRemaining = jumpBufferDuration
+        bufferedJumpWasReleased = false
+    }
+
+    private func releaseJump() {
+        if velocity.dy > jumpReleaseVelocity {
+            velocity.dy = jumpReleaseVelocity
+        } else if jumpBufferRemaining > 0 {
+            // A very fast tap that begins and ends between frames still produces a short hop.
+            bufferedJumpWasReleased = true
+        }
     }
 
     private func recalculateMoveInput() {
@@ -452,7 +422,6 @@ final class GameScene: SKScene {
         if lastUpdateTime == 0 {
             dt = 1.0 / 60.0
         } else {
-            // Clamp pauses/hitches; substeps handle the remaining movement safely.
             dt = min(max(currentTime - lastUpdateTime, 0), 1.0 / 30.0)
         }
         lastUpdateTime = currentTime
@@ -466,7 +435,6 @@ final class GameScene: SKScene {
 
         updatePlayerVisuals(CGFloat(dt))
         updateCamera(CGFloat(dt))
-        updateDebugHUD()
     }
 
     private func updateTimers(_ dt: TimeInterval) {
@@ -482,11 +450,11 @@ final class GameScene: SKScene {
     private func consumeBufferedJumpIfPossible() {
         guard jumpBufferRemaining > 0, coyoteRemaining > 0 else { return }
 
-        velocity.dy = jumpVelocity
+        velocity.dy = bufferedJumpWasReleased ? jumpReleaseVelocity : jumpVelocity
         isGrounded = false
         coyoteRemaining = 0
         jumpBufferRemaining = 0
-        buildLabel.text = "JUMP OK #\(jumpCounter)"
+        bufferedJumpWasReleased = false
         playJumpAnimation()
     }
 
@@ -523,7 +491,6 @@ final class GameScene: SKScene {
         let stepDX = totalDX / CGFloat(steps)
         let stepDY = totalDY / CGFloat(steps)
 
-        frameCollisionCount = 0
         isGrounded = false
 
         for _ in 0..<steps {
@@ -531,7 +498,6 @@ final class GameScene: SKScene {
             moveVertically(stepDY)
         }
 
-        // Hard world bounds are part of the kinematic controller, not SpriteKit physics.
         let halfW = colliderSize.width * 0.5
         if player.position.x < halfW {
             player.position.x = halfW
@@ -557,14 +523,11 @@ final class GameScene: SKScene {
                 player.position.x = platform.maxX + halfW
             }
             velocity.dx = 0
-            frameCollisionCount += 1
             rect = playerRect
         }
     }
 
     private func moveVertically(_ amount: CGFloat) {
-        // Even when amount is zero we do not need a ground probe: gravity creates a
-        // small downward step every grounded frame, which is resolved here.
         guard amount != 0 else { return }
 
         player.position.y += amount
@@ -580,7 +543,6 @@ final class GameScene: SKScene {
                 player.position.y = platform.minY - halfH
                 velocity.dy = 0
             }
-            frameCollisionCount += 1
             rect = playerRect
         }
     }
@@ -649,13 +611,9 @@ final class GameScene: SKScene {
     }
 
     private func refreshButtonVisuals() {
-        let leftPressed = activeControls.values.contains(.left)
-        let rightPressed = activeControls.values.contains(.right)
-        let jumpPressed = activeControls.values.contains(.jump)
-
-        animateButton(leftButton, pressed: leftPressed)
-        animateButton(rightButton, pressed: rightPressed)
-        animateButton(jumpButton, pressed: jumpPressed)
+        animateButton(leftButton, pressed: activeControls.values.contains(.left))
+        animateButton(rightButton, pressed: activeControls.values.contains(.right))
+        animateButton(jumpButton, pressed: activeControls.values.contains(.jump))
     }
 
     private func animateButton(_ button: SKShapeNode, pressed: Bool) {
@@ -668,17 +626,6 @@ final class GameScene: SKScene {
         ])
         action.timingMode = .easeOut
         button.run(action, withKey: "press")
-    }
-
-    private func updateDebugHUD() {
-        debugModeLabel.text = "MODE: KINEMATIC / NO SKPHYSICS"
-        debugYLabel.text = "Y: \(Int(player.position.y.rounded()))"
-        debugVYLabel.text = "VY: \(Int(velocity.dy.rounded()))"
-        debugGroundLabel.text = "GROUND: \(isGrounded)"
-        debugCoyoteLabel.text = String(format: "COYOTE: %.3f", coyoteRemaining)
-        debugBufferLabel.text = String(format: "BUFFER: %.3f", jumpBufferRemaining)
-        debugCollisionLabel.text = "COLLISIONS: \(frameCollisionCount)"
-        debugTouchLabel.text = "TOUCH: \(touchCounter) JUMPS: \(jumpCounter)"
     }
 
     private func moveToward(_ current: CGFloat, _ target: CGFloat, maxDelta: CGFloat) -> CGFloat {
