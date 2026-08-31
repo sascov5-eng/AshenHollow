@@ -124,12 +124,12 @@ struct RoomController {
                     size: RoomSize(width: 1200, height: 80)
                 ),
                 RoomPlatform(
-                    center: RoomPoint(x: 430, y: 190),
-                    size: RoomSize(width: 230, height: 28)
+                    center: RoomPoint(x: 520, y: 190),
+                    size: RoomSize(width: 260, height: 28)
                 ),
                 RoomPlatform(
-                    center: RoomPoint(x: 820, y: 245),
-                    size: RoomSize(width: 210, height: 28)
+                    center: RoomPoint(x: 900, y: 255),
+                    size: RoomSize(width: 230, height: 28)
                 )
             ],
             enemySpawn: RoomPoint(x: 760, y: 130),
@@ -144,27 +144,23 @@ struct RoomController {
 
         let roomB = RoomDefinition(
             id: .combat,
-            bounds: RoomRect(x: 0, y: 0, width: 1380, height: 560),
+            bounds: RoomRect(x: 0, y: 0, width: 1200, height: 560),
             playerSpawn: RoomPoint(x: 110, y: 130),
             platforms: [
                 RoomPlatform(
-                    center: RoomPoint(x: 690, y: 60),
-                    size: RoomSize(width: 1380, height: 80)
+                    center: RoomPoint(x: 600, y: 60),
+                    size: RoomSize(width: 1200, height: 80)
                 ),
                 RoomPlatform(
-                    center: RoomPoint(x: 355, y: 245),
-                    size: RoomSize(width: 190, height: 28)
+                    center: RoomPoint(x: 120, y: 175),
+                    size: RoomSize(width: 310, height: 28)
                 ),
                 RoomPlatform(
-                    center: RoomPoint(x: 675, y: 175),
-                    size: RoomSize(width: 270, height: 28)
-                ),
-                RoomPlatform(
-                    center: RoomPoint(x: 1070, y: 270),
-                    size: RoomSize(width: 220, height: 28)
+                    center: RoomPoint(x: 540, y: 235),
+                    size: RoomSize(width: 260, height: 28)
                 )
             ],
-            enemySpawn: RoomPoint(x: 860, y: 130),
+            enemySpawn: RoomPoint(x: 760, y: 130),
             exits: []
         )
 
