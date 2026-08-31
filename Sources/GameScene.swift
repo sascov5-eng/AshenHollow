@@ -57,7 +57,7 @@ final class GameScene: SKScene {
 
     // MARK: - Camera
 
-    private let cameraZoom: CGFloat = 1.0
+    private let cameraZoom: CGFloat = 1.55
     private let cameraFollowSpeed: CGFloat = 5.0
     private let cameraLookAhead: CGFloat = 95
     private let cameraVerticalOffset: CGFloat = 12
