@@ -24,6 +24,12 @@ struct RoomControllerTestsMain {
         expectRoom(roomB!.platforms[1].center == RoomPoint(x: 120, y: 175), "Room B first raised platform matches stable backing geometry")
         expectRoom(roomA!.enemySpawn == nil, "Room A is traversal-only so combat state cannot be consumed before Room B")
         expectRoom(roomB!.enemySpawn == RoomPoint(x: 760, y: 130), "Room B owns the V20 combat enemy")
+        expectRoom(roomA!.worldOrigin == RoomPoint(x: 0, y: 0), "Room A world origin is zero")
+        expectRoom(roomB!.worldOrigin == RoomPoint(x: 1200, y: 0), "Room B starts in the second stable world segment")
+        expectRoom(
+            controller.worldPoint(RoomPoint(x: 110, y: 130), in: .combat) == RoomPoint(x: 1310, y: 130),
+            "Room B local spawn maps to the correct world point"
+        )
 
         let noTransition = controller.transitionIfNeeded(
             playerCenter: RoomPoint(x: 500, y: 130),
