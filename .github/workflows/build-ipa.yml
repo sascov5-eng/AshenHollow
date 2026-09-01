@@ -6,21 +6,12 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   build:
     runs-on: macos-15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Apply staged HUD/Focus fix
-        if: contains(github.event.head_commit.message, '[HUD-FIX-STAGED]')
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 Scripts/apply_hud_focus_fix.py
       - name: Prepare app bundle
         shell: bash
         run: |
@@ -178,14 +169,3 @@ jobs:
           path: build/AshenHollow-unsigned.ipa
           if-no-files-found: error
           retention-days: 30
-      - name: Commit staged HUD/Focus fix
-        if: contains(github.event.head_commit.message, '[HUD-FIX-STAGED]')
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Sources/GameScene.swift
-          git diff --cached --quiet && { echo "Expected HUD/Focus source changes were not produced"; exit 1; }
-          git commit -m "fix: align HUD controls and focus touch geometry"
-          git push origin HEAD:main
