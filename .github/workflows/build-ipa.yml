@@ -84,6 +84,12 @@ jobs:
           set -euo pipefail
           xcrun swiftc Tests/DemoSaveStoreTests.swift Sources/DemoSaveStore.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/EnemyArchetype.swift -o build/DemoSaveStoreTests
           ./build/DemoSaveStoreTests
+      - name: Test dash controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/DashControllerTests.swift Sources/DashController.swift -o build/DashControllerTests
+          ./build/DashControllerTests
       - name: Test HUD control layout
         shell: bash
         run: |
