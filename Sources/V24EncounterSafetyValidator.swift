@@ -69,6 +69,10 @@ struct V24EncounterSafetyValidator {
             return []
         }
 
+        let exitCenterX: Double? = room.exits.indices.contains(route.exitIndex)
+            ? room.exits[route.exitIndex].trigger.x + room.exits[route.exitIndex].trigger.width * 0.5
+            : nil
+
         var zones: [RoomPoint] = []
         for index in 1..<route.steps.count {
             let sourceIndex = route.steps[index - 1].platformIndex
@@ -80,16 +84,32 @@ struct V24EncounterSafetyValidator {
 
             let source = room.platforms[sourceIndex]
             let target = room.platforms[targetIndex]
+            let sourceMinX = source.center.x - source.size.width * 0.5
+            let sourceMaxX = source.center.x + source.size.width * 0.5
             let targetMinX = target.center.x - target.size.width * 0.5
             let targetMaxX = target.center.x + target.size.width * 0.5
+            let targetEdgeInset = min(90, target.size.width * 0.30)
+            let targetContainsSource = targetMinX <= sourceMinX && targetMaxX >= sourceMaxX
+
             let landingX: Double
-            if target.center.x < source.center.x {
-                landingX = targetMaxX - min(90, target.size.width * 0.30)
+            if targetContainsSource, let exitCenterX {
+                // Dropping from a raised block onto a much wider floor should reserve the
+                // real landing immediately beyond that block, not a point near the far edge
+                // of the entire floor. Follow the room's exit direction for this nested case.
+                let stepBeyondSource = max(54, tuning.colliderWidth * 1.5)
+                if exitCenterX >= source.center.x {
+                    landingX = min(targetMaxX - targetEdgeInset, sourceMaxX + stepBeyondSource)
+                } else {
+                    landingX = max(targetMinX + targetEdgeInset, sourceMinX - stepBeyondSource)
+                }
+            } else if target.center.x < source.center.x {
+                landingX = targetMaxX - targetEdgeInset
             } else if target.center.x > source.center.x {
-                landingX = targetMinX + min(90, target.size.width * 0.30)
+                landingX = targetMinX + targetEdgeInset
             } else {
                 landingX = target.center.x
             }
+
             let landingY = target.center.y + target.size.height * 0.5 + tuning.colliderHeight * 0.5
             zones.append(RoomPoint(x: landingX, y: landingY))
         }
