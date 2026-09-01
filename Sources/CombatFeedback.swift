@@ -1,6 +1,5 @@
 import SpriteKit
 
-@MainActor
 enum CombatFeedback {
     static func presentAcceptedMeleeHit(
         on scene: SKScene,
