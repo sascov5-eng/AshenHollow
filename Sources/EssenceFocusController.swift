@@ -8,6 +8,7 @@ struct EssenceFocusController {
 
     private(set) var essence: Int = 0
     private(set) var isFocusing: Bool = false
+    private(set) var acceptedMeleeHitSequence: Int = 0
     private var focusRemaining: TimeInterval = 0
     private var completedHealPending: Bool = false
 
@@ -29,6 +30,7 @@ struct EssenceFocusController {
     }
 
     mutating func gainFromAcceptedMeleeHit() {
+        acceptedMeleeHitSequence += 1
         essence = min(maxEssence, essence + essencePerHit)
     }
 
