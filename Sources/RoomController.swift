@@ -488,7 +488,7 @@ struct RoomController {
             platforms: [
                 platform(260, 60, 520, 80),
                 platform(990, 60, 400, 80),
-                platform(850, 190, 180),
+                platform(860, 160, 260),
                 platform(650, 285, 170),
                 platform(430, 375, 170),
                 platform(150, 465, 220)
