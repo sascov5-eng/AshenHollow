@@ -75,6 +75,12 @@ jobs:
           set -euo pipefail
           xcrun swiftc Tests/EssenceFocusControllerTests.swift Sources/EssenceFocusController.swift -o build/EssenceFocusControllerTests
           ./build/EssenceFocusControllerTests
+      - name: Test touch retention policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/TouchRetentionPolicyTests.swift Sources/TouchRetentionPolicy.swift -o build/TouchRetentionPolicyTests
+          ./build/TouchRetentionPolicyTests
       - name: Test enemy health
         shell: bash
         run: |
