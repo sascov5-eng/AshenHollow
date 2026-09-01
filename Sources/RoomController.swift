@@ -487,7 +487,7 @@ struct RoomController {
             playerSpawn: RoomPoint(x: 260, y: 130),
             platforms: [
                 platform(260, 60, 520, 80),
-                platform(950, 60, 500, 80),
+                platform(990, 60, 400, 80),
                 platform(850, 190, 180),
                 platform(650, 285, 170),
                 platform(430, 375, 170),
@@ -574,8 +574,8 @@ struct RoomController {
             playerSpawn: RoomPoint(x: 1040, y: 130),
             platforms: [
                 fullFloor,
-                platform(430, 310, 40, 420),
-                platform(770, 310, 40, 420),
+                platform(480, 345, 40, 350),
+                platform(720, 345, 40, 350),
                 platform(360, 220, 120),
                 platform(840, 330, 120),
                 platform(360, 440, 120)
