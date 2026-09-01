@@ -87,6 +87,36 @@ enum RoomRuntimeInstaller {
         combatStatusLabel.zPosition = 1250
         camera.addChild(combatStatusLabel)
 
+        func layoutStatusHUD() {
+            let bounds = scene.view?.bounds ?? CGRect(origin: .zero, size: scene.size)
+            let viewWidth = bounds.width > 1 ? bounds.width : scene.size.width
+            let viewHeight = bounds.height > 1 ? bounds.height : scene.size.height
+            let insets = scene.view?.safeAreaInsets ?? .zero
+            let layout = HUDOverlayLayout(
+                viewWidth: Double(viewWidth),
+                viewHeight: Double(viewHeight),
+                safeTopInset: Double(insets.top),
+                safeLeftInset: Double(insets.left),
+                safeRightInset: Double(insets.right)
+            )
+
+            let roomLocal = layout.cameraLocalPosition(
+                for: layout.roomTitleCenter,
+                sceneWidth: Double(scene.size.width),
+                sceneHeight: Double(scene.size.height)
+            )
+            roomTitle.position = CGPoint(x: CGFloat(roomLocal.x), y: CGFloat(roomLocal.y))
+
+            let combatLocal = layout.cameraLocalPosition(
+                for: layout.combatStatusCenter,
+                sceneWidth: Double(scene.size.width),
+                sceneHeight: Double(scene.size.height)
+            )
+            combatStatusLabel.position = CGPoint(x: CGFloat(combatLocal.x), y: CGFloat(combatLocal.y))
+        }
+
+        layoutStatusHUD()
+
         func physicalOriginX(for roomID: RoomID) -> CGFloat {
             guard let index = state.controller.orderedRoomIDs.firstIndex(of: roomID) else { return 0 }
             // Recycle the two user-confirmed V20 collision segments. This keeps the
@@ -223,6 +253,8 @@ enum RoomRuntimeInstaller {
             }
             state.lastElapsed = elapsed
             state.transitionCooldown = max(0, state.transitionCooldown - dt)
+
+            layoutStatusHUD()
 
             guard let room = state.controller.room(state.activeRoomID) else { return }
             let originX = physicalOriginX(for: state.activeRoomID)
