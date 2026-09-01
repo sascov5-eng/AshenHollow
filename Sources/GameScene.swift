@@ -55,7 +55,11 @@ final class GameScene: SKScene {
 
     // MARK: - Kinematic collision model
 
-    private let colliderSize = CGSize(width: 36, height: 60)
+    private let movementTuning = PlayerMovementTuning.current
+    private lazy var colliderSize = CGSize(
+        width: CGFloat(movementTuning.colliderWidth),
+        height: CGFloat(movementTuning.colliderHeight)
+    )
     private var platformRects: [CGRect] = []
     private var worldWidth: CGFloat = 2600
 
@@ -64,23 +68,23 @@ final class GameScene: SKScene {
     private var isGrounded = false
     private var lastUpdateTime: TimeInterval = 0
 
-    private let gravity: CGFloat = -1700
-    private let jumpVelocity: CGFloat = 610
-    private let jumpReleaseVelocity: CGFloat = 285
-    private let maxFallSpeed: CGFloat = -900
-    private let runSpeed: CGFloat = 315
-    private let groundAcceleration: CGFloat = 1900
-    private let airAcceleration: CGFloat = 1050
-    private let groundDeceleration: CGFloat = 2400
+    private var gravity: CGFloat { -CGFloat(movementTuning.gravity) }
+    private var jumpVelocity: CGFloat { CGFloat(movementTuning.jumpVelocity) }
+    private var jumpReleaseVelocity: CGFloat { CGFloat(movementTuning.jumpReleaseVelocity) }
+    private var maxFallSpeed: CGFloat { -CGFloat(movementTuning.maxFallSpeed) }
+    private var runSpeed: CGFloat { CGFloat(movementTuning.runSpeed) }
+    private var groundAcceleration: CGFloat { CGFloat(movementTuning.groundAcceleration) }
+    private var airAcceleration: CGFloat { CGFloat(movementTuning.airAcceleration) }
+    private var groundDeceleration: CGFloat { CGFloat(movementTuning.groundDeceleration) }
 
-    private let coyoteDuration: TimeInterval = 0.12
-    private let jumpBufferDuration: TimeInterval = 0.12
+    private var coyoteDuration: TimeInterval { movementTuning.coyoteDuration }
+    private var jumpBufferDuration: TimeInterval { movementTuning.jumpBufferDuration }
     private var coyoteRemaining: TimeInterval = 0
     private var jumpBufferRemaining: TimeInterval = 0
     private var bufferedJumpWasReleased = false
 
     // Small motion substeps keep the controller from tunnelling through platforms.
-    private let maxMotionPerSubstep: CGFloat = 5
+    private var maxMotionPerSubstep: CGFloat { CGFloat(movementTuning.maxMotionPerSubstep) }
 
     // MARK: - Input
 
@@ -1014,7 +1018,7 @@ final class GameScene: SKScene {
 
     private func updateHorizontalVelocity(_ dt: CGFloat) {
         if dashController.isDashing {
-            velocity.dx = CGFloat(dashController.direction) * 720
+            velocity.dx = CGFloat(dashController.direction) * CGFloat(movementTuning.dashSpeed)
             velocity.dy = 0
             return
         }
