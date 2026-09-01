@@ -22,7 +22,6 @@ jobs:
           set -euo pipefail
           python3 scripts/patch_activate_v24_rebuild_v2.py
           python3 scripts/patch_v24_rebuild_v2_iteration.py
-          python3 scripts/patch_gameplay_framing_runtime.py
           python3 scripts/patch_make_v24_rebuild_v2_canonical.py
 
       - name: Verify rebuilt runtime compiles
