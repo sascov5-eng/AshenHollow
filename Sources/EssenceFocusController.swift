@@ -11,6 +11,7 @@ struct EssenceFocusController {
     private(set) var acceptedMeleeHitSequence: Int = 0
     private var focusRemaining: TimeInterval = 0
     private var completedHealPending: Bool = false
+    private var completionConfirmationArmed: Bool = false
 
     var focusProgress: Double {
         guard isFocusing else { return 0 }
@@ -44,6 +45,7 @@ struct EssenceFocusController {
         }
 
         completedHealPending = false
+        completionConfirmationArmed = false
         isFocusing = true
         focusRemaining = focusDuration
         return true
@@ -55,8 +57,8 @@ struct EssenceFocusController {
         focusRemaining = max(0, focusRemaining - dt)
         if focusRemaining == 0 {
             isFocusing = false
-            essence = max(0, essence - healCost)
             completedHealPending = true
+            completionConfirmationArmed = false
         }
     }
 
@@ -64,11 +66,20 @@ struct EssenceFocusController {
         isFocusing = false
         focusRemaining = 0
         completedHealPending = false
+        completionConfirmationArmed = false
     }
 
     mutating func consumeCompletedHeal() -> Bool {
         guard completedHealPending else { return false }
+
+        if !completionConfirmationArmed {
+            completionConfirmationArmed = true
+            return false
+        }
+
         completedHealPending = false
+        completionConfirmationArmed = false
+        essence = max(0, essence - healCost)
         return true
     }
 }
