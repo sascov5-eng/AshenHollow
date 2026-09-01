@@ -165,6 +165,7 @@ enum PlayerDamageInstaller {
                     continue
                 }
 
+                context.focus.cancelFocus()
                 refreshHUD()
 
                 let sourceX = CGFloat(event.sourceX)
