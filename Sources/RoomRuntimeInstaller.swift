@@ -2,7 +2,7 @@ import SpriteKit
 import UIKit
 
 private final class V21RoomRuntimeState {
-    let controller = RoomController.makeV21Level()
+    let controller = RoomController.makeV24Demo()
     var activeRoomID: RoomID = .approach
     var lastElapsed: CGFloat = 0
     var transitionCooldown: CGFloat = 0
@@ -11,7 +11,8 @@ private final class V21RoomRuntimeState {
 enum RoomRuntimeInstaller {
     static func install(on scene: SKScene, context: V21RuntimeContext) {
         guard let player = scene.childNode(withName: "player"),
-              let camera = scene.camera else {
+              let camera = scene.camera,
+              let gameScene = scene as? GameScene else {
             return
         }
 
@@ -117,19 +118,19 @@ enum RoomRuntimeInstaller {
 
         layoutStatusHUD()
 
-        func physicalOriginX(for roomID: RoomID) -> CGFloat {
-            guard let index = state.controller.orderedRoomIDs.firstIndex(of: roomID) else { return 0 }
-            // Recycle the two user-confirmed V20 collision segments. This keeps the
-            // stable GameScene kinematic controller completely untouched in V21.
-            return index.isMultiple(of: 2) ? 0 : 1200
-        }
-
         func refreshExitPresentation(for room: RoomDefinition) {
-            let locked = room.requiresCombatClear && !context.combatStatus.isCleared
-            if locked {
+            let combatLocked = room.requiresCombatClear && !context.combatStatus.isCleared
+            let abilityLocked: Bool
+            if let requiredAbility = room.exits.first?.requiredAbility {
+                abilityLocked = !context.progression.state.unlockedAbilities.contains(requiredAbility)
+            } else {
+                abilityLocked = false
+            }
+
+            if combatLocked || abilityLocked {
                 exitMarker.fillColor = UIColor(red: 0.42, green: 0.10, blue: 0.10, alpha: 0.34)
                 exitMarker.strokeColor = UIColor(red: 0.90, green: 0.24, blue: 0.18, alpha: 0.88)
-                exitLabel.text = "LOCKED"
+                exitLabel.text = abilityLocked ? "ABILITY" : "LOCKED"
             } else {
                 exitMarker.fillColor = UIColor(red: 0.20, green: 0.78, blue: 0.92, alpha: 0.22)
                 exitMarker.strokeColor = UIColor(red: 0.42, green: 0.92, blue: 1.0, alpha: 0.88)
@@ -184,27 +185,33 @@ enum RoomRuntimeInstaller {
             context.levelComplete = false
             state.transitionCooldown = 0.24
 
-            let originX = physicalOriginX(for: roomID)
             let roomWidth = CGFloat(room.bounds.width)
-            context.physicalRoomMinX = originX
-            context.physicalRoomMaxX = originX + roomWidth
+            let roomHeight = CGFloat(room.bounds.height)
+            context.physicalRoomMinX = 0
+            context.physicalRoomMaxX = roomWidth
 
-            let localSpawn = destinationSpawn ?? room.playerSpawn
+            gameScene.replaceRoomGeometry(
+                platforms: room.platforms,
+                roomWidth: roomWidth,
+                roomHeight: roomHeight
+            )
+
+            let spawn = destinationSpawn ?? room.playerSpawn
             player.position = CGPoint(
-                x: originX + CGFloat(localSpawn.x),
-                y: CGFloat(localSpawn.y)
+                x: CGFloat(spawn.x),
+                y: CGFloat(spawn.y)
             )
             player.alpha = 1
             player.childNode(withName: "attackHitbox")?.alpha = 0
 
-            leftMask.position = CGPoint(x: originX - 900, y: 500)
-            rightMask.position = CGPoint(x: originX + roomWidth + 900, y: 500)
+            leftMask.position = CGPoint(x: -900, y: 500)
+            rightMask.position = CGPoint(x: roomWidth + 900, y: 500)
 
-            if let exit = room.exits.first {
+            if let roomExit = room.exits.first {
                 exitMarker.isHidden = false
                 exitMarker.position = CGPoint(
-                    x: originX + CGFloat(exit.trigger.x + exit.trigger.width * 0.5),
-                    y: CGFloat(exit.trigger.y + exit.trigger.height * 0.5)
+                    x: CGFloat(roomExit.trigger.x + roomExit.trigger.width * 0.5),
+                    y: CGFloat(roomExit.trigger.y + roomExit.trigger.height * 0.5)
                 )
             } else {
                 exitMarker.isHidden = true
@@ -217,7 +224,7 @@ enum RoomRuntimeInstaller {
             if let bossSpawn = room.enemySpawns.first(where: { $0.archetype == .boss }) {
                 BossRuntimeInstaller.spawn(
                     spawn: bossSpawn,
-                    physicalOriginX: originX,
+                    physicalOriginX: 0,
                     roomWidth: roomWidth,
                     on: scene,
                     context: context
@@ -225,7 +232,7 @@ enum RoomRuntimeInstaller {
             } else {
                 MultiEnemyRuntimeInstaller.spawn(
                     spawns: room.enemySpawns,
-                    physicalOriginX: originX,
+                    physicalOriginX: 0,
                     roomWidth: roomWidth,
                     on: scene,
                     context: context
@@ -233,17 +240,17 @@ enum RoomRuntimeInstaller {
             }
 
             let visibleHalfWidth = Double(scene.size.width * 0.5 * camera.xScale)
-            let localTarget = Double(player.position.x - originX)
-            let localCameraX = state.controller.clampedCameraX(
-                targetX: localTarget,
+            let cameraX = state.controller.clampedCameraX(
+                targetX: Double(player.position.x),
                 visibleHalfWidth: visibleHalfWidth,
                 in: roomID
             )
-            camera.position.x = originX + CGFloat(localCameraX)
+            camera.position.x = CGFloat(cameraX)
         }
 
         let checkpoint = context.progression.state.checkpoint
         if state.controller.room(checkpoint.roomID) != nil {
+            state.activeRoomID = checkpoint.roomID
             applyRoom(checkpoint.roomID, destinationSpawn: checkpoint.spawn)
         } else {
             applyRoom(state.controller.initialRoomID, destinationSpawn: nil)
@@ -262,27 +269,25 @@ enum RoomRuntimeInstaller {
             layoutStatusHUD()
 
             guard let room = state.controller.room(state.activeRoomID) else { return }
-            let originX = physicalOriginX(for: state.activeRoomID)
             let roomWidth = CGFloat(room.bounds.width)
 
             let halfPlayerWidth: CGFloat = 18
-            let minPlayerX = originX + halfPlayerWidth
-            let maxPlayerX = originX + roomWidth - halfPlayerWidth
+            let minPlayerX = halfPlayerWidth
+            let maxPlayerX = roomWidth - halfPlayerWidth
             player.position.x = max(minPlayerX, min(maxPlayerX, player.position.x))
 
             refreshExitPresentation(for: room)
 
             if !context.levelComplete && state.transitionCooldown <= 0 {
-                let localPlayer = RoomPoint(
-                    x: Double(player.position.x - originX),
-                    y: Double(player.position.y)
-                )
-
                 if let activation = state.controller.exitIfNeeded(
-                    playerCenter: localPlayer,
+                    playerCenter: RoomPoint(
+                        x: Double(player.position.x),
+                        y: Double(player.position.y)
+                    ),
                     playerSize: RoomSize(width: 36, height: 60),
                     in: state.activeRoomID,
-                    combatCleared: context.combatStatus.isCleared
+                    combatCleared: context.combatStatus.isCleared,
+                    unlockedAbilities: context.progression.state.unlockedAbilities
                 ) {
                     if activation.completesLevel {
                         showLevelComplete()
@@ -294,17 +299,15 @@ enum RoomRuntimeInstaller {
                 }
             }
 
-            // Final per-frame camera clamp after GameScene.update, preserving the
-            // user-confirmed camera follow implementation while constraining it to
-            // the currently recycled physical room segment.
+            // Final per-frame camera clamp after GameScene.update. V24 uses one
+            // room-local physical space, so no recycled world segment offset exists.
             let visibleHalfWidth = Double(scene.size.width * 0.5 * camera.xScale)
-            let localCameraTarget = Double(camera.position.x - originX)
-            let clampedLocalCameraX = state.controller.clampedCameraX(
-                targetX: localCameraTarget,
+            let clampedCameraX = state.controller.clampedCameraX(
+                targetX: Double(camera.position.x),
                 visibleHalfWidth: visibleHalfWidth,
                 in: state.activeRoomID
             )
-            camera.position.x = originX + CGFloat(clampedLocalCameraX)
+            camera.position.x = CGFloat(clampedCameraX)
         }
 
         scene.run(runtimeAction, withKey: "v21RoomRuntime")
