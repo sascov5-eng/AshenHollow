@@ -24,6 +24,7 @@ final class V21RuntimeContext: NSObject {
     let vitals = PlayerVitalState()
     var hitStop = CombatHitStopController()
     var onboarding = OnboardingTutorialController()
+    var traversalTeaching = TraversalTeachingController()
 
     weak var attachedScene: SKScene?
 
