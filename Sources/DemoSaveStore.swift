@@ -14,7 +14,7 @@ struct DemoSaveStore {
     }
 
     var hasSave: Bool {
-        defaults.data(forKey: key) != nil
+        load() != nil
     }
 
     func load() -> DemoProgressionState? {
