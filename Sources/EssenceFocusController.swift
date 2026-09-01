@@ -11,6 +11,11 @@ struct EssenceFocusController {
     private var focusRemaining: TimeInterval = 0
     private var completedHealPending: Bool = false
 
+    var focusProgress: Double {
+        guard isFocusing else { return 0 }
+        return max(0, min(1, 1 - focusRemaining / focusDuration))
+    }
+
     init(
         maxEssence: Int = 100,
         essencePerHit: Int = 34,
