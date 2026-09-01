@@ -90,6 +90,18 @@ jobs:
           set -euo pipefail
           xcrun swiftc Tests/DemoRoomTopologyTests.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/DemoRoomTopologyTests
           ./build/DemoRoomTopologyTests
+      - name: Test V24 room progression resolver
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/DemoRoomProgressionResolverTests.swift Sources/DemoRoomProgressionResolver.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/DemoRoomProgressionResolverTests
+          ./build/DemoRoomProgressionResolverTests
+      - name: Typecheck GameScene input lock contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          xcrun swiftc -parse-as-library -typecheck -target arm64-apple-ios15.0 -sdk "$SDK" -framework Foundation -framework SwiftUI -framework UIKit -framework SpriteKit Sources/*.swift Tests/GameSceneInputLockContractTests.swift
       - name: Test dash controller
         shell: bash
         run: |
