@@ -8,6 +8,7 @@ enum HUDControlKind: CaseIterable, Equatable {
     case focus
     case attack
     case jump
+    case dash
 }
 
 struct HUDPoint: Equatable {
@@ -96,6 +97,13 @@ struct HUDControlLayout {
                 y: baselineY,
                 visualRadius: 51,
                 hitRadius: 62
+            )
+        case .dash:
+            return target(
+                x: viewWidth - 137,
+                y: baselineY - 90,
+                visualRadius: 42,
+                hitRadius: 52
             )
         }
     }
