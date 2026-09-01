@@ -90,6 +90,12 @@ jobs:
           set -euo pipefail
           xcrun swiftc Tests/DashControllerTests.swift Sources/DashController.swift -o build/DashControllerTests
           ./build/DashControllerTests
+      - name: Test wall traversal controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/WallTraversalControllerTests.swift Sources/WallTraversalController.swift -o build/WallTraversalControllerTests
+          ./build/WallTraversalControllerTests
       - name: Test HUD control layout
         shell: bash
         run: |
