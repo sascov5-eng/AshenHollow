@@ -158,15 +158,30 @@ enum RoomRuntimeInstaller {
             case .open:
                 marker.fillColor = UIColor(red: 0.20, green: 0.78, blue: 0.92, alpha: 0.22)
                 marker.strokeColor = UIColor(red: 0.42, green: 0.92, blue: 1.0, alpha: 0.88)
-                label.text = shortcut ? "SHORTCUT" : (room.id == .wardenChamber ? "FINISH" : "EXIT")
+                label.text = V24WorldReactionResolver.exitLabel(
+                    state: presentation,
+                    requiredAbility: exit.requiredAbility,
+                    shortcut: shortcut,
+                    completionExit: exit.completesLevel
+                )
             case .combatLocked:
                 marker.fillColor = UIColor(red: 0.42, green: 0.10, blue: 0.10, alpha: 0.34)
                 marker.strokeColor = UIColor(red: 0.90, green: 0.24, blue: 0.18, alpha: 0.88)
-                label.text = "LOCKED"
+                label.text = V24WorldReactionResolver.exitLabel(
+                    state: presentation,
+                    requiredAbility: exit.requiredAbility,
+                    shortcut: shortcut,
+                    completionExit: exit.completesLevel
+                )
             case .abilityLocked:
                 marker.fillColor = UIColor(red: 0.28, green: 0.25, blue: 0.10, alpha: 0.32)
                 marker.strokeColor = UIColor(red: 0.94, green: 0.74, blue: 0.24, alpha: 0.88)
-                label.text = exit.requiredAbility == .wallTraversal ? "WALL" : "ABILITY"
+                label.text = V24WorldReactionResolver.exitLabel(
+                    state: presentation,
+                    requiredAbility: exit.requiredAbility,
+                    shortcut: shortcut,
+                    completionExit: exit.completesLevel
+                )
             }
         }
 
@@ -263,7 +278,11 @@ enum RoomRuntimeInstaller {
         }
 
         func refreshShrinePresentation(_ shrine: SKNode, placement: AbilityShrinePlacement) {
-            let consumed = context.progression.state.consumedShrines.contains(placement.id)
+            let presentation = V24WorldReactionResolver.shrineState(
+                id: placement.id,
+                consumedShrines: context.progression.state.consumedShrines
+            )
+            let consumed = presentation == .dormant
             shrine.alpha = consumed ? 0.34 : 1.0
             if let label = shrine.childNode(withName: "shrineLabel") as? SKLabelNode {
                 label.text = consumed ? "DORMANT" : shrineTitle(placement.ability)
@@ -272,6 +291,27 @@ enum RoomRuntimeInstaller {
                 artifact.fillColor = consumed
                     ? UIColor(white: 0.32, alpha: 0.72)
                     : UIColor(red: 0.38, green: 0.84, blue: 1.0, alpha: 0.92)
+            }
+        }
+
+        func refreshCheckpointPresentation(_ marker: SKShapeNode, checkpointID: CheckpointID) {
+            let presentation = V24WorldReactionResolver.checkpointState(
+                id: checkpointID,
+                currentCheckpoint: context.progression.state.checkpoint.id
+            )
+            let active = presentation == .active
+            marker.fillColor = active
+                ? UIColor(red: 0.30, green: 0.82, blue: 1.0, alpha: 0.28)
+                : UIColor(red: 0.26, green: 0.66, blue: 0.92, alpha: 0.14)
+            marker.strokeColor = active
+                ? UIColor(red: 0.68, green: 0.96, blue: 1.0, alpha: 0.96)
+                : UIColor(red: 0.48, green: 0.86, blue: 1.0, alpha: 0.58)
+            marker.lineWidth = active ? 4 : 2
+            if let label = marker.childNode(withName: "checkpointLabel") as? SKLabelNode {
+                label.text = active ? "ACTIVE" : "CHECKPOINT"
+                label.fontColor = active
+                    ? UIColor(red: 0.74, green: 0.96, blue: 1.0, alpha: 1)
+                    : UIColor(white: 0.88, alpha: 0.78)
             }
         }
 
@@ -406,14 +446,21 @@ enum RoomRuntimeInstaller {
             if let trigger = room.checkpointTriggers.first {
                 let marker = SKShapeNode(ellipseOf: CGSize(width: 34, height: 72))
                 marker.name = "v24CheckpointMarker"
-                marker.fillColor = UIColor(red: 0.26, green: 0.66, blue: 0.92, alpha: 0.14)
-                marker.strokeColor = UIColor(red: 0.48, green: 0.86, blue: 1.0, alpha: 0.58)
-                marker.lineWidth = 2
                 marker.position = CGPoint(
                     x: CGFloat(trigger.trigger.x + trigger.trigger.width * 0.5),
                     y: CGFloat(trigger.trigger.y + trigger.trigger.height * 0.5)
                 )
                 marker.zPosition = 23
+
+                let label = SKLabelNode(fontNamed: "AvenirNext-Bold")
+                label.name = "checkpointLabel"
+                label.fontSize = 8
+                label.horizontalAlignmentMode = .center
+                label.verticalAlignmentMode = .center
+                label.position = CGPoint(x: 0, y: 48)
+                marker.addChild(label)
+
+                refreshCheckpointPresentation(marker, checkpointID: trigger.checkpoint.id)
                 scene.addChild(marker)
             }
 
@@ -494,6 +541,7 @@ enum RoomRuntimeInstaller {
                 ability: placement.ability,
                 checkpoint: placement.checkpoint
             ) {
+                context.traversalTeaching.begin(for: placement.ability)
                 if let shrine = scene.childNode(withName: "v24AbilityShrine") {
                     refreshShrinePresentation(shrine, placement: placement)
                 }
@@ -508,6 +556,14 @@ enum RoomRuntimeInstaller {
                    currentCheckpoint: context.progression.state.checkpoint
                ) {
                 context.progression.activateCheckpoint(checkpoint)
+                if let marker = scene.childNode(withName: "v24CheckpointMarker") as? SKShapeNode {
+                    refreshCheckpointPresentation(marker, checkpointID: checkpoint.id)
+                }
+            }
+
+            if let checkpointTrigger = room.checkpointTriggers.first,
+               let marker = scene.childNode(withName: "v24CheckpointMarker") as? SKShapeNode {
+                refreshCheckpointPresentation(marker, checkpointID: checkpointTrigger.checkpoint.id)
             }
 
             if !context.levelComplete && state.transitionCooldown <= 0 {

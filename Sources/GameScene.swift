@@ -863,6 +863,7 @@ final class GameScene: SKScene {
 
         cancelFocus()
         facing = direction > 0 ? 1 : -1
+        context.traversalTeaching.recordDashStarted()
     }
 
     private func tryWallJump() -> Bool {
@@ -890,6 +891,7 @@ final class GameScene: SKScene {
         bufferedJumpWasReleased = false
         dashController.restoreAirDash()
         currentWallClingSide = nil
+        context.traversalTeaching.recordWallJump()
         return true
     }
 
@@ -1187,42 +1189,50 @@ final class GameScene: SKScene {
             return
         }
 
-        guard context.activeRoomID == .approach else {
-            tutorialLabel.isHidden = true
-            applyTutorialHighlight(nil)
+        if context.activeRoomID == .approach {
+            context.onboarding.recordPlayerX(Double(player.position.x))
+            if landedThisFrame {
+                context.onboarding.recordLanding()
+            }
+            context.onboarding.recordAcceptedMeleeHitSequence(
+                context.focus.acceptedMeleeHitSequence
+            )
+            context.onboarding.updateFocusEligibility(
+                missingHP: context.vitals.health.hp < context.vitals.health.maxHP,
+                canAffordFocus: context.focus.essence >= context.focus.healCost
+            )
+
+            if let prompt = context.onboarding.visiblePrompt {
+                tutorialLabel.isHidden = false
+                switch prompt {
+                case .move:
+                    tutorialLabel.text = "MOVE   ←   →"
+                case .jump:
+                    tutorialLabel.text = "JUMP"
+                case .attack:
+                    tutorialLabel.text = "ATTACK"
+                case .focus:
+                    tutorialLabel.text = "HOLD FOCUS TO HEAL"
+                }
+                applyTutorialHighlight(prompt)
+                return
+            }
+        }
+
+        if let prompt = context.traversalTeaching.prompt {
+            tutorialLabel.isHidden = false
+            switch prompt {
+            case .dash:
+                tutorialLabel.text = "DASH"
+            case .wallTraversal:
+                tutorialLabel.text = "HOLD TOWARD WALL + JUMP"
+            }
+            applyTraversalTutorialHighlight(prompt)
             return
         }
 
-        context.onboarding.recordPlayerX(Double(player.position.x))
-        if landedThisFrame {
-            context.onboarding.recordLanding()
-        }
-        context.onboarding.recordAcceptedMeleeHitSequence(
-            context.focus.acceptedMeleeHitSequence
-        )
-        context.onboarding.updateFocusEligibility(
-            missingHP: context.vitals.health.hp < context.vitals.health.maxHP,
-            canAffordFocus: context.focus.essence >= context.focus.healCost
-        )
-
-        guard let prompt = context.onboarding.visiblePrompt else {
-            tutorialLabel.isHidden = true
-            applyTutorialHighlight(nil)
-            return
-        }
-
-        tutorialLabel.isHidden = false
-        switch prompt {
-        case .move:
-            tutorialLabel.text = "MOVE   ←   →"
-        case .jump:
-            tutorialLabel.text = "JUMP"
-        case .attack:
-            tutorialLabel.text = "ATTACK"
-        case .focus:
-            tutorialLabel.text = "HOLD FOCUS TO HEAL"
-        }
-        applyTutorialHighlight(prompt)
+        tutorialLabel.isHidden = true
+        applyTutorialHighlight(nil)
     }
 
     private func applyTutorialHighlight(_ prompt: OnboardingPrompt?) {
@@ -1244,6 +1254,23 @@ final class GameScene: SKScene {
             highlighted = [focusButton]
         case .none:
             highlighted = []
+        }
+
+        for button in highlighted {
+            button.strokeColor = UIColor(red: 0.48, green: 0.88, blue: 1.0, alpha: 0.96)
+            button.lineWidth = 4
+        }
+    }
+
+    private func applyTraversalTutorialHighlight(_ prompt: TraversalTeachingPrompt) {
+        applyTutorialHighlight(nil)
+
+        let highlighted: [SKShapeNode]
+        switch prompt {
+        case .dash:
+            highlighted = [dashButton]
+        case .wallTraversal:
+            highlighted = [leftButton, rightButton, jumpButton]
         }
 
         for button in highlighted {
