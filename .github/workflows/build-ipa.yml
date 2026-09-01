@@ -6,12 +6,20 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Apply rebuilt V24 blockout
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/patch_v24_level_rebuild.py
       - name: Prepare app bundle
         shell: bash
         run: |
@@ -221,6 +229,19 @@ jobs:
           cp Info.plist "$APP/Info.plist"
           test -f "$APP/AshenHollow"
           test -f "$APP/Info.plist"
+      - name: Commit rebuilt V24 blockout
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- Sources/RoomController.swift; then
+            echo "V24 blockout already rebuilt."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add Sources/RoomController.swift
+            git commit -m "feat: rebuild V24 room blockouts"
+            git push origin HEAD:main
+          fi
       - name: Package unsigned IPA
         shell: bash
         run: |
