@@ -24,6 +24,7 @@ enum RoomRuntimeInstaller {
         scene.childNode(withName: "v21LeftMask")?.removeFromParent()
         scene.childNode(withName: "v21RightMask")?.removeFromParent()
         scene.childNode(withName: "v21ExitMarker")?.removeFromParent()
+        scene.childNode(withName: "v24ShortcutMarker")?.removeFromParent()
         scene.childNode(withName: "v24AbilityShrine")?.removeFromParent()
         scene.childNode(withName: "v24CheckpointMarker")?.removeFromParent()
         camera.childNode(withName: "v20RoomTitle")?.removeFromParent()
@@ -70,6 +71,24 @@ enum RoomRuntimeInstaller {
         exitLabel.horizontalAlignmentMode = .center
         exitMarker.addChild(exitLabel)
         scene.addChild(exitMarker)
+
+        let shortcutMarker = SKShapeNode(
+            rectOf: CGSize(width: 52, height: 110),
+            cornerRadius: 10
+        )
+        shortcutMarker.name = "v24ShortcutMarker"
+        shortcutMarker.lineWidth = 2.5
+        shortcutMarker.zPosition = 32
+        shortcutMarker.isHidden = true
+
+        let shortcutLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        shortcutLabel.name = "v24ShortcutLabel"
+        shortcutLabel.fontSize = 8
+        shortcutLabel.fontColor = UIColor(white: 0.96, alpha: 0.95)
+        shortcutLabel.verticalAlignmentMode = .center
+        shortcutLabel.horizontalAlignmentMode = .center
+        shortcutMarker.addChild(shortcutLabel)
+        scene.addChild(shortcutMarker)
 
         let roomTitle = SKLabelNode(fontNamed: "AvenirNext-Bold")
         roomTitle.name = "v21RoomTitle"
@@ -121,23 +140,58 @@ enum RoomRuntimeInstaller {
 
         layoutStatusHUD()
 
+        func applyExitStyle(
+            marker: SKShapeNode,
+            label: SKLabelNode,
+            exit: RoomExit,
+            room: RoomDefinition,
+            shortcut: Bool
+        ) {
+            let presentation = RoomExitPresentationResolver.state(
+                for: exit,
+                roomRequiresCombatClear: room.requiresCombatClear,
+                combatCleared: context.combatStatus.isCleared,
+                unlockedAbilities: context.progression.state.unlockedAbilities
+            )
+
+            switch presentation {
+            case .open:
+                marker.fillColor = UIColor(red: 0.20, green: 0.78, blue: 0.92, alpha: 0.22)
+                marker.strokeColor = UIColor(red: 0.42, green: 0.92, blue: 1.0, alpha: 0.88)
+                label.text = shortcut ? "SHORTCUT" : (room.id == .wardenChamber ? "FINISH" : "EXIT")
+            case .combatLocked:
+                marker.fillColor = UIColor(red: 0.42, green: 0.10, blue: 0.10, alpha: 0.34)
+                marker.strokeColor = UIColor(red: 0.90, green: 0.24, blue: 0.18, alpha: 0.88)
+                label.text = "LOCKED"
+            case .abilityLocked:
+                marker.fillColor = UIColor(red: 0.28, green: 0.25, blue: 0.10, alpha: 0.32)
+                marker.strokeColor = UIColor(red: 0.94, green: 0.74, blue: 0.24, alpha: 0.88)
+                label.text = exit.requiredAbility == .wallTraversal ? "WALL" : "ABILITY"
+            }
+        }
+
         func refreshExitPresentation(for room: RoomDefinition) {
-            let combatLocked = room.requiresCombatClear && !context.combatStatus.isCleared
-            let abilityLocked: Bool
-            if let requiredAbility = room.exits.first?.requiredAbility {
-                abilityLocked = !context.progression.state.unlockedAbilities.contains(requiredAbility)
-            } else {
-                abilityLocked = false
+            if let primary = room.exits.first {
+                applyExitStyle(
+                    marker: exitMarker,
+                    label: exitLabel,
+                    exit: primary,
+                    room: room,
+                    shortcut: false
+                )
             }
 
-            if combatLocked || abilityLocked {
-                exitMarker.fillColor = UIColor(red: 0.42, green: 0.10, blue: 0.10, alpha: 0.34)
-                exitMarker.strokeColor = UIColor(red: 0.90, green: 0.24, blue: 0.18, alpha: 0.88)
-                exitLabel.text = abilityLocked ? "ABILITY" : "LOCKED"
+            if room.exits.count > 1 {
+                shortcutMarker.isHidden = false
+                applyExitStyle(
+                    marker: shortcutMarker,
+                    label: shortcutLabel,
+                    exit: room.exits[1],
+                    room: room,
+                    shortcut: true
+                )
             } else {
-                exitMarker.fillColor = UIColor(red: 0.20, green: 0.78, blue: 0.92, alpha: 0.22)
-                exitMarker.strokeColor = UIColor(red: 0.42, green: 0.92, blue: 1.0, alpha: 0.88)
-                exitLabel.text = room.id == .wardenChamber ? "FINISH" : "EXIT"
+                shortcutMarker.isHidden = true
             }
 
             if room.requiresCombatClear {
@@ -259,6 +313,7 @@ enum RoomRuntimeInstaller {
             guard camera.childNode(withName: "v21LevelComplete") == nil else { return }
             context.levelComplete = true
             exitMarker.isHidden = true
+            shortcutMarker.isHidden = true
             combatStatusLabel.isHidden = true
 
             let complete = SKLabelNode(fontNamed: "AvenirNext-Bold")
@@ -327,6 +382,17 @@ enum RoomRuntimeInstaller {
                 )
             } else {
                 exitMarker.isHidden = true
+            }
+
+            if room.exits.count > 1 {
+                let shortcutExit = room.exits[1]
+                shortcutMarker.isHidden = false
+                shortcutMarker.position = CGPoint(
+                    x: CGFloat(shortcutExit.trigger.x + shortcutExit.trigger.width * 0.5),
+                    y: CGFloat(shortcutExit.trigger.y + shortcutExit.trigger.height * 0.5)
+                )
+            } else {
+                shortcutMarker.isHidden = true
             }
 
             if let placement = room.shrine {
