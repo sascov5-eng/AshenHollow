@@ -91,6 +91,7 @@ final class GameScene: SKScene {
     private var dashController = DashController()
     private var wallTraversalController = WallTraversalController()
     private var currentWallClingSide: WallSide?
+    private(set) var externalInputLocked = false
 
     // MARK: - Combat
 
@@ -213,6 +214,7 @@ final class GameScene: SKScene {
         dashController = DashController()
         wallTraversalController = WallTraversalController()
         currentWallClingSide = nil
+        externalInputLocked = false
     }
 
     // MARK: - World
@@ -664,8 +666,19 @@ final class GameScene: SKScene {
 
     // MARK: - Touch input
 
+    func setExternalInputLocked(_ locked: Bool) {
+        externalInputLocked = locked
+        if locked {
+            activeControls.removeAll(keepingCapacity: true)
+            moveInput = 0
+            smoothedMoveInput = 0
+            cancelFocus()
+        }
+        refreshButtonVisuals()
+    }
+
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let skView = view else { return }
+        guard !externalInputLocked, let skView = view else { return }
 
         for touch in touches {
             let id = ObjectIdentifier(touch)
@@ -683,7 +696,7 @@ final class GameScene: SKScene {
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let skView = view else { return }
+        guard !externalInputLocked, let skView = view else { return }
 
         for touch in touches {
             let id = ObjectIdentifier(touch)
