@@ -2,43 +2,41 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Turn the current Ashen Hollow combat/platforming prototype into a persistent 10+ minute vertical-slice demo with Dash, Wall Cling/Wall Jump, ability shrines, checkpoints, Continue/New Game, 10 spatially varied rooms, and the existing Ash Warden as the climax.
+**Goal:** Turn the current Ashen Hollow prototype into a persistent vertical-slice demo with Dash, Wall Cling/Wall Jump, ability shrines, checkpoints, Continue/New Game, a spatial 10-room route, and at least 10 minutes of real gameplay before Ash Warden completion.
 
-**Architecture:** Keep the existing custom kinematic controller and collision algorithm intact, but move new behavior into focused pure/stateful controllers: durable demo progression/save state, Dash state, and wall-traversal state. `GameScene` remains the integration point for velocity/collision/HUD, while `RoomController` owns the 10-room topology and `RoomRuntimeInstaller` owns active-room geometry, exits, shrines, checkpoints, enemies, and room transitions. Durable progress is serialized through `UserDefaults`; death and relaunch reload the latest checkpoint rather than rebuilding progression from transient scene state.
+**Architecture:** Preserve the existing custom kinematic AABB/substep controller and keep the player free of `SKPhysicsBody`. Add isolated pure/stateful controllers for durable demo progression, Dash, and wall traversal; `GameScene` integrates those outputs with existing velocity/collision/input; `RoomController` owns V24 room data; `RoomRuntimeInstaller` loads one room's geometry, exits, enemies, shrines, and checkpoints into the scene. Durable state is JSON-encoded into `UserDefaults`, so death and app relaunch restore the latest checkpoint without losing unlocked abilities.
 
-**Tech Stack:** Swift 6-style source compiled with `swiftc`, SwiftUI, SpriteKit, UIKit, Foundation, GitHub Actions on `macos-15`, arm64 iOS 15 target.
+**Tech Stack:** Swift, SwiftUI, SpriteKit, UIKit, Foundation, GitHub Actions `macos-15`, arm64 iOS 15 build target.
 
 **Spec:** `docs/superpowers/specs/2026-09-01-v24-demo-progression-traversal-design.md`
 
 ## Global Constraints
 
 - Landscape only.
-- Player must remain free of `SKPhysicsBody`.
+- No `SKPhysicsBody` on the player.
 - Preserve player visual 42×64 and collider 36×60.
 - Preserve gravity -1700, jump 610, jump release 285, run 315, ground acceleration 1900, air acceleration 1050, ground deceleration 2400, max fall -900.
-- Preserve coyote time, jump buffering, existing melee/pogo, player HP/i-frames, Essence/Focus, enemy damage, room combat clearing, camera behavior, and Ash Warden state machine unless a task explicitly adds a V24 integration hook.
-- Camera zoom remains 1.55.
-- Horizontal movement must never zero vertical velocity.
-- Dash is free, has no i-frames, target cooldown 0.6 s, and only one airborne use until restored.
-- Wall Cling/Wall Jump is passive and has no separate button.
-- Ability unlocks and consumed shrines survive death and app relaunch; only New Game clears them.
-- Four persistent checkpoints: Approach start, immediately post-Dash, immediately post-Wall Traversal, pre-Ash-Warden.
-- Demo progression order is Approach → Lower Hall → Broken Gallery → Dash Shrine → Furnace Passage → Watcher Hall → Hollow Shaft → Ashen Ascent → Warden Gate → Warden Chamber.
-- Perceived room travel must include down, left, up, and down transitions rather than a horizontal-only chain.
-- Normal first playthrough target 12–15 minutes; fast legitimate first playthrough must remain at least about 10 minutes without relying on deaths, waits, inflated HP, or empty corridors.
-- HUD drawing and hit testing must share geometry; the fixed top overlay layout must not regress.
-- Every behavior task follows RED → GREEN → regression verification before commit.
-
----
+- Preserve coyote time, jump buffering, melee/pogo, HP/i-frames, Essence/Focus, enemy damage, room combat clear logic, camera zoom 1.55, and Ash Warden state machine unless a task explicitly adds a V24 integration hook.
+- Horizontal movement must never zero vertical velocity except where Dash explicitly suppresses vertical motion during its active window.
+- Dash is free, has no i-frames, target cooldown 0.6 s, and one airborne use until restored.
+- Wall Cling/Wall Jump is passive and has no separate HUD button.
+- Dash and Wall Traversal survive death and relaunch; New Game clears them.
+- Four checkpoints: Approach start, immediately after Dash acquisition, immediately after Wall Traversal acquisition, immediately before Ash Warden.
+- Required progression: Approach → Lower Hall → Broken Gallery → Dash Shrine → Furnace Passage → Watcher Hall → Hollow Shaft → Ashen Ascent → Warden Gate → Warden Chamber.
+- Perceived travel directions must include down, left, up, and down; the demo must not remain a horizontal-only chain.
+- Normal first playthrough target: 12–15 minutes. Fast legitimate first playthrough: at least about 10 minutes.
+- Do not inflate runtime with waits, slow movement, empty corridors, or inflated enemy HP.
+- HUD drawing and hit testing must share the same geometry; the current fixed top HP/Essence/room overlay layout must remain intact.
+- Every behavior change follows RED → GREEN → full regression verification before commit.
 
 ## File Structure Map
 
 **Create**
 
-- `Sources/DemoProgression.swift` — ability/shrine/checkpoint enums, durable progression snapshot, atomic progression mutations.
-- `Sources/DemoSaveStore.swift` — JSON encode/decode/clear/has-save using injected `UserDefaults`.
-- `Sources/DashController.swift` — pure Dash cooldown, active-window, direction, and air-use state.
-- `Sources/WallTraversalController.swift` — pure wall-cling/wall-jump decision state and same-wall reattachment lockout.
+- `Sources/DemoProgression.swift` — ability, shrine, checkpoint, and durable progress model.
+- `Sources/DemoSaveStore.swift` — injected `UserDefaults` persistence and launch mode.
+- `Sources/DashController.swift` — Dash cooldown/active/air-use state.
+- `Sources/WallTraversalController.swift` — Wall Cling/Wall Jump state and same-wall lockout.
 - `Tests/DemoProgressionTests.swift`
 - `Tests/DemoSaveStoreTests.swift`
 - `Tests/DashControllerTests.swift`
@@ -47,39 +45,44 @@
 
 **Modify**
 
-- `Sources/RoomController.swift` — make room/save primitives codable, add four V24 room IDs, optional ability-gated exits, shrine/checkpoint metadata, and the 10-room level definition.
-- `Sources/V21RuntimeContext.swift` — attach durable progression/save runtime plus launch mode to the existing runtime context.
-- `Sources/AppRoot.swift` — show minimal New Game / Continue launcher instead of always entering a fresh scene.
-- `Sources/GameView.swift` — accept launch mode and bootstrap the scene with new/continued durable state.
-- `Sources/GameScene.swift` — integrate Dash button, Dash movement, wall contact/wall movement, and active-room geometry replacement without changing the core AABB/substep algorithm.
-- `Sources/HUDControlLayout.swift` — add shared DASH target geometry while preserving the fixed status overlay layout.
-- `Tests/HUDControlLayoutTests.swift` — verify DASH does not overlap controls, stays onscreen, and resolves from its visible center.
-- `Sources/RoomRuntimeInstaller.swift` — load checkpoint room/spawn, rebuild active room geometry, directional transitions, shrine/checkpoint runtime, and V24 room presentation.
-- `Sources/PlayerDamageInstaller.swift` — respawn by reloading Continue/latest checkpoint instead of implicitly starting at Approach.
-- `Sources/BossRuntimeInstaller.swift` — only if needed, expose/adjust arena geometry so Dash and optional Wall Jump have safe room to operate; do not rewrite boss states.
-- `.github/workflows/build-ipa.yml` — compile/run each new pure test before arm64 packaging.
+- `Sources/RoomController.swift`
+- `Sources/V21RuntimeContext.swift`
+- `Sources/AppRoot.swift`
+- `Sources/GameView.swift`
+- `Sources/GameScene.swift`
+- `Sources/HUDControlLayout.swift`
+- `Tests/HUDControlLayoutTests.swift`
+- `Sources/RoomRuntimeInstaller.swift`
+- `Sources/PlayerDamageInstaller.swift`
+- `Sources/BossRuntimeInstaller.swift` only if arena clearance is required.
+- `.github/workflows/build-ipa.yml`
 
 ---
 
-### Task 1: Durable Demo Progression Domain
+### Task 1: Durable Progression, Save Store, Continue, and New Game
 
 **Files:**
 - Create: `Sources/DemoProgression.swift`
+- Create: `Sources/DemoSaveStore.swift`
+- Create: `Tests/DemoProgressionTests.swift`
+- Create: `Tests/DemoSaveStoreTests.swift`
 - Modify: `Sources/RoomController.swift`
-- Test: `Tests/DemoProgressionTests.swift`
+- Modify: `Sources/V21RuntimeContext.swift`
+- Modify: `Sources/AppRoot.swift`
+- Modify: `Sources/GameView.swift`
+- Modify: `Sources/PlayerDamageInstaller.swift`
+- Modify: `Sources/RoomRuntimeInstaller.swift`
 - Modify: `.github/workflows/build-ipa.yml`
 
 **Interfaces:**
-- Produces: `enum PlayerAbility: String, Codable, CaseIterable, Hashable { case dash, wallTraversal }`
-- Produces: `enum ShrineID: String, Codable, CaseIterable, Hashable { case dash, wallTraversal }`
-- Produces: `enum CheckpointID: String, Codable, CaseIterable, Hashable { case approach, postDash, postWallTraversal, preWarden }`
-- Produces: `struct CheckpointSnapshot: Codable, Equatable`
-- Produces: `struct DemoProgressionState: Codable, Equatable`
-- Consumes later: `RoomID` and `RoomPoint`, which become `Codable` in this task.
+- Produces `PlayerAbility`, `ShrineID`, `CheckpointID`, `CheckpointSnapshot`, `DemoProgressionState`.
+- Produces `DemoLaunchMode`, `DemoSaveStore`, `DemoProgressionRuntime`.
+- `V21RuntimeContext` gains `let progression: DemoProgressionRuntime`.
+- `V21RuntimeBootstrap.install(on:launchMode:)` becomes the only scene bootstrap entry point.
 
-- [ ] **Step 1: Write the failing progression test**
+- [ ] **Step 1: Write failing progression tests**
 
-Create `Tests/DemoProgressionTests.swift` with a tiny executable test harness. Cover fresh state, atomic shrine claim, checkpoint advancement, duplicate shrine rejection, and New Game reset:
+Create `Tests/DemoProgressionTests.swift`:
 
 ```swift
 import Foundation
@@ -96,10 +99,11 @@ func expectProgression(_ condition: @autoclosure () -> Bool, _ message: String) 
 struct DemoProgressionTestsMain {
     static func main() {
         var state = DemoProgressionState.fresh
-        expectProgression(!state.has(.dash), "fresh state starts without dash")
-        expectProgression(state.checkpoint.id == .approach, "fresh state starts at Approach checkpoint")
+        expectProgression(!state.has(.dash), "fresh state starts without Dash")
+        expectProgression(!state.has(.wallTraversal), "fresh state starts without Wall Traversal")
+        expectProgression(state.checkpoint.id == .approach, "fresh state uses Approach checkpoint")
 
-        let claimed = state.claimShrine(
+        let accepted = state.claimShrine(
             .dash,
             ability: .dash,
             checkpoint: CheckpointSnapshot(
@@ -108,31 +112,85 @@ struct DemoProgressionTestsMain {
                 spawn: RoomPoint(x: 760, y: 130)
             )
         )
-        expectProgression(claimed, "first dash shrine activation is accepted")
-        expectProgression(state.has(.dash), "dash unlock is recorded")
-        expectProgression(state.consumedShrines.contains(.dash), "dash shrine is consumed")
-        expectProgression(state.checkpoint.id == .postDash, "post-Dash checkpoint is activated atomically")
+        expectProgression(accepted, "first Dash shrine activation succeeds")
+        expectProgression(state.has(.dash), "Dash is unlocked")
+        expectProgression(state.consumedShrines.contains(.dash), "Dash shrine is consumed")
+        expectProgression(state.checkpoint.id == .postDash, "Dash checkpoint activates atomically")
 
+        let checkpointBeforeDuplicate = state.checkpoint
         let duplicate = state.claimShrine(
             .dash,
             ability: .dash,
-            checkpoint: state.checkpoint
+            checkpoint: CheckpointSnapshot(
+                id: .approach,
+                roomID: .approach,
+                spawn: RoomPoint(x: 120, y: 130)
+            )
         )
         expectProgression(!duplicate, "consumed shrine cannot activate twice")
+        expectProgression(state.checkpoint == checkpointBeforeDuplicate, "duplicate shrine cannot move checkpoint backward")
 
         state = .fresh
-        expectProgression(!state.has(.dash), "New Game-style reset removes dash")
-        expectProgression(state.consumedShrines.isEmpty, "New Game-style reset clears shrine consumption")
-        expectProgression(state.checkpoint.id == .approach, "New Game-style reset restores Approach checkpoint")
+        expectProgression(state.unlockedAbilities.isEmpty, "New Game reset clears abilities")
+        expectProgression(state.consumedShrines.isEmpty, "New Game reset clears shrine state")
+        expectProgression(state.checkpoint.id == .approach, "New Game reset restores Approach")
 
         print("DemoProgressionTests: PASS")
     }
 }
 ```
 
-- [ ] **Step 2: Add the CI test step and verify RED**
+- [ ] **Step 2: Write failing persistence tests**
 
-Add before the existing HUD/enemy tests in `.github/workflows/build-ipa.yml`:
+Create `Tests/DemoSaveStoreTests.swift`:
+
+```swift
+import Foundation
+
+@inline(__always)
+func expectSave(_ condition: @autoclosure () -> Bool, _ message: String) {
+    if !condition() {
+        fputs("FAIL: \(message)\n", stderr)
+        exit(1)
+    }
+}
+
+@main
+struct DemoSaveStoreTestsMain {
+    static func main() {
+        let suite = "AshenHollow.DemoSaveStoreTests"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let store = DemoSaveStore(defaults: defaults)
+
+        expectSave(!store.hasSave, "empty store has no Continue state")
+
+        var state = DemoProgressionState.fresh
+        _ = state.claimShrine(
+            .dash,
+            ability: .dash,
+            checkpoint: CheckpointSnapshot(
+                id: .postDash,
+                roomID: .dashShrine,
+                spawn: RoomPoint(x: 760, y: 130)
+            )
+        )
+        store.save(state)
+
+        expectSave(store.hasSave, "save enables Continue")
+        expectSave(store.load() == state, "save round trip preserves exact state")
+
+        store.clear()
+        expectSave(!store.hasSave, "clear removes Continue state")
+        expectSave(store.load() == nil, "clear removes decodable state")
+        print("DemoSaveStoreTests: PASS")
+    }
+}
+```
+
+- [ ] **Step 3: Add CI steps and verify RED**
+
+Add to `.github/workflows/build-ipa.yml` before arm64 compilation:
 
 ```yaml
       - name: Test demo progression
@@ -141,13 +199,19 @@ Add before the existing HUD/enemy tests in `.github/workflows/build-ipa.yml`:
           set -euo pipefail
           xcrun swiftc Tests/DemoProgressionTests.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/EnemyArchetype.swift -o build/DemoProgressionTests
           ./build/DemoProgressionTests
+      - name: Test demo save store
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/DemoSaveStoreTests.swift Sources/DemoSaveStore.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/EnemyArchetype.swift -o build/DemoSaveStoreTests
+          ./build/DemoSaveStoreTests
 ```
 
-Push only the test/workflow change. Expected CI result: **FAIL** because `Sources/DemoProgression.swift` and V24 room/checkpoint symbols do not exist yet.
+Expected RED: missing `DemoProgression.swift` / `DemoSaveStore.swift` symbols.
 
-- [ ] **Step 3: Implement the minimal progression types**
+- [ ] **Step 4: Make room/save primitives codable and add V24 room IDs**
 
-In `Sources/RoomController.swift`, change:
+In `Sources/RoomController.swift`:
 
 ```swift
 enum RoomID: String, Equatable, Hashable, Codable {
@@ -168,6 +232,10 @@ struct RoomPoint: Equatable, Codable {
     let y: Double
 }
 ```
+
+Keep compatibility aliases only if current tests/installers still need them during this task.
+
+- [ ] **Step 5: Implement durable progression model**
 
 Create `Sources/DemoProgression.swift`:
 
@@ -235,106 +303,7 @@ struct DemoProgressionState: Codable, Equatable {
 }
 ```
 
-- [ ] **Step 4: Verify GREEN and existing RoomController tests**
-
-Run through CI or local macOS Swift:
-
-```bash
-xcrun swiftc Tests/DemoProgressionTests.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/EnemyArchetype.swift -o /tmp/DemoProgressionTests && /tmp/DemoProgressionTests
-xcrun swiftc Tests/RoomControllerTests.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o /tmp/RoomControllerTests && /tmp/RoomControllerTests
-```
-
-Expected: both print `PASS`.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add Sources/DemoProgression.swift Sources/RoomController.swift Tests/DemoProgressionTests.swift .github/workflows/build-ipa.yml
-git commit -m "feat: add durable demo progression model"
-```
-
----
-
-### Task 2: Save Store, Continue/New Game, and Runtime Bootstrap
-
-**Files:**
-- Create: `Sources/DemoSaveStore.swift`
-- Create: `Tests/DemoSaveStoreTests.swift`
-- Modify: `Sources/V21RuntimeContext.swift`
-- Modify: `Sources/AppRoot.swift`
-- Modify: `Sources/GameView.swift`
-- Modify: `.github/workflows/build-ipa.yml`
-
-**Interfaces:**
-- Produces: `enum DemoLaunchMode { case newGame, continueGame }`
-- Produces: `struct DemoSaveStore` with `load()`, `save(_:)`, `clear()`, `hasSave`.
-- Produces: `final class DemoProgressionRuntime` with durable `state`, `newGame()`, `reload()`, `claimShrine(...)`, `activateCheckpoint(...)`.
-- `V21RuntimeContext` gains `let progression: DemoProgressionRuntime`.
-- `V21RuntimeBootstrap.install(on:launchMode:)` becomes the scene entry point.
-
-- [ ] **Step 1: Write the failing persistence round-trip test**
-
-Create `Tests/DemoSaveStoreTests.swift` using an isolated defaults suite:
-
-```swift
-import Foundation
-
-@inline(__always)
-func expectSave(_ condition: @autoclosure () -> Bool, _ message: String) {
-    if !condition() {
-        fputs("FAIL: \(message)\n", stderr)
-        exit(1)
-    }
-}
-
-@main
-struct DemoSaveStoreTestsMain {
-    static func main() {
-        let suite = "AshenHollow.DemoSaveStoreTests"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        let store = DemoSaveStore(defaults: defaults)
-
-        expectSave(!store.hasSave, "empty defaults has no save")
-
-        var state = DemoProgressionState.fresh
-        _ = state.claimShrine(
-            .dash,
-            ability: .dash,
-            checkpoint: CheckpointSnapshot(
-                id: .postDash,
-                roomID: .dashShrine,
-                spawn: RoomPoint(x: 760, y: 130)
-            )
-        )
-        store.save(state)
-
-        expectSave(store.hasSave, "saving creates a Continue state")
-        expectSave(store.load() == state, "save round trip preserves progression")
-
-        store.clear()
-        expectSave(!store.hasSave, "clear removes Continue state")
-        expectSave(store.load() == nil, "cleared save does not decode stale state")
-
-        print("DemoSaveStoreTests: PASS")
-    }
-}
-```
-
-- [ ] **Step 2: Add CI step and verify RED**
-
-```yaml
-      - name: Test demo save store
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/DemoSaveStoreTests.swift Sources/DemoSaveStore.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/EnemyArchetype.swift -o build/DemoSaveStoreTests
-          ./build/DemoSaveStoreTests
-```
-
-Expected: **FAIL** with `cannot find 'DemoSaveStore' in scope`.
-
-- [ ] **Step 3: Implement `DemoSaveStore` and runtime wrapper**
+- [ ] **Step 6: Implement save store and runtime wrapper**
 
 Create `Sources/DemoSaveStore.swift`:
 
@@ -408,14 +377,14 @@ final class DemoProgressionRuntime: NSObject {
 }
 ```
 
-- [ ] **Step 4: Thread launch mode through runtime/bootstrap**
+- [ ] **Step 7: Thread progression through runtime bootstrap**
 
-Modify `V21RuntimeContext` initializer so it receives a progression runtime:
+Change `V21RuntimeContext` to require progression:
 
 ```swift
 final class V21RuntimeContext: NSObject {
     let progression: DemoProgressionRuntime
-    // existing properties remain
+    // keep all existing V21/V23 properties
 
     init(progression: DemoProgressionRuntime) {
         self.progression = progression
@@ -424,7 +393,7 @@ final class V21RuntimeContext: NSObject {
 }
 ```
 
-Change bootstrap entry point:
+Change bootstrap:
 
 ```swift
 static func install(on scene: SKScene, launchMode: DemoLaunchMode = .continueGame) {
@@ -438,13 +407,19 @@ static func install(on scene: SKScene, launchMode: DemoLaunchMode = .continueGam
 }
 ```
 
-Update any fallback `V21RuntimeContext()` construction sites to construct with `DemoProgressionRuntime(launchMode: .continueGame)`.
+Update the fallback context creation in `PlayerDamageInstaller.install(on:)` and `RoomRuntimeInstaller.install(on:)` to:
 
-- [ ] **Step 5: Add minimal New Game / Continue launcher**
+```swift
+let context = V21RuntimeContext(
+    progression: DemoProgressionRuntime(launchMode: .continueGame)
+)
+```
 
-Replace direct `GameView()` in `AppRoot.swift` with a SwiftUI launcher that reads `DemoSaveStore().hasSave` and creates `GameView(launchMode:)`. Keep the UI deliberately minimal: title, `CONTINUE` when a save exists, and `NEW GAME`.
+- [ ] **Step 8: Add minimal launcher**
 
-Update `GameView`:
+`AppRoot.swift` must render a SwiftUI launcher rather than always constructing `GameView` immediately. The launcher reads `DemoSaveStore().hasSave`; it shows `CONTINUE` only when a save exists and always shows `NEW GAME`. Selecting a button creates `GameView(launchMode: .continueGame)` or `GameView(launchMode: .newGame)`.
+
+Change `GameView` signature:
 
 ```swift
 struct GameView: UIViewRepresentable {
@@ -452,7 +427,12 @@ struct GameView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> SKView {
         let skView = SKView(frame: .zero)
-        // preserve current SKView configuration
+        skView.backgroundColor = .black
+        skView.ignoresSiblingOrder = true
+        skView.shouldCullNonVisibleNodes = false
+        skView.isMultipleTouchEnabled = true
+        skView.preferredFramesPerSecond = 60
+
         let scene = GameScene(size: CGSize(width: 844, height: 390))
         scene.scaleMode = .resizeFill
         skView.presentScene(scene)
@@ -462,22 +442,22 @@ struct GameView: UIViewRepresentable {
 }
 ```
 
-The launcher does not add save slots or settings; those remain out of scope.
+Preserve the existing `updateUIView` behavior but use the same `launchMode` when a replacement scene is required.
 
-- [ ] **Step 6: Verify tests and arm64 compile**
+- [ ] **Step 9: Verify GREEN and arm64 compile**
 
-Run `DemoSaveStoreTests`, `DemoProgressionTests`, and the workflow arm64 compile command. Expected: tests print `PASS`; `swiftc -target arm64-apple-ios15.0 ... Sources/*.swift` exits 0.
+Run the two new tests plus existing RoomController, PlayerHealth, Respawn, and full arm64 compile. Expected: all tests print `PASS`, compile exits 0.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add Sources/DemoSaveStore.swift Sources/V21RuntimeContext.swift Sources/AppRoot.swift Sources/GameView.swift Tests/DemoSaveStoreTests.swift .github/workflows/build-ipa.yml
-git commit -m "feat: persist demo progress and add continue flow"
+git add Sources/DemoProgression.swift Sources/DemoSaveStore.swift Sources/RoomController.swift Sources/V21RuntimeContext.swift Sources/AppRoot.swift Sources/GameView.swift Sources/PlayerDamageInstaller.swift Sources/RoomRuntimeInstaller.swift Tests/DemoProgressionTests.swift Tests/DemoSaveStoreTests.swift .github/workflows/build-ipa.yml
+git commit -m "feat: persist V24 demo progression"
 ```
 
 ---
 
-### Task 3: Dash State Machine and HUD Button
+### Task 2: Unlockable Kinematic Dash and DASH HUD Button
 
 **Files:**
 - Create: `Sources/DashController.swift`
@@ -488,14 +468,13 @@ git commit -m "feat: persist demo progress and add continue flow"
 - Modify: `.github/workflows/build-ipa.yml`
 
 **Interfaces:**
-- Produces: `struct DashController` with `tryStart(...) -> Double?`, `update(dt:)`, `restoreAirDash()`, `cancelActiveDash()`.
-- `GameScene.Control` gains `.dash`.
-- `HUDControlKind` gains `.dash`.
-- `GameScene` reads `context.progression.state.has(.dash)` before starting.
+- Produces `DashController.tryStart(unlocked:isGrounded:inputX:facing:) -> Double?`.
+- Produces `DashController.update(dt:)`, `restoreAirDash()`, `cancelActiveDash()`.
+- `HUDControlKind` and `GameScene.Control` gain `.dash`.
 
-- [ ] **Step 1: Write RED tests for Dash rules**
+- [ ] **Step 1: Write failing Dash tests**
 
-Create `Tests/DashControllerTests.swift` covering locked ability, ground dash, 0.6 s cooldown, one air dash, landing restore, wall/pogo restore, and active dash duration:
+Create `Tests/DashControllerTests.swift`:
 
 ```swift
 import Foundation
@@ -512,29 +491,27 @@ func expectDash(_ condition: @autoclosure () -> Bool, _ message: String) {
 struct DashControllerTestsMain {
     static func main() {
         var dash = DashController()
-        expectDash(dash.tryStart(unlocked: false, isGrounded: true, inputX: 1, facing: 1) == nil, "locked dash cannot start")
+        expectDash(dash.tryStart(unlocked: false, isGrounded: true, inputX: 1, facing: 1) == nil, "locked Dash cannot start")
 
-        let groundDirection = dash.tryStart(unlocked: true, isGrounded: true, inputX: -1, facing: 1)
-        expectDash(groundDirection == -1, "held horizontal input chooses dash direction")
-        expectDash(dash.isDashing, "dash enters active window")
+        expectDash(dash.tryStart(unlocked: true, isGrounded: true, inputX: -1, facing: 1) == -1, "input chooses Dash direction")
+        expectDash(dash.isDashing, "Dash enters active window")
         dash.update(dt: 0.20)
-        expectDash(!dash.isDashing, "dash active window ends")
-        expectDash(dash.tryStart(unlocked: true, isGrounded: true, inputX: 0, facing: 1) == nil, "cooldown blocks immediate reuse")
+        expectDash(!dash.isDashing, "active window ends")
+        expectDash(dash.tryStart(unlocked: true, isGrounded: true, inputX: 1, facing: 1) == nil, "cooldown blocks immediate reuse")
+
         dash.update(dt: 0.50)
-        expectDash(dash.tryStart(unlocked: true, isGrounded: false, inputX: 0, facing: 1) == 1, "facing is used when input is neutral")
+        expectDash(dash.tryStart(unlocked: true, isGrounded: false, inputX: 0, facing: 1) == 1, "neutral input uses facing")
         dash.update(dt: 0.70)
-        expectDash(dash.tryStart(unlocked: true, isGrounded: false, inputX: 1, facing: 1) == nil, "second air dash is blocked")
+        expectDash(dash.tryStart(unlocked: true, isGrounded: false, inputX: 1, facing: 1) == nil, "second air Dash is blocked")
         dash.restoreAirDash()
-        expectDash(dash.tryStart(unlocked: true, isGrounded: false, inputX: 1, facing: 1) == 1, "restore event grants air dash again")
+        expectDash(dash.tryStart(unlocked: true, isGrounded: false, inputX: 1, facing: 1) == 1, "restore event grants air Dash")
 
         print("DashControllerTests: PASS")
     }
 }
 ```
 
-- [ ] **Step 2: Verify RED in CI**
-
-Add:
+- [ ] **Step 2: Add CI test and verify RED**
 
 ```yaml
       - name: Test dash controller
@@ -545,9 +522,9 @@ Add:
           ./build/DashControllerTests
 ```
 
-Expected: **FAIL** because `DashController` does not exist.
+Expected RED: `DashController` missing.
 
-- [ ] **Step 3: Implement minimal Dash controller**
+- [ ] **Step 3: Implement `DashController`**
 
 Create `Sources/DashController.swift`:
 
@@ -595,23 +572,23 @@ struct DashController {
 }
 ```
 
-- [ ] **Step 4: Add shared DASH HUD geometry test first**
+- [ ] **Step 4: Write RED HUD assertions for DASH**
 
-Extend `HUDControlKind` test expectations before production change. The visible DASH center must resolve to `.dash`, remain above the bottom safe area, stay within the right edge, and not visually overlap Attack or Jump.
+Extend `Tests/HUDControlLayoutTests.swift` so `.dash` must exist, its visible center resolves to `.dash`, its circle stays onscreen/above bottom safe area, and its visual circle does not overlap Attack or Jump.
 
-Use a target around:
+The target center for the known 667×375 layout is intentionally above the Attack/Jump row:
 
 ```swift
 let dash = layout.target(for: .dash)
-expectHUD(layout.resolve(x: dash.center.x, y: dash.center.y) == .dash, "visible dash center resolves to dash")
-expectHUD(dash.center.y + dash.visualRadius <= height - safeBottom, "dash stays above bottom safe area")
+expectHUD(layout.resolve(x: dash.center.x, y: dash.center.y) == .dash, "visible Dash center resolves to Dash")
+expectHUD(dash.center.y + dash.visualRadius <= height - safeBottom, "Dash stays above bottom safe area")
 ```
 
-Expected RED: `.dash` does not exist.
+Expected RED: `.dash` missing.
 
-- [ ] **Step 5: Add DASH target without regressing current controls**
+- [ ] **Step 5: Add DASH to shared HUD geometry**
 
-In `HUDControlLayout.swift` add `.dash` and return:
+In `HUDControlLayout.swift` add `.dash` and:
 
 ```swift
 case .dash:
@@ -623,19 +600,13 @@ case .dash:
     )
 ```
 
-Keep current left/right/up/down/focus/attack/jump centers unchanged. Run `HUDControlLayoutTests` to prove the new button fits the known 667×375 case and all visible centers resolve correctly.
+Do not change the already device-confirmed centers of left/right/up/down/focus/attack/jump or the `HUDOverlayLayout` top status geometry.
 
 - [ ] **Step 6: Integrate Dash into `GameScene`**
 
-Add `dashButton`, `dashLabel`, `.dash` control mapping, and `private var dashController = DashController()`.
+Add `dashButton`, `dashLabel`, `.dash` control, and `private var dashController = DashController()`.
 
-In frame update:
-
-```swift
-dashController.update(dt: dt)
-```
-
-When `.dash` is pressed:
+On press:
 
 ```swift
 private func tryDash() {
@@ -651,7 +622,13 @@ private func tryDash() {
 }
 ```
 
-During horizontal velocity update, Dash takes precedence only while active:
+At frame start:
+
+```swift
+dashController.update(dt: dt)
+```
+
+In horizontal velocity update, before ordinary acceleration:
 
 ```swift
 if dashController.isDashing {
@@ -661,13 +638,13 @@ if dashController.isDashing {
 }
 ```
 
-Skip gravity application while `isDashing`; resume existing gravity immediately afterward. If `moveHorizontally` resolves a solid collision during an active dash, call `dashController.cancelActiveDash()` after snapping outside the platform. Do not bypass the existing `maxMotionPerSubstep = 5` integration.
+Skip gravity while `dashController.isDashing`; resume the existing gravity expression as soon as the active window ends. If `moveHorizontally` resolves a solid collision during a Dash, snap outside the platform as today and call `dashController.cancelActiveDash()`.
 
-On landing transition and successful pogo integration points, call `dashController.restoreAirDash()`.
+On a landing transition and successful pogo bounce, call `dashController.restoreAirDash()`.
 
-- [ ] **Step 7: Verify Dash regression set**
+- [ ] **Step 7: Verify GREEN and regressions**
 
-Run Dash tests, HUD tests, CombatImpulse tests, AttackController tests, and full arm64 compile. Expected: all pass; no existing control enum switch remains non-exhaustive.
+Run Dash, HUD, CombatImpulse, AttackController, PlayerAttackDirection, PlayerVitalState, EssenceFocus tests and full arm64 compile. Expected: PASS.
 
 - [ ] **Step 8: Commit**
 
@@ -678,7 +655,7 @@ git commit -m "feat: add unlockable kinematic dash"
 
 ---
 
-### Task 4: Passive Wall Cling / Wall Jump
+### Task 3: Passive Wall Cling and Wall Jump
 
 **Files:**
 - Create: `Sources/WallTraversalController.swift`
@@ -687,21 +664,44 @@ git commit -m "feat: add unlockable kinematic dash"
 - Modify: `.github/workflows/build-ipa.yml`
 
 **Interfaces:**
-- Produces: `enum WallSide { case left, right }`
-- Produces: `struct WallTraversalController` with `clingSide(...)`, `wallJump(...)`, `update(dt:)`.
-- `GameScene` supplies actual wall contact from the current AABB geometry and applies returned impulses.
+- Produces `WallSide`, `WallJumpImpulse`, `WallTraversalController`.
+- `GameScene` supplies AABB wall contact and applies the returned slide/jump outputs.
 
-- [ ] **Step 1: Write RED tests for cling/jump rules**
+- [ ] **Step 1: Write failing wall traversal tests**
 
-Test: locked ability cannot cling; grounded player cannot cling; holding away cannot cling; valid wall contact caps slide; wall jump pushes away/up; same wall is temporarily suppressed; opposing wall can be used; wall jump is an air-dash restore event.
-
-Use constants in the expected contract:
+Create `Tests/WallTraversalControllerTests.swift` with these required assertions:
 
 ```swift
-let slideCap = -180.0
-let jump = controller.wallJump(from: .right)
-expectWall(jump.velocityX < 0, "right-wall jump pushes left")
-expectWall(jump.velocityY > 0, "wall jump pushes upward")
+import Foundation
+
+@inline(__always)
+func expectWall(_ condition: @autoclosure () -> Bool, _ message: String) {
+    if !condition() {
+        fputs("FAIL: \(message)\n", stderr)
+        exit(1)
+    }
+}
+
+@main
+struct WallTraversalControllerTestsMain {
+    static func main() {
+        var wall = WallTraversalController()
+        expectWall(wall.clingSide(unlocked: false, isGrounded: false, heldDirectionX: 1, contactSide: .right) == nil, "locked traversal cannot cling")
+        expectWall(wall.clingSide(unlocked: true, isGrounded: true, heldDirectionX: 1, contactSide: .right) == nil, "ground contact wins over wall cling")
+        expectWall(wall.clingSide(unlocked: true, isGrounded: false, heldDirectionX: -1, contactSide: .right) == nil, "holding away does not cling")
+        expectWall(wall.clingSide(unlocked: true, isGrounded: false, heldDirectionX: 1, contactSide: .right) == .right, "holding into contacted wall clings")
+
+        let jump = wall.wallJump(from: .right)
+        expectWall(jump.velocityX < 0, "right-wall jump pushes left")
+        expectWall(jump.velocityY > 0, "wall jump pushes upward")
+        expectWall(wall.clingSide(unlocked: true, isGrounded: false, heldDirectionX: 1, contactSide: .right) == nil, "same-wall lock blocks instant reattachment")
+        expectWall(wall.clingSide(unlocked: true, isGrounded: false, heldDirectionX: -1, contactSide: .left) == .left, "opposite wall remains usable")
+        wall.update(dt: 0.13)
+        expectWall(wall.clingSide(unlocked: true, isGrounded: false, heldDirectionX: 1, contactSide: .right) == .right, "same wall unlocks after lock duration")
+
+        print("WallTraversalControllerTests: PASS")
+    }
+}
 ```
 
 - [ ] **Step 2: Add CI step and verify RED**
@@ -715,11 +715,11 @@ expectWall(jump.velocityY > 0, "wall jump pushes upward")
           ./build/WallTraversalControllerTests
 ```
 
-Expected: **FAIL** because the controller is missing.
+Expected RED: controller missing.
 
-- [ ] **Step 3: Implement pure wall traversal state**
+- [ ] **Step 3: Implement wall traversal controller**
 
-Create `Sources/WallTraversalController.swift` with these fixed initial tuning values:
+Create `Sources/WallTraversalController.swift`:
 
 ```swift
 import Foundation
@@ -775,40 +775,51 @@ struct WallTraversalController {
 }
 ```
 
-- [ ] **Step 4: Add reliable wall-contact probing to `GameScene`**
+- [ ] **Step 4: Add robust wall-contact probing to `GameScene`**
 
-Do not depend only on `velocity.dx != 0`, because a player pressed into a wall has horizontal velocity zero after collision resolution. Add a 1-point side probe using `playerRect` and `platformRects`:
+A player held against a wall has `velocity.dx == 0` after collision resolution, so contact cannot be inferred from velocity. Add a one-point AABB probe:
 
 ```swift
 private func detectedWallContact() -> WallSide? {
-    let probe: CGFloat = 1.0
-    let leftProbe = playerRect.offsetBy(dx: -probe, dy: 0)
-    let rightProbe = playerRect.offsetBy(dx: probe, dy: 0)
-    let hitsLeft = platformRects.contains { leftProbe.intersects($0) && !playerRect.intersects($0) }
-    let hitsRight = platformRects.contains { rightProbe.intersects($0) && !playerRect.intersects($0) }
-    if hitsLeft { return .left }
-    if hitsRight { return .right }
+    let probe: CGFloat = 1
+    let verticalInset: CGFloat = 2
+    let base = playerRect.insetBy(dx: 0, dy: verticalInset)
+    let leftProbe = base.offsetBy(dx: -probe, dy: 0)
+    let rightProbe = base.offsetBy(dx: probe, dy: 0)
+
+    let left = platformRects.contains { leftProbe.intersects($0) && !base.intersects($0) }
+    let right = platformRects.contains { rightProbe.intersects($0) && !base.intersects($0) }
+    if left { return .left }
+    if right { return .right }
     return nil
 }
 ```
 
-If the strict `!playerRect.intersects` guard proves too sensitive at exact floating-point edges, use a narrowed vertical probe (`insetBy(dx: 0, dy: 2)`) rather than increasing probe distance.
+- [ ] **Step 5: Integrate cling/slide/jump**
 
-- [ ] **Step 5: Integrate wall slide and wall jump**
-
-Each frame, call `wallTraversalController.update(dt:)`. After ordinary gravity but before integration, if progression has `.wallTraversal` and `clingSide(...)` returns a side, cap:
+Call `wallTraversalController.update(dt:)` each frame. After ordinary gravity and before kinematic integration, ask for a cling side using the current progression unlock, ground state, `moveInput`, and probe result. While clinging:
 
 ```swift
 velocity.dy = max(velocity.dy, CGFloat(wallTraversalController.slideSpeed))
 ```
 
-When JUMP is pressed during a valid cling, bypass the ordinary coyote jump and apply the wall-jump impulse. Clear jump buffer/coyote state, mark airborne, and call `dashController.restoreAirDash()`.
+When JUMP is pressed during a valid cling, apply:
 
-Entering valid wall cling also restores the aerial Dash once per cling contact; avoid repeated side effects by tracking the previous cling side and only restoring on the transition from no cling → cling.
+```swift
+let impulse = wallTraversalController.wallJump(from: side)
+velocity.dx = CGFloat(impulse.velocityX)
+velocity.dy = CGFloat(impulse.velocityY)
+isGrounded = false
+coyoteRemaining = 0
+jumpBufferRemaining = 0
+dashController.restoreAirDash()
+```
 
-- [ ] **Step 6: Verify movement regressions**
+Track previous cling side so entering a valid cling restores the aerial Dash once on the transition into cling rather than once per frame.
 
-Run WallTraversal tests, Dash tests, CombatImpulse tests, PlayerAttackDirection tests, and arm64 compile. Verify no `SKPhysicsBody` was added to the player.
+- [ ] **Step 6: Verify GREEN and regressions**
+
+Run WallTraversal, Dash, HUD, CombatImpulse, PlayerVitalState, RoomController tests and arm64 compile. Confirm no player physics body exists.
 
 - [ ] **Step 7: Commit**
 
@@ -819,41 +830,54 @@ git commit -m "feat: add passive wall traversal"
 
 ---
 
-### Task 5: V24 Room Topology, Shrines, Checkpoints, and Ability-Gated Exits
+### Task 4: Ten-Room Topology and Active-Room Geometry
 
 **Files:**
-- Modify: `Sources/RoomController.swift`
 - Create: `Tests/DemoRoomTopologyTests.swift`
+- Modify: `Sources/RoomController.swift`
+- Modify: `Sources/GameScene.swift`
+- Modify: `Sources/RoomRuntimeInstaller.swift`
+- Modify: `Sources/V21RuntimeContext.swift`
 - Modify: `Tests/RoomControllerTests.swift`
 - Modify: `.github/workflows/build-ipa.yml`
 
 **Interfaces:**
-- Produces: `struct AbilityShrinePlacement` and `struct CheckpointTrigger` metadata in room definitions.
-- Extends: `RoomExit` with `requiredAbility: PlayerAbility?`.
-- Extends: `exitIfNeeded(... unlockedAbilities: Set<PlayerAbility>)` while keeping a compatibility default `[]` for old tests/callers during the migration.
-- Produces: `RoomController.makeV24Demo()`.
+- Produces `AbilityShrinePlacement`, `CheckpointTrigger`, ability-gated `RoomExit`, and `RoomController.makeV24Demo()`.
+- `GameScene.replaceRoomGeometry(platforms:roomWidth:roomHeight:)` becomes the only way the room runtime changes collision geometry.
+- `RoomRuntimeInstaller` loads the current saved checkpoint room/spawn and uses room-local physical coordinates.
 
-- [ ] **Step 1: Write the topology test before editing rooms**
+- [ ] **Step 1: Write failing topology tests**
 
-Create `Tests/DemoRoomTopologyTests.swift` asserting exact required order:
+Create `Tests/DemoRoomTopologyTests.swift` and assert this exact order:
 
 ```swift
-let level = RoomController.makeV24Demo()
-expectTopology(level.orderedRoomIDs == [
-    .approach, .lowerHall, .brokenGallery, .dashShrine,
-    .furnacePassage, .watcherHall, .hollowShaft,
-    .ashenAscent, .wardenGate, .wardenChamber
-], "V24 progression order is stable")
+let expected: [RoomID] = [
+    .approach,
+    .lowerHall,
+    .brokenGallery,
+    .dashShrine,
+    .furnacePassage,
+    .watcherHall,
+    .hollowShaft,
+    .ashenAscent,
+    .wardenGate,
+    .wardenChamber
+]
+expectTopology(level.orderedRoomIDs == expected, "V24 room order is stable")
 ```
 
-Also assert:
-- Dash Shrine contains `.dash` shrine metadata and post-Dash checkpoint.
-- Hollow Shaft contains `.wallTraversal` shrine metadata and post-Wall checkpoint.
-- Warden Gate has pre-Warden checkpoint trigger.
-- At least one optional exit has a non-nil `requiredAbility` and does not activate when the ability is absent.
-- Warden Chamber contains the boss and a completing exit/state.
+The test must also assert:
 
-- [ ] **Step 2: Add CI step and verify RED**
+```swift
+expectTopology(level.room(.dashShrine)?.shrine?.ability == .dash, "Dash Shrine grants Dash")
+expectTopology(level.room(.hollowShaft)?.shrine?.ability == .wallTraversal, "Hollow Shaft grants Wall Traversal")
+expectTopology(level.room(.wardenGate)?.checkpointTriggers.contains(where: { $0.checkpoint.id == .preWarden }) == true, "Warden Gate contains pre-boss checkpoint")
+expectTopology(level.room(.wardenChamber)?.enemySpawns.contains(where: { $0.archetype == .boss }) == true, "Warden Chamber contains Ash Warden")
+```
+
+For every room, verify every exit trigger lies within 1200×560 local bounds and every destination spawn lies within the destination room bounds.
+
+- [ ] **Step 2: Add CI topology test and verify RED**
 
 ```yaml
       - name: Test V24 room topology
@@ -864,11 +888,11 @@ Also assert:
           ./build/DemoRoomTopologyTests
 ```
 
-Expected: **FAIL** because `makeV24Demo`, new room IDs/metadata, and ability-gated exits are not yet complete.
+Expected RED: `makeV24Demo`, V24 metadata, or new room IDs missing.
 
-- [ ] **Step 3: Add room metadata types**
+- [ ] **Step 3: Add room metadata and ability-gated exits**
 
-In `RoomController.swift`:
+In `RoomController.swift` add:
 
 ```swift
 struct AbilityShrinePlacement: Equatable {
@@ -884,24 +908,22 @@ struct CheckpointTrigger: Equatable {
 }
 ```
 
-Add to `RoomDefinition`:
+Extend `RoomExit` with:
+
+```swift
+let requiredAbility: PlayerAbility?
+```
+
+Extend `RoomDefinition` with:
 
 ```swift
 let shrine: AbilityShrinePlacement?
 let checkpointTriggers: [CheckpointTrigger]
 ```
 
-Add to `RoomExit`:
+Give initializer defaults of `nil` / `[]` so existing V21 tests can migrate safely.
 
-```swift
-let requiredAbility: PlayerAbility?
-```
-
-Default all new initializer parameters to nil/empty so existing room tests can migrate incrementally.
-
-- [ ] **Step 4: Extend exit resolution with ability gating**
-
-Change exit selection so it ignores an exit whose `requiredAbility` is not unlocked. Preserve existing `requiresCombatClear` behavior. Add a compatibility default:
+Change exit resolution to:
 
 ```swift
 func exitIfNeeded(
@@ -913,74 +935,89 @@ func exitIfNeeded(
 ) -> RoomExitActivation?
 ```
 
-- [ ] **Step 5: Define the 10-room demo**
+Ignore an exit when its `requiredAbility` is non-nil and absent from `unlockedAbilities`.
 
-Implement `makeV24Demo()` with 1200×560 room-local bounds and exits placed on the intended screen edge:
+- [ ] **Step 4: Define initial V24 room geometry with explicit roles**
 
-- Approach `DOWN` → Lower Hall.
-- Lower Hall `LEFT` → Broken Gallery.
-- Broken Gallery `DOWN` → Dash Shrine.
-- Dash Shrine `LEFT` → Furnace Passage.
-- Furnace Passage `UP` → Watcher Hall.
-- Watcher Hall `LEFT` → Hollow Shaft.
-- Hollow Shaft `UP` → Ashen Ascent.
-- Ashen Ascent `LEFT` → Warden Gate.
-- Warden Gate `DOWN` → Warden Chamber.
-- Warden Chamber completion after Ash Warden clear.
+All rooms use local bounds `RoomRect(x: 0, y: 0, width: 1200, height: 560)`. Use these initial platform patterns; values may later be tuned only for play feel/pacing, not to change progression order:
 
-Use destination spawns on the opposite edge: downward exit spawns near destination top, upward exit near destination bottom, left exit near destination right.
+```text
+Approach:
+  floor 0...1200 at top y=100
+  platforms: (330,185,220×28), (690,250,200×28), (990,190,160×28)
+  Grunt at x=720
+  DOWN shaft/exit near x=1040
 
-Preserve current enemy archetype intent and use these minimum encounter roles:
-- Approach: one Grunt.
-- Lower Hall: two Grunts.
-- Broken Gallery: Grunt + Runner.
-- Dash Shrine: no combat in the teaching subsection.
-- Furnace Passage: Grunt + Runner.
-- Watcher Hall: Ranged + Grunt.
-- Hollow Shaft: no mandatory combat at the shrine floor; optional ledge enemy is allowed only if it does not block learning.
-- Ashen Ascent: Runner/Ranged on selected ledges.
-- Warden Gate: Heavy + Ranged.
-- Warden Chamber: Boss.
+Lower Hall:
+  floor 0...1200 top y=100
+  platforms: (430,205,240×28), (820,175,210×28)
+  two Grunts
+  LEFT exit
 
-Add one optional Wall Traversal-gated shortcut from Broken Gallery into a later connected room so the world has at least one traversal payoff without changing the required first-run order.
+Broken Gallery:
+  floor top y=100
+  platforms: (300,190,190×28), (590,275,180×28), (890,215,220×28)
+  Grunt + Runner
+  DOWN exit
+  optional Wall-Traversal-gated shortcut exit to Ashen Ascent
 
-- [ ] **Step 6: Verify topology and legacy room tests**
+Dash Shrine:
+  split floor with safe shrine area around x=300
+  shrine at (300,130)
+  post-Dash checkpoint spawn (360,130)
+  teaching gap starts after x=520 and cannot be crossed by ordinary jump alone
+  LEFT exit after teaching section
 
-Run both topology and room controller test executables. Expected: PASS.
+Furnace Passage:
+  floor plus three separated ledges requiring useful Dash repositioning
+  Grunt + Runner
+  UP exit
 
-- [ ] **Step 7: Commit**
+Watcher Hall:
+  floor plus two firing-height platforms
+  Ranged + Grunt
+  LEFT exit
 
-```bash
-git add Sources/RoomController.swift Tests/DemoRoomTopologyTests.swift Tests/RoomControllerTests.swift .github/workflows/build-ipa.yml
-git commit -m "feat: define V24 demo room topology"
+Hollow Shaft:
+  lower shrine floor around y=100
+  opposing climb walls/platform faces through y=500
+  wallTraversal shrine at (600,130)
+  post-Wall checkpoint spawn (600,150)
+  UP exit
+
+Ashen Ascent:
+  alternating left/right ledges at y=150, 250, 350, 455
+  Runner/Ranged on selected safe ledges
+  LEFT exit
+
+Warden Gate:
+  floor plus two combat ledges
+  Heavy + Ranged
+  pre-Warden checkpoint trigger after combat near the DOWN exit
+
+Warden Chamber:
+  broad floor and side wall surfaces
+  one Boss spawn
+  completion state/exit after boss clear
 ```
 
----
+Implement required travel using trigger placement, not a hard-coded sequence in runtime:
 
-### Task 6: Active-Room Geometry and Directional Runtime
+- Approach DOWN → Lower Hall.
+- Lower Hall LEFT → Broken Gallery.
+- Broken Gallery DOWN → Dash Shrine.
+- Dash Shrine LEFT → Furnace Passage.
+- Furnace Passage UP → Watcher Hall.
+- Watcher Hall LEFT → Hollow Shaft.
+- Hollow Shaft UP → Ashen Ascent.
+- Ashen Ascent LEFT → Warden Gate.
+- Warden Gate DOWN → Warden Chamber.
 
-**Files:**
-- Modify: `Sources/GameScene.swift`
-- Modify: `Sources/RoomRuntimeInstaller.swift`
-- Modify: `Sources/V21RuntimeContext.swift`
-- Test: `Tests/DemoRoomTopologyTests.swift`
+Down transitions use a visible shaft/opening plus a trigger below the walkable floor segment; up transitions use a top trigger reached by platforms/walls; left transitions use a trigger at the left edge and spawn the player near the destination's right edge.
 
-**Interfaces:**
-- `GameScene` produces `func replaceRoomGeometry(platforms: [RoomPlatform], roomWidth: CGFloat, roomHeight: CGFloat)` for the runtime installer.
-- `RoomRuntimeInstaller` uses `context.progression.state.checkpoint` as initial room/spawn.
-- Current room collision is rebuilt from the active `RoomDefinition.platforms`; the controller algorithm remains unchanged.
+- [ ] **Step 5: Put active room platforms under one replaceable geometry node**
 
-- [ ] **Step 1: Add a failing geometry/topology assertion**
-
-Extend `DemoRoomTopologyTests` so every required room has a floor or traversable platform set, every directional exit trigger lies inside room bounds, and destination spawns lie inside destination bounds. This catches malformed room data before SpriteKit runtime integration.
-
-Expected RED until all V24 platform/trigger definitions satisfy the assertions.
-
-- [ ] **Step 2: Add a dedicated room geometry node and replacement API**
-
-In `GameScene`, stop treating startup demo platforms as permanent collision truth. Keep `buildWorld()` for backdrop creation, but name a child `roomGeometry` and route visual platforms through it.
-
-Add:
+In `GameScene`, keep the existing collision algorithm, but make platform visuals/colliders replaceable. Add:
 
 ```swift
 func replaceRoomGeometry(
@@ -989,66 +1026,73 @@ func replaceRoomGeometry(
     roomHeight: CGFloat
 ) {
     platformRects.removeAll(keepingCapacity: true)
-    let geometry = worldRoot.childNode(withName: "roomGeometry") ?? SKNode()
-    geometry.name = "roomGeometry"
-    geometry.removeAllChildren()
-    if geometry.parent == nil { worldRoot.addChild(geometry) }
+
+    let geometry: SKNode
+    if let existing = worldRoot.childNode(withName: "roomGeometry") {
+        geometry = existing
+        geometry.removeAllChildren()
+    } else {
+        geometry = SKNode()
+        geometry.name = "roomGeometry"
+        worldRoot.addChild(geometry)
+    }
 
     for platform in platforms {
-        let center = CGPoint(x: platform.center.x, y: platform.center.y)
-        let size = CGSize(width: platform.size.width, height: platform.size.height)
+        let center = CGPoint(
+            x: CGFloat(platform.center.x),
+            y: CGFloat(platform.center.y)
+        )
+        let size = CGSize(
+            width: CGFloat(platform.size.width),
+            height: CGFloat(platform.size.height)
+        )
         platformRects.append(CGRect(
             x: center.x - size.width * 0.5,
             y: center.y - size.height * 0.5,
             width: size.width,
             height: size.height
         ))
-        // create the same simple platform visual under roomGeometry
+
+        let visual = SKShapeNode(rectOf: size, cornerRadius: 7)
+        visual.fillColor = UIColor(red: 0.15, green: 0.17, blue: 0.21, alpha: 1)
+        visual.strokeColor = UIColor(white: 0.42, alpha: 0.35)
+        visual.lineWidth = 2
+        visual.position = center
+        visual.zPosition = 1
+        geometry.addChild(visual)
     }
 
     worldWidth = roomWidth
 }
 ```
 
-Use explicit `CGFloat(...)` conversions as needed. Do **not** change `integrateKinematicMotion`, `moveHorizontally`, `moveVertically`, or `maxMotionPerSubstep` beyond the already-planned Dash collision cancellation and wall probes.
+Refactor startup `addPlatform` visuals under the same `roomGeometry` node so the first runtime replacement removes every old visual and collider consistently.
 
-- [ ] **Step 3: Replace V21 two-segment recycling in `RoomRuntimeInstaller`**
+- [ ] **Step 6: Replace V21 even/odd physical segment recycling**
 
-Remove `physicalOriginX(for:)` and the dependency on even/odd 0/1200 collision segments. Apply each room in the same room-local physical frame:
+In `RoomRuntimeInstaller`, delete `physicalOriginX(for:)`. For each applied room:
 
 ```swift
-let originX: CGFloat = 0
 let roomWidth = CGFloat(room.bounds.width)
 context.physicalRoomMinX = 0
 context.physicalRoomMaxX = roomWidth
-(gameScene as? GameScene)?.replaceRoomGeometry(
+
+guard let gameScene = scene as? GameScene else { return }
+gameScene.replaceRoomGeometry(
     platforms: room.platforms,
     roomWidth: roomWidth,
     roomHeight: CGFloat(room.bounds.height)
 )
+
+let spawn = destinationSpawn ?? room.playerSpawn
+player.position = CGPoint(x: CGFloat(spawn.x), y: CGFloat(spawn.y))
 ```
 
-Set player spawn directly from room-local coordinates. Existing enemy installers receive `physicalOriginX: 0`.
-
-- [ ] **Step 4: Start from the saved checkpoint**
-
-Initialize runtime with:
-
-```swift
-let checkpoint = context.progression.state.checkpoint
-state.activeRoomID = checkpoint.roomID
-applyRoom(checkpoint.roomID, destinationSpawn: checkpoint.spawn)
-```
-
-For a New Game this resolves to Approach; for Continue/death it resolves to the latest persisted checkpoint.
-
-- [ ] **Step 5: Pass abilities into exit resolution and support all edge triggers**
-
-Call:
+Enemy installers receive `physicalOriginX: 0`. Exit checks use:
 
 ```swift
 state.controller.exitIfNeeded(
-    playerCenter: localPlayer,
+    playerCenter: RoomPoint(x: Double(player.position.x), y: Double(player.position.y)),
     playerSize: RoomSize(width: 36, height: 60),
     in: state.activeRoomID,
     combatCleared: context.combatStatus.isCleared,
@@ -1056,173 +1100,217 @@ state.controller.exitIfNeeded(
 )
 ```
 
-The trigger rectangles, not hard-coded x assumptions, determine whether an exit is left/right/up/down.
+- [ ] **Step 7: Start the room runtime from the durable checkpoint**
 
-- [ ] **Step 6: Verify full CI before commit**
+Initialize with:
 
-All pure tests plus arm64 compile/package must pass. This is the first task that replaces the old physical-room geometry strategy, so do not proceed if any movement/combat test regresses.
+```swift
+let checkpoint = context.progression.state.checkpoint
+state.activeRoomID = checkpoint.roomID
+applyRoom(checkpoint.roomID, destinationSpawn: checkpoint.spawn)
+```
 
-- [ ] **Step 7: Commit**
+New Game therefore starts in Approach; Continue and death start at the stored checkpoint.
+
+- [ ] **Step 8: Verify GREEN and full regressions**
+
+Run topology, RoomController, Dash, WallTraversal, enemy runtime, projectile, boss controller, HP/respawn tests and arm64 compile/package. Expected: PASS.
+
+- [ ] **Step 9: Commit**
 
 ```bash
-git add Sources/GameScene.swift Sources/RoomRuntimeInstaller.swift Sources/V21RuntimeContext.swift Tests/DemoRoomTopologyTests.swift
-git commit -m "refactor: load collision geometry per active room"
+git add Sources/RoomController.swift Sources/GameScene.swift Sources/RoomRuntimeInstaller.swift Sources/V21RuntimeContext.swift Tests/DemoRoomTopologyTests.swift Tests/RoomControllerTests.swift .github/workflows/build-ipa.yml
+git commit -m "feat: add V24 ten-room spatial runtime"
 ```
 
 ---
 
-### Task 7: Shrine Acquisition Runtime and Persistent Checkpoints
+### Task 5: Ability Shrines, Checkpoints, Acquisition Lock, and Death Respawn
 
 **Files:**
 - Modify: `Sources/RoomRuntimeInstaller.swift`
+- Modify: `Sources/GameScene.swift`
 - Modify: `Sources/PlayerDamageInstaller.swift`
-- Modify: `Sources/DemoProgression.swift`
-- Test: `Tests/DemoProgressionTests.swift`
+- Modify: `Tests/DemoProgressionTests.swift`
 
 **Interfaces:**
-- Shrine activation calls `context.progression.claimShrine(...)` exactly once and persists ability + consumed shrine + linked checkpoint atomically.
-- Pre-Warden trigger calls `context.progression.activateCheckpoint(...)`.
-- Death replacement scene always bootstraps with `.continueGame`.
+- Shrine acquisition calls `context.progression.claimShrine(...)` exactly once.
+- Pre-boss checkpoint calls `context.progression.activateCheckpoint(...)`.
+- `GameScene` exposes a narrow input lock used only for short acquisition presentation.
+- Death replacement scene bootstraps `.continueGame`.
 
-- [ ] **Step 1: Extend progression test for atomic shrine checkpoint semantics**
+- [ ] **Step 1: Extend progression RED test for shrine atomicity**
 
-Assert that after `claimShrine`, all three durable facts are simultaneously true: ability unlocked, shrine consumed, linked checkpoint active. Also assert a duplicate call cannot move the checkpoint backward or replay the claim.
+The existing test already verifies first claim + duplicate rejection. Add a second Wall Traversal claim and assert its checkpoint becomes `.postWallTraversal` while Dash remains unlocked. This test protects multi-ability cumulative progress.
 
-- [ ] **Step 2: Build shrine nodes from room metadata**
+- [ ] **Step 2: Add a narrow acquisition input lock to `GameScene`**
 
-When applying a room with `room.shrine`, create one named node such as `v24AbilityShrine` at `placement.position`. Give it a visible but simple artifact/pedestal shape. If `context.progression.state.consumedShrines` already contains the shrine ID, render it dormant and do not attach activation behavior.
-
-- [ ] **Step 3: Add activation detection and short acquisition presentation**
-
-During room runtime update, when the player's 36×60 rect intersects a small shrine activation rect and the shrine is not consumed:
-
-1. set a runtime `acquisitionActive` flag;
-2. prevent room transition and combat input for about 0.45 s;
-3. call `context.progression.claimShrine(...)` once;
-4. show `DASH ACQUIRED` or `WALL TRAVERSAL ACQUIRED` centered above the player/HUD for the short presentation;
-5. after the presentation, clear the flag and return control.
-
-Do not use a long cutscene or artificial wait. The linked checkpoint is already persisted before the teaching section begins.
-
-Expose a simple `GameScene` input-lock property/method rather than pausing the whole scene, so the scene can finish the acquisition presentation deterministically.
-
-- [ ] **Step 4: Activate standalone checkpoint triggers**
-
-For each `CheckpointTrigger` in the current room, if player intersects it and it is newer/different from the current checkpoint, call `context.progression.activateCheckpoint(...)`. Warden Gate's trigger must store `.preWarden` before the boss transition.
-
-- [ ] **Step 5: Make death use latest durable checkpoint**
-
-In `PlayerDamageInstaller.startRespawnTransition`, replace:
+Add:
 
 ```swift
-V21RuntimeBootstrap.install(on: replacement)
+private(set) var externalInputLocked = false
+
+func setExternalInputLocked(_ locked: Bool) {
+    externalInputLocked = locked
+    if locked {
+        activeControls.removeAll(keepingCapacity: true)
+        moveInput = 0
+        smoothedMoveInput = 0
+        cancelFocus()
+    }
+    refreshButtonVisuals()
+}
 ```
 
-with:
+At the top of touch handling, ignore new presses when locked. Do not pause the scene and do not alter collision/gravity.
+
+- [ ] **Step 3: Create shrine presentation from room metadata**
+
+When applying a room, remove any old `v24AbilityShrine`, then if `room.shrine` exists create a pedestal/artifact node at `placement.position`. If the shrine ID is already in `context.progression.state.consumedShrines`, render it dormant and skip activation.
+
+Use a deterministic activation rectangle centered on the shrine, 96×120 points.
+
+- [ ] **Step 4: Activate shrine and persist before teaching section**
+
+When the player rect first intersects an unconsumed shrine:
 
 ```swift
+let accepted = context.progression.claimShrine(
+    placement.id,
+    ability: placement.ability,
+    checkpoint: placement.checkpoint
+)
+```
+
+If `accepted` is true:
+
+1. call `gameScene.setExternalInputLocked(true)`;
+2. show `DASH ACQUIRED` or `WALL TRAVERSAL ACQUIRED` on a camera child label;
+3. keep the presentation approximately 0.45 s;
+4. fade/remove the label;
+5. call `gameScene.setExternalInputLocked(false)`.
+
+The save and linked checkpoint happen before control returns, so death during the teaching challenge never replays the shrine.
+
+- [ ] **Step 5: Activate standalone checkpoint triggers**
+
+For every `CheckpointTrigger` in the active room, intersect its `RoomRect` with the player's 36×60 rect. If the trigger checkpoint differs from the currently stored checkpoint, call:
+
+```swift
+context.progression.activateCheckpoint(trigger.checkpoint)
+```
+
+Warden Gate must activate `.preWarden` before the player can enter Warden Chamber.
+
+- [ ] **Step 6: Make death reload latest checkpoint**
+
+In `PlayerDamageInstaller.startRespawnTransition`, use:
+
+```swift
+let replacement = GameScene(size: scene.size)
+replacement.scaleMode = scene.scaleMode
+skView.presentScene(replacement)
 V21RuntimeBootstrap.install(on: replacement, launchMode: .continueGame)
 ```
 
-The replacement RoomRuntime then uses the saved checkpoint room/spawn. HP/reset semantics remain owned by the existing fresh `PlayerVitalState` created for the replacement scene.
+Keep the existing fade timings and fresh HP state. The replacement room runtime reads the persisted checkpoint.
 
-- [ ] **Step 6: Verify death/save-related tests and compile**
+- [ ] **Step 7: Verify persistence/respawn regression set**
 
-Run progression, save-store, respawn-sequence, player-health, room-topology tests and arm64 compile. Expected: PASS.
+Run DemoProgression, DemoSaveStore, PlayerHealth, PlayerVitalState, RespawnSequence, RoomTopology, Dash, WallTraversal tests and arm64 compile. Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add Sources/RoomRuntimeInstaller.swift Sources/PlayerDamageInstaller.swift Sources/DemoProgression.swift Tests/DemoProgressionTests.swift
-git commit -m "feat: add persistent shrines and checkpoints"
+git add Sources/RoomRuntimeInstaller.swift Sources/GameScene.swift Sources/PlayerDamageInstaller.swift Tests/DemoProgressionTests.swift
+git commit -m "feat: add ability shrines and persistent checkpoints"
 ```
 
 ---
 
-### Task 8: Build the 10+ Minute Gameplay Route
+### Task 6: Gameplay Pacing, Teaching Sections, Shortcuts, and Ash Warden Integration
 
 **Files:**
 - Modify: `Sources/RoomController.swift`
 - Modify: `Sources/RoomRuntimeInstaller.swift`
-- Modify: `Sources/BossRuntimeInstaller.swift` only if arena clearance is required
-- Test: `Tests/DemoRoomTopologyTests.swift`
+- Modify: `Sources/BossRuntimeInstaller.swift` only when arena clearance requires it.
+- Modify: `Tests/DemoRoomTopologyTests.swift`
 
 **Interfaces:**
-- Consumes the V24 room order, active-room geometry replacement, Dash, Wall Traversal, shrines, and checkpoints from Tasks 1–7.
-- Produces a first-play route whose geometry and encounters match the spec's pacing roles.
+- Consumes all V24 mechanics from Tasks 1–5.
+- Produces the complete 10-room playable route with one traversal-enabled shortcut and room pacing suitable for a 12–15 minute normal first run.
 
-- [ ] **Step 1: Encode traversal teaching gates in room geometry**
+- [ ] **Step 1: Lock the room-by-room pacing roles in topology tests**
 
-Adjust platform sets so:
+Add structural assertions that:
 
-- Dash Shrine has at least one gap that ordinary jump cannot clear but Dash can, followed by a safe multi-dash sequence.
-- Hollow Shaft's shrine is at the lower portion and its mandatory exit is upward through opposing wall surfaces usable for wall jumps.
-- Ashen Ascent contains forgiving sequences of wall jump → dash → wall cling → jump → dash, with landing ledges between harder chains.
-- Warden Gate combines movement and Heavy/Ranged pressure but ends with a calm approach before the checkpoint/boss.
+- Dash Shrine has no mandatory enemy encounter and contains Dash shrine metadata.
+- Hollow Shaft contains Wall Traversal shrine metadata and an UP exit.
+- Watcher Hall contains at least one `.ranged` enemy plus one support enemy.
+- Warden Gate contains `.heavy` and `.ranged` enemies.
+- Broken Gallery contains at least one ability-gated optional exit.
+- Warden Chamber contains exactly one boss archetype spawn.
 
-Do not use moving platforms in V24 unless a separate design is approved; static collision keeps the scope controlled.
+These tests do not measure minutes; they prevent content-role regressions while device timing handles pacing.
 
-- [ ] **Step 2: Verify ability gating mathematically against baseline movement**
+- [ ] **Step 2: Tune Dash teaching geometry**
 
-Use the known jump/run constants when sizing gaps. Dash-required horizontal gaps must exceed ordinary full-jump horizontal reach at normal intended approach but remain comfortably inside Dash-assisted reach. Wall sections must be wider than the 36-point player collider and leave enough wall height for multiple 560-upward wall jumps without pixel-perfect timing.
+Use Dash speed 720 pt/s and active duration 0.16 s, giving roughly 115 points of burst distance before ordinary air movement continues. Make the first mandatory Dash gap clearly wider than a standing ordinary jump can clear from the teaching ledge while still giving at least 20–30 points of landing margin with Dash. Follow it with two safer ledges so the player practices cooldown timing without enemies.
 
-Record chosen dimensions directly in `RoomController.makeV24Demo()`; do not introduce unexplained runtime randomization.
+- [ ] **Step 3: Tune Hollow Shaft and Ashen Ascent**
 
-- [ ] **Step 3: Tune encounters for pacing, not HP padding**
+Use wall slide cap -180, wall jump horizontal 360, wall jump vertical 560. Hollow Shaft must teach repeated opposing-wall jumps with broad wall faces and no pixel-perfect corner requirement. Ashen Ascent then combines wall jump and Dash with recovery ledges between harder chains. Place enemies only on ledges where combat does not invalidate the traversal lesson.
 
-Use existing archetype stats. Increase runtime through room traversal, mixed enemy positioning, and the need to use unlocked movement—not by multiplying enemy HP. Keep Watcher Hall on the already-rebalanced Ranged + Grunt concept.
+- [ ] **Step 4: Implement one meaningful shortcut**
 
-- [ ] **Step 4: Adapt Warden Chamber only as needed**
+Use Broken Gallery's optional `requiredAbility: .wallTraversal` exit as the connected-world payoff. It should be visible during the early pass but unreachable/disabled; after Wall Traversal unlock, returning to Broken Gallery allows a faster connection into the later vertical route. This shortcut must not be required for the first-run progression order.
 
-Ensure the boss arena has enough horizontal space for the 720-point/s Dash to be useful without instantly crossing the entire arena and enough wall geometry that Wall Jump is optional mobility, not required survival. If the existing `BossRuntimeInstaller` arena already satisfies this, make no boss-code change.
+- [ ] **Step 5: Tune encounters without HP padding**
 
-- [ ] **Step 5: Verify topology test and full CI**
+Keep current archetype HP/stats unless a separately observed balance defect requires a bounded rebalance. Runtime is added through traversal, enemy composition, positioning, and the boss—not by multiplying HP. Preserve Watcher Hall as Ranged + Grunt pressure.
 
-Run the complete workflow. Expected: all tests, arm64 compile, IPA package, and artifact upload succeed.
+- [ ] **Step 6: Check Ash Warden arena compatibility**
 
-- [ ] **Step 6: Commit**
+The Warden Chamber must have enough horizontal distance for Dash to reposition without crossing the entire arena in one press. Side wall surfaces may allow optional Wall Jump recovery. Do not require Wall Jump to avoid a mandatory boss attack. If existing `BossRuntimeInstaller` behavior already works inside the V24 room geometry, leave that file unchanged.
+
+- [ ] **Step 7: Run full CI**
+
+Run every old and new test, then arm64 compile, IPA package, artifact upload. Expected: all green.
+
+- [ ] **Step 8: Commit**
 
 ```bash
-git add Sources/RoomController.swift Sources/RoomRuntimeInstaller.swift Sources/BossRuntimeInstaller.swift Tests/DemoRoomTopologyTests.swift
-git commit -m "feat: build V24 ten-room demo route"
+git add Sources/RoomController.swift Sources/RoomRuntimeInstaller.swift Tests/DemoRoomTopologyTests.swift
+git add Sources/BossRuntimeInstaller.swift 2>/dev/null || true
+git commit -m "feat: complete V24 demo gameplay route"
 ```
 
-If `BossRuntimeInstaller.swift` was not changed, omit it from `git add`.
+Before committing, verify `git diff --cached --name-only`; if `BossRuntimeInstaller.swift` has no change, it must not appear in the staged set.
 
 ---
 
-### Task 9: Full Regression, IPA, and Device Acceptance Gate
+### Task 7: Final CI, IPA Provenance, and Device Acceptance
 
 **Files:**
-- No production file is required unless verification reveals a defect.
-- Optional create after measured device run: `docs/superpowers/verification/2026-09-01-v24-device-playtest.md`
+- No production file unless verification reveals a defect.
+- Create `docs/superpowers/verification/2026-09-01-v24-device-playtest.md` only after actual device measurements exist.
 
 **Interfaces:**
-- Produces the exact tested Git SHA, GitHub Actions run ID, artifact ID/digest, local IPA SHA-256, and device acceptance result.
+- Produces exact final Git SHA, GitHub Actions run ID, artifact ID/digest, local IPA SHA-256, and the device acceptance result.
 
-- [ ] **Step 1: Run the complete GitHub Actions workflow on final HEAD**
+- [ ] **Step 1: Run final workflow on final HEAD**
 
-Required successful steps include every existing V21/V23 regression test plus:
+The final run must include successful steps for all existing V21/V23 tests plus DemoProgression, DemoSaveStore, DashController, WallTraversalController, HUDControlLayout with DASH, V24 room topology, arm64 compile, IPA package, and artifact upload.
 
-- Demo progression
-- Demo save store
-- Dash controller
-- Wall traversal controller
-- HUD control layout with DASH
-- V24 room topology
-- arm64 iOS compile
-- IPA package
-- artifact upload
-
-Do not infer success from earlier task runs; use the final HEAD run.
+Do not use an earlier task run as final evidence.
 
 - [ ] **Step 2: Verify artifact provenance**
 
-Confirm artifact `workflow_run.head_sha` exactly equals final `main` HEAD. Record run ID, artifact ID, artifact digest, and commit SHA.
+Confirm the artifact's `workflow_run.head_sha` exactly equals current `main` HEAD. Record the exact run ID, artifact ID, artifact digest, and commit SHA from GitHub.
 
-- [ ] **Step 3: Download and verify IPA locally**
+- [ ] **Step 3: Download and validate IPA locally**
 
-Extract the workflow artifact, then verify:
+Run:
 
 ```bash
 unzip -t AshenHollow-unsigned.ipa
@@ -1231,54 +1319,33 @@ unzip -l AshenHollow-unsigned.ipa | grep 'Payload/AshenHollow.app/Info.plist'
 shasum -a 256 AshenHollow-unsigned.ipa
 ```
 
-All commands must succeed before sharing the IPA.
+Every command must succeed before the IPA is shared.
 
-- [ ] **Step 4: Device test controls and persistence**
+- [ ] **Step 4: Device-test controls and persistence**
 
-On the user's iPhone, verify in this order:
+Verify on the user's iPhone:
 
-1. HUD top overlays remain correctly placed and DASH does not overlap Attack/Jump.
-2. Dash shrine unlocks Dash once; death keeps it.
-3. App relaunch → Continue keeps Dash and checkpoint.
-4. Hollow Shaft unlocks Wall Traversal once; death keeps it.
-5. Wall cling requires holding toward the wall; JUMP pushes away; no separate wall button exists.
-6. New Game clears both abilities and restarts at Approach.
-7. Boss death respawns at pre-Warden checkpoint.
+1. top HP/Essence/room overlays remain correctly placed;
+2. DASH does not overlap Attack/Jump and its visible button responds at its visible center;
+3. Dash shrine unlocks once and survives death;
+4. relaunch → Continue restores post-Dash checkpoint and ability;
+5. Wall Traversal shrine unlocks once and survives death/relaunch;
+6. wall cling requires holding into the wall and JUMP pushes away;
+7. New Game clears abilities/shrines/checkpoint and starts at Approach;
+8. boss death respawns at pre-Warden checkpoint.
 
 Any failed item means V24 is not device-stable.
 
-- [ ] **Step 5: Measure clean first-run duration**
+- [ ] **Step 5: Measure clean playthrough duration**
 
-Measure from gaining control in Approach to Ash Warden defeat/demo completion. Acceptance:
+Measure from first player control in Approach to Ash Warden defeat/demo-complete state. Acceptance is a normal first run around 12–15 minutes and a fast legitimate run of at least about 10 minutes. Death/retry time is not required to satisfy the minimum.
 
-- normal first-time run: target 12–15 minutes;
-- fast legitimate run: at least approximately 10 minutes;
-- do not count required deaths as pacing;
-- if under 10 minutes, add meaningful traversal/combat density in specific rooms and repeat the timing run;
-- never fix runtime by adding idle waits, lowering player speed, inflating HP, or adding empty corridor distance.
+If a competent clean run is below 10 minutes, add meaningful traversal complexity, another purposeful combat beat, or additional connected-room traversal in the rooms that are under target, then rerun CI and repeat the timing test. Do not add waits, slow the player, inflate HP, or insert empty corridor distance.
 
-- [ ] **Step 6: Record device acceptance**
+- [ ] **Step 6: Record measured acceptance data**
 
-If a verification document is created, use this exact shape:
+Only after the actual run, create `docs/superpowers/verification/2026-09-01-v24-device-playtest.md` containing the verified build SHA, workflow run ID, IPA SHA-256, each device checklist result, measured clean playthrough duration, and whether V24 is device-stable. Every field must contain a real measured/verified value; do not commit an unfilled template.
 
-```markdown
-# V24 Device Playtest
+- [ ] **Step 7: Re-verify if any code changes are made during device tuning**
 
-- Build SHA: <exact verified SHA>
-- GitHub Actions run: <exact verified run ID>
-- IPA SHA-256: <exact verified hash>
-- Device: user-tested iPhone
-- HUD/control result: PASS or FAIL with note
-- Save/Continue/New Game result: PASS or FAIL with note
-- Dash result: PASS or FAIL with note
-- Wall Traversal result: PASS or FAIL with note
-- Boss/checkpoint result: PASS or FAIL with note
-- Clean playthrough duration: <measured duration>
-- V24 device-stable: YES only when every item passes and runtime requirement is met
-```
-
-Replace angle-bracket fields only with measured/verified values; do not commit a template containing unresolved placeholders.
-
-- [ ] **Step 7: Final commit only if verification required code/content changes**
-
-If no changes are needed, do not create an empty commit. If pacing or defects required changes, repeat final CI/artifact verification from the new HEAD before making any completion claim.
+Any tuning/fix creates a new final HEAD. Repeat final workflow, artifact provenance check, IPA integrity check, and device test before making a completion claim.
