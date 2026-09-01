@@ -6,21 +6,12 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   build:
     runs-on: macos-15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Apply V24 world reaction runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 scripts/patch_v24_world_reactions_runtime.py
 
       - name: Prepare app bundle
         shell: bash
@@ -127,20 +118,6 @@ jobs:
           cp Info.plist "$APP/Info.plist"
           test -f "$APP/AshenHollow"
           test -f "$APP/Info.plist"
-
-      - name: Commit V24 world reaction runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- Sources/GameScene.swift Sources/RoomRuntimeInstaller.swift; then
-            echo "V24 world reaction runtime already integrated."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add Sources/GameScene.swift Sources/RoomRuntimeInstaller.swift
-            git commit -m "feat: integrate V24 world reactions"
-            git push origin HEAD:main
-          fi
 
       - name: Package unsigned IPA
         shell: bash
