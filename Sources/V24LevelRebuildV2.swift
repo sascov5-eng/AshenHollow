@@ -245,7 +245,7 @@ extension RoomController {
             ],
             enemySpawns: [
                 EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 850, y: 130)),
-                EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 650, y: 530))
+                EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 760, y: 530))
             ],
             requiresCombatClear: true,
             exits: [
