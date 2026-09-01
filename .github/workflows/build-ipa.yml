@@ -96,6 +96,12 @@ jobs:
           set -euo pipefail
           xcrun swiftc Tests/DemoRoomProgressionResolverTests.swift Sources/DemoRoomProgressionResolver.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/DemoRoomProgressionResolverTests
           ./build/DemoRoomProgressionResolverTests
+      - name: Test V24 exit presentation resolver
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/RoomExitPresentationResolverTests.swift Sources/RoomExitPresentationResolver.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/RoomExitPresentationResolverTests
+          ./build/RoomExitPresentationResolverTests
       - name: Typecheck GameScene input lock contract
         shell: bash
         run: |
