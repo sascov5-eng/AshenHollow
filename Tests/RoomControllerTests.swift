@@ -51,10 +51,10 @@ struct RoomControllerTestsMain {
             Set(furnacePassage.enemySpawns.map(\.archetype)) == Set([.heavy, .grunt]),
             "Furnace Passage mixes Heavy and Grunt"
         )
-        expectRoom(watcherHall.enemySpawns.count == 3, "Watcher Hall has three enemies")
+        expectRoom(watcherHall.enemySpawns.count == 2, "Watcher Hall has two enemies in V23")
         expectRoom(
-            Set(watcherHall.enemySpawns.map(\.archetype)) == Set([.runner, .ranged, .grunt]),
-            "Watcher Hall mixes Runner, Ranged, and Grunt"
+            watcherHall.enemySpawns.map(\.archetype) == [.ranged, .grunt],
+            "Watcher Hall is Ranged plus Grunt"
         )
         expectRoom(wardenChamber.enemySpawns.map(\.archetype) == [.boss], "Warden Chamber contains only Ash Warden")
 
