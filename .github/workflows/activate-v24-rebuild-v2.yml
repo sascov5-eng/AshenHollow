@@ -22,6 +22,7 @@ jobs:
           set -euo pipefail
           python3 scripts/patch_activate_v24_rebuild_v2.py
           python3 scripts/patch_v24_rebuild_v2_iteration.py
+          python3 scripts/patch_gameplay_framing_runtime.py
 
       - name: Verify rebuilt runtime compiles
         shell: bash
@@ -34,12 +35,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- Sources/RoomRuntimeInstaller.swift Sources/V24LevelRebuildV2.swift; then
-            echo "V24 rebuild v2 runtime and tuning already integrated."
+          if git diff --quiet -- Sources/RoomRuntimeInstaller.swift Sources/V24LevelRebuildV2.swift Sources/GameScene.swift; then
+            echo "V24 rebuild v2 runtime, safety tuning and framing already integrated."
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add Sources/RoomRuntimeInstaller.swift Sources/V24LevelRebuildV2.swift
-            git commit -m "fix: tune V24 rebuild v2 safety"
+            git add Sources/RoomRuntimeInstaller.swift Sources/V24LevelRebuildV2.swift Sources/GameScene.swift
+            git commit -m "feat: integrate V24 rebuild v2 framing"
             git push origin HEAD:main
           fi
