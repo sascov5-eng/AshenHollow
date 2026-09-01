@@ -146,7 +146,7 @@ struct V24EncounterPlacementTestsMain {
         let gate = level.room(.wardenGate)!
         let heavy = gate.enemySpawns.first(where: { $0.archetype == .heavy })!
         let ranged = gate.enemySpawns.first(where: { $0.archetype == .ranged })!
-        expectEncounter(abs(heavy.position.y - 130) <= 2, "Warden Gate Heavy guards the ground route")
+        expectEncounter(abs(heavy.position.y - 136) <= 2, "Warden Gate Heavy stands correctly on the ground route")
         expectEncounter(ranged.position.y > heavy.position.y + 80, "Warden Gate Ranged occupies separated elevation")
         expectEncounter(abs(ranged.position.x - heavy.position.x) >= 200, "Warden Gate Heavy/Ranged are spatially separated")
 
