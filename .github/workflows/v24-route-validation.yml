@@ -29,3 +29,19 @@ jobs:
             Sources/DemoProgression.swift \
             -o /tmp/V24FullRouteValidationTests
           /tmp/V24FullRouteValidationTests
+
+      - name: Compile and run encounter safety tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc \
+            Tests/V24EncounterSafetyValidatorTests.swift \
+            Sources/V24EncounterSafetyValidator.swift \
+            Sources/V24MandatoryRoute.swift \
+            Sources/V24LevelRebuildV2.swift \
+            Sources/PlayerMovementTuning.swift \
+            Sources/RoomController.swift \
+            Sources/EnemyArchetype.swift \
+            Sources/DemoProgression.swift \
+            -o /tmp/V24EncounterSafetyValidatorTests
+          /tmp/V24EncounterSafetyValidatorTests
