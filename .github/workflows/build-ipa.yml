@@ -6,48 +6,12 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   build:
     runs-on: macos-15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Apply shared movement tuning to GameScene
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('Sources/GameScene.swift')
-          text = path.read_text()
-          replacements = [
-              (
-                  '    private let colliderSize = CGSize(width: 36, height: 60)\n',
-                  '    private let movementTuning = PlayerMovementTuning.current\n    private lazy var colliderSize = CGSize(\n        width: CGFloat(movementTuning.colliderWidth),\n        height: CGFloat(movementTuning.colliderHeight)\n    )\n'
-              ),
-              ('    private let gravity: CGFloat = -1700\n', '    private var gravity: CGFloat { -CGFloat(movementTuning.gravity) }\n'),
-              ('    private let jumpVelocity: CGFloat = 610\n', '    private var jumpVelocity: CGFloat { CGFloat(movementTuning.jumpVelocity) }\n'),
-              ('    private let jumpReleaseVelocity: CGFloat = 285\n', '    private var jumpReleaseVelocity: CGFloat { CGFloat(movementTuning.jumpReleaseVelocity) }\n'),
-              ('    private let maxFallSpeed: CGFloat = -900\n', '    private var maxFallSpeed: CGFloat { -CGFloat(movementTuning.maxFallSpeed) }\n'),
-              ('    private let runSpeed: CGFloat = 315\n', '    private var runSpeed: CGFloat { CGFloat(movementTuning.runSpeed) }\n'),
-              ('    private let groundAcceleration: CGFloat = 1900\n', '    private var groundAcceleration: CGFloat { CGFloat(movementTuning.groundAcceleration) }\n'),
-              ('    private let airAcceleration: CGFloat = 1050\n', '    private var airAcceleration: CGFloat { CGFloat(movementTuning.airAcceleration) }\n'),
-              ('    private let groundDeceleration: CGFloat = 2400\n', '    private var groundDeceleration: CGFloat { CGFloat(movementTuning.groundDeceleration) }\n'),
-              ('    private let coyoteDuration: TimeInterval = 0.12\n', '    private var coyoteDuration: TimeInterval { movementTuning.coyoteDuration }\n'),
-              ('    private let jumpBufferDuration: TimeInterval = 0.12\n', '    private var jumpBufferDuration: TimeInterval { movementTuning.jumpBufferDuration }\n'),
-              ('    private let maxMotionPerSubstep: CGFloat = 5\n', '    private var maxMotionPerSubstep: CGFloat { CGFloat(movementTuning.maxMotionPerSubstep) }\n'),
-              ('            velocity.dx = CGFloat(dashController.direction) * 720\n', '            velocity.dx = CGFloat(dashController.direction) * CGFloat(movementTuning.dashSpeed)\n'),
-          ]
-          for old, new in replacements:
-              if old in text:
-                  text = text.replace(old, new, 1)
-              elif new not in text:
-                  raise SystemExit(f'Expected GameScene movement signature not found: {old!r}')
-          path.write_text(text)
-          PY
       - name: Prepare app bundle
         shell: bash
         run: |
@@ -245,19 +209,6 @@ jobs:
           cp Info.plist "$APP/Info.plist"
           test -f "$APP/AshenHollow"
           test -f "$APP/Info.plist"
-      - name: Commit shared movement tuning integration
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- Sources/GameScene.swift; then
-            echo "GameScene already uses shared movement tuning."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add Sources/GameScene.swift
-            git commit -m "refactor: use shared movement tuning in GameScene"
-            git push origin HEAD:main
-          fi
       - name: Package unsigned IPA
         shell: bash
         run: |
