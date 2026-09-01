@@ -1,0 +1,24 @@
+name: Approach Atmosphere
+
+on:
+  push:
+    branches:
+      - feature/approach-atmosphere-greybox
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  layout-contract:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run Approach atmosphere layout contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc \
+            Tests/ApproachAtmosphereLayoutTests.swift \
+            Sources/ApproachAtmosphereLayout.swift \
+            -o /tmp/ApproachAtmosphereLayoutTests
+          /tmp/ApproachAtmosphereLayoutTests
