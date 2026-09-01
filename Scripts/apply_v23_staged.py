@@ -185,3 +185,4 @@ replace_once(
 
 path.write_text(text)
 print("V23 staged patch applied: final Ranged runtime integration")
+# apply trigger: runtime-only V23 final integration
