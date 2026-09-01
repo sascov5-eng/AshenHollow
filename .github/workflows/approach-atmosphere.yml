@@ -1,0 +1,40 @@
+name: Approach Atmosphere
+
+on:
+  push:
+    branches:
+      - feature/approach-atmosphere-greybox
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  layout-contract:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run Approach atmosphere layout contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc \
+            Tests/ApproachAtmosphereLayoutTests.swift \
+            Sources/ApproachAtmosphereLayout.swift \
+            -o /tmp/ApproachAtmosphereLayoutTests
+          /tmp/ApproachAtmosphereLayoutTests
+
+      - name: Compile iOS runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          xcrun swiftc \
+            -parse-as-library \
+            -target arm64-apple-ios15.0 \
+            -sdk "$SDK" \
+            -framework Foundation \
+            -framework SwiftUI \
+            -framework UIKit \
+            -framework SpriteKit \
+            Sources/*.swift \
+            -o /tmp/AshenHollow
