@@ -71,6 +71,7 @@ enum V21RuntimeBootstrap {
         PlayerDamageInstaller.install(on: scene, context: context)
         RoomRuntimeInstaller.install(on: scene, context: context)
         ApproachAtmosphereInstaller.install(on: scene, context: context)
+        ApproachAtmosphereWorldHostInstaller.install(on: scene, context: context)
     }
 
     static func context(from scene: SKScene) -> V21RuntimeContext? {
