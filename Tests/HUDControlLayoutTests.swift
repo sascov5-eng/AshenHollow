@@ -61,6 +61,37 @@ struct HUDControlLayoutTestsMain {
             "focus has a usable touch radius around its visible center"
         )
 
+        let overlay = HUDOverlayLayout(
+            viewWidth: width,
+            viewHeight: height,
+            safeTopInset: 0,
+            safeLeftInset: 59,
+            safeRightInset: 59
+        )
+
+        let health = overlay.healthCenter
+        expectHUD(health.x >= 59 + 63, "health cluster stays inside the left safe area")
+        expectHUD(health.y >= 50 && health.y <= 70, "health cluster stays near the top edge")
+
+        let roomTitle = overlay.roomTitleCenter
+        expectHUD(abs(roomTitle.x - width * 0.5) < 0.001, "room title stays horizontally centered")
+        expectHUD(roomTitle.y <= 32, "room title stays near the top edge")
+
+        let combatStatus = overlay.combatStatusCenter
+        expectHUD(abs(combatStatus.x - roomTitle.x) < 0.001, "combat status aligns with room title")
+        expectHUD(combatStatus.y > roomTitle.y, "combat status sits below the room title")
+        expectHUD(combatStatus.y < 60, "combat status remains in the top HUD band")
+
+        let local = overlay.cameraLocalPosition(
+            for: health,
+            sceneWidth: 844,
+            sceneHeight: 390
+        )
+        let reconstructedScreenX = (local.x + 422) / 844 * width
+        let reconstructedScreenY = (195 - local.y) / 390 * height
+        expectHUD(abs(reconstructedScreenX - health.x) < 0.001, "camera mapping preserves health screen X across resize")
+        expectHUD(abs(reconstructedScreenY - health.y) < 0.001, "camera mapping preserves health screen Y across resize")
+
         print("HUDControlLayoutTests: PASS")
     }
 }
