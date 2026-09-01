@@ -2,7 +2,7 @@ import SpriteKit
 import UIKit
 
 private final class V21RoomRuntimeState {
-    let controller = RoomController.makeV24Demo()
+    let controller = RoomController.makeV24DemoV2()
     var activeRoomID: RoomID = .approach
     var lastElapsed: CGFloat = 0
     var transitionCooldown: CGFloat = 0
