@@ -40,10 +40,15 @@ struct DemoRoomProgressionResolverTestsMain {
         expectRoomProgression(farShrineHit == nil, "player outside shrine activation rectangle does not activate shrine")
 
         let gate = level.room(.wardenGate)!
-        let preWarden = gate.checkpointTriggers.first!.checkpoint
+        let preWardenTrigger = gate.checkpointTriggers.first!
+        let preWarden = preWardenTrigger.checkpoint
+        let checkpointCenter = RoomPoint(
+            x: preWardenTrigger.trigger.x + preWardenTrigger.trigger.width * 0.5,
+            y: preWardenTrigger.trigger.y + preWardenTrigger.trigger.height * 0.5
+        )
         let checkpointHit = DemoRoomProgressionResolver.checkpointToActivate(
             in: gate,
-            playerCenter: RoomPoint(x: 900, y: 130),
+            playerCenter: checkpointCenter,
             playerSize: RoomSize(width: 36, height: 60),
             currentCheckpoint: DemoProgressionState.fresh.checkpoint
         )
@@ -51,7 +56,7 @@ struct DemoRoomProgressionResolverTestsMain {
 
         let duplicateCheckpointHit = DemoRoomProgressionResolver.checkpointToActivate(
             in: gate,
-            playerCenter: RoomPoint(x: 900, y: 130),
+            playerCenter: checkpointCenter,
             playerSize: RoomSize(width: 36, height: 60),
             currentCheckpoint: preWarden
         )
