@@ -21,8 +21,19 @@ final class V21RuntimeContext: NSObject {
     let damageInbox = PlayerDamageInbox()
     let combatStatus = RoomCombatStatus()
     let vitals = PlayerVitalState()
-    var focus = EssenceFocusController()
     var hitStop = CombatHitStopController()
+
+    weak var attachedScene: SKScene?
+
+    var focus = EssenceFocusController() {
+        didSet {
+            guard focus.acceptedMeleeHitSequence != oldValue.acceptedMeleeHitSequence,
+                  let scene = attachedScene else {
+                return
+            }
+            CombatFeedback.presentAcceptedMeleeHit(on: scene, context: self)
+        }
+    }
 
     var playerAttackDirection: PlayerAttackDirection = .horizontal
     var playerAttackSequenceID: Int = 0
@@ -31,6 +42,10 @@ final class V21RuntimeContext: NSObject {
     var physicalRoomMinX: CGFloat = 0
     var physicalRoomMaxX: CGFloat = 1200
     var levelComplete = false
+
+    func attach(to scene: SKScene) {
+        attachedScene = scene
+    }
 }
 
 enum V21RuntimeBootstrap {
@@ -38,6 +53,7 @@ enum V21RuntimeBootstrap {
         scene.userData = scene.userData ?? NSMutableDictionary()
 
         let context = V21RuntimeContext()
+        context.attach(to: scene)
         scene.userData?["v21RuntimeContext"] = context
 
         PlayerDamageInstaller.install(on: scene, context: context)
