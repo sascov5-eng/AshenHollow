@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -13,6 +16,40 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Compile and run TMX parser tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc \
+            Tests/TMXLevelLoaderTests.swift \
+            Sources/TMXRoomSchema.swift \
+            Sources/TMXLevelLoader.swift \
+            Sources/RoomController.swift \
+            Sources/EnemyArchetype.swift \
+            Sources/DemoProgression.swift \
+            -o /tmp/TMXLevelLoaderTests
+          /tmp/TMXLevelLoaderTests
+
+      - name: Compile and run TMX Approach parity tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc \
+            Tests/TMXApproachParityTests.swift \
+            Sources/TMXRoomSchema.swift \
+            Sources/TMXLevelLoader.swift \
+            Sources/V24LevelRebuildV2.swift \
+            Sources/V24RouteValidator.swift \
+            Sources/V24MandatoryRoute.swift \
+            Sources/V24EncounterSafetyValidator.swift \
+            Sources/TraversalSafetyValidator.swift \
+            Sources/PlayerMovementTuning.swift \
+            Sources/RoomController.swift \
+            Sources/EnemyArchetype.swift \
+            Sources/DemoProgression.swift \
+            -o /tmp/TMXApproachParityTests
+          /tmp/TMXApproachParityTests
+
       - name: Compile and run Approach room layout tests
         shell: bash
         run: |
@@ -20,6 +57,8 @@ jobs:
           xcrun swiftc \
             Tests/ApproachRoomLayoutTests.swift \
             Sources/V24LevelRebuildV2.swift \
+            Sources/TMXRoomSchema.swift \
+            Sources/TMXLevelLoader.swift \
             Sources/RoomController.swift \
             Sources/EnemyArchetype.swift \
             Sources/DemoProgression.swift \
@@ -35,6 +74,8 @@ jobs:
             Sources/V24RouteValidator.swift \
             Sources/V24MandatoryRoute.swift \
             Sources/V24LevelRebuildV2.swift \
+            Sources/TMXRoomSchema.swift \
+            Sources/TMXLevelLoader.swift \
             Sources/TraversalSafetyValidator.swift \
             Sources/PlayerMovementTuning.swift \
             Sources/RoomController.swift \
@@ -63,6 +104,8 @@ jobs:
             Sources/V24EncounterSafetyValidator.swift \
             Sources/V24MandatoryRoute.swift \
             Sources/V24LevelRebuildV2.swift \
+            Sources/TMXRoomSchema.swift \
+            Sources/TMXLevelLoader.swift \
             Sources/PlayerMovementTuning.swift \
             Sources/RoomController.swift \
             Sources/EnemyArchetype.swift \

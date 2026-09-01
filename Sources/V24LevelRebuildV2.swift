@@ -20,7 +20,7 @@ extension RoomController {
             )
         }
 
-        let approach = RoomDefinition(
+        let swiftApproach = RoomDefinition(
             id: .approach,
             worldOrigin: RoomPoint(x: 4800, y: 1120),
             bounds: bounds,
@@ -46,6 +46,21 @@ extension RoomController {
                 )
             ]
         )
+
+        let approach: RoomDefinition
+        do {
+            let loaded = try TMXLevelLoader.loadProductionRoom(named: "approach")
+            guard loaded.id == .approach else {
+                throw TMXLevelLoaderError.unexpectedRoomID(
+                    expected: .approach,
+                    actual: loaded.id
+                )
+            }
+            approach = loaded
+        } catch {
+            print("Ashen Hollow TMX fallback for Approach: \(error)")
+            approach = swiftApproach
+        }
 
         let lowerHall = RoomDefinition(
             id: .lowerHall,
