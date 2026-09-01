@@ -22,6 +22,7 @@ final class V21RuntimeContext: NSObject {
     let combatStatus = RoomCombatStatus()
     let vitals = PlayerVitalState()
     var focus = EssenceFocusController()
+    var hitStop = CombatHitStopController()
 
     var playerAttackDirection: PlayerAttackDirection = .horizontal
     var playerAttackSequenceID: Int = 0
