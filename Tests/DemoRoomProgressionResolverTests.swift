@@ -45,7 +45,7 @@ struct DemoRoomProgressionResolverTestsMain {
             in: gate,
             playerCenter: RoomPoint(x: 900, y: 130),
             playerSize: RoomSize(width: 36, height: 60),
-            currentCheckpoint: .fresh.checkpoint
+            currentCheckpoint: DemoProgressionState.fresh.checkpoint
         )
         expectRoomProgression(checkpointHit == preWarden, "entering checkpoint trigger returns pre-Warden checkpoint")
 
