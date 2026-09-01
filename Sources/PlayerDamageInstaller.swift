@@ -221,7 +221,9 @@ enum PlayerDamageInstaller {
         if let existing = V21RuntimeBootstrap.context(from: scene) {
             context = existing
         } else {
-            context = V21RuntimeContext()
+            context = V21RuntimeContext(
+                progression: DemoProgressionRuntime(launchMode: .continueGame)
+            )
             scene.userData?["v21RuntimeContext"] = context
         }
         install(on: scene, context: context)
@@ -254,7 +256,7 @@ enum PlayerDamageInstaller {
             let replacement = GameScene(size: scene.size)
             replacement.scaleMode = scene.scaleMode
             skView.presentScene(replacement)
-            V21RuntimeBootstrap.install(on: replacement)
+            V21RuntimeBootstrap.install(on: replacement, launchMode: .continueGame)
 
             UIView.animate(
                 withDuration: sequence.fadeInDuration,
