@@ -14,6 +14,11 @@ replacements = [
         "                EnemySpawn(id: 1, archetype: .heavy, position: RoomPoint(x: 620, y: 136)),",
         "Warden Gate Heavy spawn signature not found",
     ),
+    (
+        "                EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 820, y: 230)),",
+        "                EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 180, y: 537)),",
+        "Ashen Ascent Runner spawn signature not found",
+    ),
 ]
 
 for old, new, error in replacements:
@@ -23,4 +28,4 @@ for old, new, error in replacements:
         raise SystemExit(error)
 
 path.write_text(text)
-print("Watcher Hall spawn cover and Warden Gate Heavy support fixed")
+print("Watcher spawn cover, Warden Heavy support, and late Ashen Ascent Runner fixed")
