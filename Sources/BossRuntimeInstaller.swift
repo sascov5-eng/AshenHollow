@@ -17,17 +17,16 @@ private final class V21BossRuntime {
     var controller = BossController()
     let node: SKNode
     let body: SKShapeNode
+    let core: SKShapeNode
     let hpFill: SKSpriteNode
     let statusLabel: SKLabelNode
     let attackTell: SKShapeNode
     let bossTitle: SKLabelNode
 
     var lastElapsed: CGFloat = 0
-    var playerHitboxWasActive = false
-    var playerSwingID = 0
     var lastAcceptedPlayerSwingID = -1
-    var previousStage: BossPatternStage = .idle
     var patternIndex = 0
+    var committedFacing: CGFloat = -1
     var chargeDirection: CGFloat = -1
     var didDamageThisCommit = false
     var projectiles: [V21BossProjectile] = []
@@ -36,6 +35,7 @@ private final class V21BossRuntime {
     init(
         node: SKNode,
         body: SKShapeNode,
+        core: SKShapeNode,
         hpFill: SKSpriteNode,
         statusLabel: SKLabelNode,
         attackTell: SKShapeNode,
@@ -43,6 +43,7 @@ private final class V21BossRuntime {
     ) {
         self.node = node
         self.body = body
+        self.core = core
         self.hpFill = hpFill
         self.statusLabel = statusLabel
         self.attackTell = attackTell
@@ -154,25 +155,64 @@ enum BossRuntimeInstaller {
         let runtime = V21BossRuntime(
             node: node,
             body: body,
+            core: core,
             hpFill: hpFill,
             statusLabel: statusLabel,
             attackTell: attackTell,
             bossTitle: bossTitle
         )
 
+        func clearProjectiles() {
+            for projectile in runtime.projectiles {
+                projectile.node.removeFromParent()
+            }
+            runtime.projectiles.removeAll()
+        }
+
         func refreshBossHUD() {
             runtime.hpFill.xScale = CGFloat(runtime.controller.hp) / 20.0
             runtime.bossTitle.text = "ASH WARDEN  \(runtime.controller.hp)/20"
+
             if runtime.controller.phase == .two {
                 runtime.body.fillColor = UIColor(red: 0.48, green: 0.10, blue: 0.13, alpha: 1)
-                core.fillColor = UIColor(red: 1.0, green: 0.68, blue: 0.14, alpha: 1)
+                runtime.core.fillColor = UIColor(red: 1.0, green: 0.68, blue: 0.14, alpha: 1)
                 runtime.bossTitle.fontColor = UIColor(red: 1.0, green: 0.40, blue: 0.25, alpha: 1)
+            } else {
+                runtime.body.fillColor = UIColor(red: 0.28, green: 0.12, blue: 0.18, alpha: 1)
+                runtime.core.fillColor = UIColor(red: 1.0, green: 0.36, blue: 0.14, alpha: 0.92)
+                runtime.bossTitle.fontColor = UIColor(red: 1.0, green: 0.74, blue: 0.58, alpha: 0.96)
             }
         }
 
-        func spawnVolley() {
+        func flashBoss() {
+            runtime.body.removeAction(forKey: "bossHitFlash")
+            runtime.body.run(
+                SKAction.sequence([
+                    SKAction.fadeAlpha(to: 0.42, duration: 0.04),
+                    SKAction.fadeAlpha(to: 1.0, duration: 0.07)
+                ]),
+                withKey: "bossHitFlash"
+            )
+        }
+
+        func presentDefeat() {
+            guard !runtime.defeatCounted else { return }
+            runtime.defeatCounted = true
+            context.combatStatus.markEnemyDefeated()
+            runtime.attackTell.alpha = 0
+            runtime.statusLabel.text = "DEFEATED"
+            runtime.bossTitle.text = "ASH WARDEN — DEFEATED"
+            clearProjectiles()
+            runtime.node.run(
+                SKAction.group([
+                    SKAction.fadeOut(withDuration: 0.45),
+                    SKAction.scale(to: 0.76, duration: 0.45)
+                ])
+            )
+        }
+
+        func spawnVolley(direction: CGFloat) {
             let count = runtime.controller.volleyProjectileCount
-            let direction: CGFloat = player.position.x >= runtime.node.position.x ? 1 : -1
             let offsets: [CGFloat]
             if count >= 5 {
                 offsets = [-30, -15, 0, 15, 30]
@@ -225,23 +265,21 @@ enum BossRuntimeInstaller {
 
             let attackHitboxNode = player.childNode(withName: "attackHitbox")
             let playerHitboxActive = (attackHitboxNode?.alpha ?? 0) > 0.5
-            if playerHitboxActive && !runtime.playerHitboxWasActive {
-                runtime.playerSwingID += 1
-            }
-            runtime.playerHitboxWasActive = playerHitboxActive
 
             if playerHitboxActive,
-               runtime.lastAcceptedPlayerSwingID != runtime.playerSwingID,
+               context.playerAttackSequenceID > 0,
+               runtime.lastAcceptedPlayerSwingID != context.playerAttackSequenceID,
                let attackHitboxNode {
+                let spec = context.playerAttackDirection.hitboxSpec(facing: 1)
                 let center = CGPoint(
                     x: player.position.x + attackHitboxNode.position.x,
                     y: player.position.y + attackHitboxNode.position.y
                 )
                 let attackRect = CGRect(
-                    x: center.x - 31,
-                    y: center.y - 21,
-                    width: 62,
-                    height: 42
+                    x: center.x - CGFloat(spec.width) * 0.5,
+                    y: center.y - CGFloat(spec.height) * 0.5,
+                    width: CGFloat(spec.width),
+                    height: CGFloat(spec.height)
                 )
                 let bossRect = CGRect(
                     x: runtime.node.position.x - 39,
@@ -249,29 +287,34 @@ enum BossRuntimeInstaller {
                     width: 78,
                     height: 90
                 )
+
                 if attackRect.intersects(bossRect) {
-                    runtime.lastAcceptedPlayerSwingID = runtime.playerSwingID
+                    runtime.lastAcceptedPlayerSwingID = context.playerAttackSequenceID
                     let oldPhase = runtime.controller.phase
-                    _ = runtime.controller.applyPlayerHit(damage: 1)
-                    refreshBossHUD()
+                    let hitResponse = runtime.controller.applyPlayerHit(damage: 1)
 
-                    let direction: CGFloat = runtime.node.position.x >= player.position.x ? 1 : -1
-                    runtime.node.position.x += direction * 4
-                    runtime.node.position.x = max(
-                        physicalOriginX + 42,
-                        min(physicalOriginX + roomWidth - 42, runtime.node.position.x)
-                    )
+                    switch hitResponse {
+                    case .blocked:
+                        runtime.statusLabel.text = "BLOCKED"
 
-                    runtime.body.removeAction(forKey: "bossHitFlash")
-                    runtime.body.run(
-                        SKAction.sequence([
-                            SKAction.fadeAlpha(to: 0.42, duration: 0.04),
-                            SKAction.fadeAlpha(to: 1.0, duration: 0.07)
-                        ]),
-                        withKey: "bossHitFlash"
-                    )
+                    case .accepted, .staggered, .defeated:
+                        context.focus.gainFromAcceptedMeleeHit()
+                        flashBoss()
+                        refreshBossHUD()
 
-                    if oldPhase != runtime.controller.phase && runtime.controller.phase == .two {
+                        if let gameScene = scene as? GameScene {
+                            switch context.playerAttackDirection {
+                            case .down:
+                                gameScene.enqueueCombatImpulse(.pogo(verticalSpeed: 465))
+                            case .horizontal, .up:
+                                let away: Double = player.position.x >= runtime.node.position.x ? 1 : -1
+                                gameScene.enqueueCombatImpulse(.recoil(direction: away, speed: 220))
+                            }
+                        }
+                    }
+
+                    if oldPhase != runtime.controller.phase,
+                       runtime.controller.phase == .two {
                         runtime.statusLabel.text = "PHASE II"
                         runtime.node.run(
                             SKAction.sequence([
@@ -281,24 +324,15 @@ enum BossRuntimeInstaller {
                         )
                     }
 
-                    if !runtime.controller.isAlive {
-                        if !runtime.defeatCounted {
-                            runtime.defeatCounted = true
-                            context.combatStatus.markEnemyDefeated()
-                        }
+                    if hitResponse == .staggered {
+                        runtime.didDamageThisCommit = false
                         runtime.attackTell.alpha = 0
-                        runtime.statusLabel.text = "DEFEATED"
-                        runtime.bossTitle.text = "ASH WARDEN — DEFEATED"
-                        for projectile in runtime.projectiles {
-                            projectile.node.removeFromParent()
-                        }
-                        runtime.projectiles.removeAll()
-                        runtime.node.run(
-                            SKAction.group([
-                                SKAction.fadeOut(withDuration: 0.45),
-                                SKAction.scale(to: 0.76, duration: 0.45)
-                            ])
-                        )
+                        runtime.statusLabel.text = "STAGGERED"
+                        clearProjectiles()
+                    }
+
+                    if hitResponse == .defeated {
+                        presentDefeat()
                         return
                     }
                 }
@@ -311,7 +345,6 @@ enum BossRuntimeInstaller {
                 let pattern = patterns[runtime.patternIndex % patterns.count]
                 runtime.patternIndex += 1
                 _ = runtime.controller.begin(pattern: pattern)
-                runtime.previousStage = .idle
             }
 
             let stageBeforeUpdate = runtime.controller.stage
@@ -319,44 +352,45 @@ enum BossRuntimeInstaller {
             let stage = runtime.controller.stage
             let pattern = runtime.controller.currentPattern
 
-            if stageBeforeUpdate != stage {
-                if stage == .committed {
-                    runtime.didDamageThisCommit = false
-                    if pattern == .charge {
-                        runtime.chargeDirection = player.position.x >= runtime.node.position.x ? 1 : -1
-                    } else if pattern == .volley {
-                        spawnVolley()
-                    }
+            if stageBeforeUpdate != stage, stage == .committed {
+                runtime.didDamageThisCommit = false
+                runtime.committedFacing = player.position.x >= runtime.node.position.x ? 1 : -1
+                runtime.chargeDirection = runtime.committedFacing
+                if pattern == .volley {
+                    spawnVolley(direction: runtime.committedFacing)
                 }
-                runtime.previousStage = stageBeforeUpdate
             }
 
             switch stage {
             case .idle:
                 runtime.attackTell.alpha = 0
+                runtime.core.setScale(1.0)
                 runtime.statusLabel.text = runtime.controller.phase == .two ? "PHASE II" : "READY"
 
             case .telegraph:
-                runtime.attackTell.alpha = 0.34
-                runtime.statusLabel.text = "WINDUP \(patternName(pattern))"
                 let facing: CGFloat = player.position.x >= runtime.node.position.x ? 1 : -1
                 runtime.attackTell.position.x = facing * 68
+                runtime.attackTell.alpha = 0.34
+                runtime.core.setScale(1.0)
+                runtime.statusLabel.text = "WINDUP \(patternName(pattern))"
 
             case .committed:
+                runtime.core.setScale(0.88)
                 guard let pattern else { break }
+
                 switch pattern {
                 case .slash:
-                    let facing: CGFloat = player.position.x >= runtime.node.position.x ? 1 : -1
-                    runtime.attackTell.position.x = facing * 68
+                    runtime.attackTell.position.x = runtime.committedFacing * 68
                     runtime.attackTell.alpha = 1
                     runtime.statusLabel.text = "SLASH"
                     let slashRect = CGRect(
-                        x: runtime.node.position.x + facing * 68 - 56,
+                        x: runtime.node.position.x + runtime.committedFacing * 68 - 56,
                         y: runtime.node.position.y - 29,
                         width: 112,
                         height: 58
                     )
-                    if !runtime.didDamageThisCommit && slashRect.intersects(playerRect) {
+                    if !runtime.didDamageThisCommit,
+                       slashRect.intersects(playerRect) {
                         runtime.didDamageThisCommit = true
                         context.damageInbox.enqueue(
                             damage: 2,
@@ -365,6 +399,7 @@ enum BossRuntimeInstaller {
                     }
 
                 case .charge:
+                    runtime.attackTell.position.x = runtime.chargeDirection * 68
                     runtime.attackTell.alpha = 0.55
                     runtime.statusLabel.text = "CHARGE"
                     runtime.node.position.x += runtime.chargeDirection * (runtime.controller.phase == .two ? 330 : 285) * dt
@@ -372,13 +407,14 @@ enum BossRuntimeInstaller {
                         physicalOriginX + 42,
                         min(physicalOriginX + roomWidth - 42, runtime.node.position.x)
                     )
-                    let bossRect = CGRect(
+                    let chargeRect = CGRect(
                         x: runtime.node.position.x - 40,
                         y: runtime.node.position.y - 46,
                         width: 80,
                         height: 92
                     )
-                    if !runtime.didDamageThisCommit && bossRect.intersects(playerRect) {
+                    if !runtime.didDamageThisCommit,
+                       chargeRect.intersects(playerRect) {
                         runtime.didDamageThisCommit = true
                         context.damageInbox.enqueue(
                             damage: 2,
@@ -387,13 +423,21 @@ enum BossRuntimeInstaller {
                     }
 
                 case .volley:
+                    runtime.attackTell.position.x = runtime.committedFacing * 68
                     runtime.attackTell.alpha = 0.65
                     runtime.statusLabel.text = "ASH VOLLEY"
                 }
 
             case .recovery:
                 runtime.attackTell.alpha = 0
+                runtime.core.setScale(1.28)
                 runtime.statusLabel.text = "RECOVER"
+
+            case .staggered:
+                runtime.attackTell.alpha = 0
+                runtime.didDamageThisCommit = false
+                runtime.core.setScale(1.45)
+                runtime.statusLabel.text = "STAGGERED"
             }
 
             if !runtime.projectiles.isEmpty {
