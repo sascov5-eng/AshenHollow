@@ -68,14 +68,17 @@ On first activation of a shrine:
 2. play a short acquisition presentation;
 3. show the ability name;
 4. mark the ability unlocked in progression state;
-5. persist the save immediately;
-6. mark that shrine as consumed;
-7. restore control;
-8. place the player directly into a safe teaching section that requires the new ability.
+5. mark that shrine as consumed;
+6. persist the save immediately;
+7. activate the associated post-unlock checkpoint;
+8. restore control;
+9. place the player directly into a safe teaching section that requires the new ability.
 
 A consumed shrine remains consumed after death and after relaunch. Returning to it must not replay the unlock or grant anything again.
 
 The acquisition sequence must be short. It is a punctuation beat, not a long cutscene.
+
+The checkpoint is activated at the end of the acquisition sequence, before the teaching challenge. Therefore dying during the teaching section does not send the player back through the shrine sequence.
 
 ## 5. Dash
 
@@ -120,7 +123,7 @@ Exact speed and duration are tuning constants to be finalized during implementat
 The aerial dash becomes available again after any of these events:
 
 - landing on the ground;
-- entering valid wall cling / completing a wall jump;
+- entering valid wall cling or completing a wall jump;
 - successful pogo bounce.
 
 Repeated airborne button presses without a restore event must not create additional air dashes.
@@ -177,6 +180,13 @@ Activating a checkpoint records at minimum:
 - consumed ability shrines;
 - enough demo-progression state to prevent invalid replay of already-completed acquisition events.
 
+The four checkpoint stages are:
+
+1. start / Approach;
+2. immediately after Dash acquisition;
+3. immediately after Wall Traversal acquisition;
+4. immediately before Ash Warden.
+
 ### 7.2 Death
 
 Death keeps the existing death presentation and player-state reset semantics.
@@ -214,33 +224,41 @@ The world is spatially connected. Required progression is linear, but travel dir
 
 The implementation may use room-local coordinates and transitions, but the player's perceived route must include horizontal and vertical movement rather than ten rooms arranged in a straight row.
 
-Proposed progression map:
+Required progression order and travel direction:
 
 ```text
-                         [9] Warden Gate
-                              │
-                              ↑
-                     [8] Ashen Ascent
-                              ↑
-                              │
-[6] Watcher Hall ←──── [7] Hollow Shaft
-       ↑                     │
-       │                     ↓
-[5] Furnace Passage ← [4] Dash Shrine
-       ↑                     ↑
-       │                     │
-[3] Broken Gallery ←── [2] Lower Hall
-                              ↑
-                              │
-                        [1] Approach
-
-                         ↓ after Gate
-
-                    [10] Warden Chamber
-                         ASH WARDEN
+[1] Approach
+      │
+      ↓ DOWN
+[2] Lower Hall
+      │
+      └── LEFT ──→ [3] Broken Gallery
+                       │
+                       ↓ DOWN
+                  [4] Dash Shrine
+                       │
+                       └── LEFT ──→ [5] Furnace Passage
+                                         │
+                                         ↑ UP
+                                    [6] Watcher Hall
+                                         │
+                                         └── LEFT ──→ [7] Hollow Shaft
+                                                           │
+                                                           ↑ UP
+                                                      [8] Ashen Ascent
+                                                           │
+                                                           └── LEFT ──→ [9] Warden Gate
+                                                                             │
+                                                                             ↓ DOWN
+                                                                        [10] Warden Chamber
+                                                                             ASH WARDEN
 ```
 
-This diagram defines progression intent, not exact world-space coordinates. Final room origins must support the intended transitions without overlap or camera/collision ambiguity.
+In compact form:
+
+`Approach --DOWN--> Lower Hall --LEFT--> Broken Gallery --DOWN--> Dash Shrine --LEFT--> Furnace Passage --UP--> Watcher Hall --LEFT--> Hollow Shaft --UP--> Ashen Ascent --LEFT--> Warden Gate --DOWN--> Warden Chamber`
+
+This defines progression intent, not exact world-space coordinates. Final room origins must support these transitions without room overlap, camera ambiguity, or collision ambiguity.
 
 ## 9. Room-by-Room Pacing
 
@@ -277,11 +295,10 @@ Purpose:
 
 - acquire Dash;
 - short acquisition presentation;
+- activate Checkpoint #2 at the end of acquisition;
 - immediately teach Dash in a safe environment;
 - require at least one gap that cannot be crossed with an ordinary jump alone;
 - then introduce a short sequence of multiple dash uses without combat pressure.
-
-Checkpoint #2 activates after Dash acquisition/teaching.
 
 ### 9.5 Furnace Passage — target 1–1.5 min
 
@@ -305,10 +322,9 @@ Purpose:
 
 - descend into a vertical space;
 - acquire Wall Cling / Wall Jump at the lower shrine;
+- activate Checkpoint #3 at the end of acquisition;
 - teach the passive ability by making the exit route upward;
 - the player must escape the shaft using the new wall traversal mechanic.
-
-Checkpoint #3 activates after Wall Traversal acquisition/teaching.
 
 ### 9.8 Ashen Ascent — target 1–1.5 min
 
@@ -328,9 +344,8 @@ Purpose:
 - final non-boss test;
 - combine both traversal abilities with stronger enemy pressure such as Heavy/Ranged compositions;
 - include one meaningful connected-world shortcut or route payoff;
-- provide a short calm approach after completion.
-
-Checkpoint #4 activates immediately before entering Warden Chamber.
+- provide a short calm approach after completion;
+- activate Checkpoint #4 immediately before entering Warden Chamber.
 
 ### 9.10 Warden Chamber — target 2–4 min
 
@@ -366,6 +381,8 @@ Acceptance requires device playtesting after implementation:
 - fast but legitimate first playthrough target: at least 10 minutes;
 - boss time counts as gameplay;
 - death/retry time is not required to reach the minimum; a clean run should still satisfy the intended duration closely enough that the demo is not dependent on failure to feel substantial.
+
+The room pacing targets sum to approximately 11–16.5 minutes before accounting for player hesitation, which provides margin around the hard 10-minute requirement.
 
 If testing shows the route completes in under 10 minutes for a competent player, increase meaningful gameplay density or room traversal complexity. Do not solve the problem with idle waits, excessively slow movement, inflated enemy HP, or empty distance.
 
@@ -427,6 +444,7 @@ Implementation must explicitly handle:
 - wall cling at floor/wall corners;
 - wall jump followed by immediate same-wall reattachment;
 - death during or immediately after an acquisition sequence;
+- death during a post-shrine teaching section;
 - app termination immediately after acquiring an ability;
 - loading a save whose checkpoint is valid but current room encounter state is transient;
 - New Game after a fully progressed save;
@@ -448,7 +466,9 @@ Minimum automated coverage:
 - Wall Jump direction/launch state;
 - same-wall reattachment suppression;
 - room exits in left/right/up/down topology;
+- required room progression sequence;
 - shrine single-consumption behavior;
+- shrine-linked checkpoint activation before the teaching challenge;
 - checkpoint respawn selection;
 - HUD DASH target drawing/hit-test consistency;
 - existing combat/movement regression tests remain green.
