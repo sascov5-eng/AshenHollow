@@ -15,6 +15,7 @@ struct EssenceFocusControllerTestsMain {
 
         expectFocus(focus.essence == 0, "Essence starts empty")
         expectFocus(!focus.isFocusing, "Focus starts idle")
+        expectFocus(focus.focusProgress == 0, "Focus progress starts at zero")
 
         focus.gainFromAcceptedMeleeHit()
         focus.gainFromAcceptedMeleeHit()
@@ -25,13 +26,16 @@ struct EssenceFocusControllerTestsMain {
         expectFocus(!focus.beginFocus(currentHP: 5, maxHP: 5), "cannot focus at full HP")
         expectFocus(focus.beginFocus(currentHP: 4, maxHP: 5), "focus starts with full resource and missing HP")
         expectFocus(focus.isFocusing, "focus reports active")
+        expectFocus(focus.focusProgress == 0, "Focus starts at zero progress")
 
         focus.updateFocus(dt: 0.50)
+        expectFocus(abs(focus.focusProgress - 0.5) < 0.001, "half channel exposes half progress")
         expectFocus(!focus.consumeCompletedHeal(), "half channel does not heal")
         focus.updateFocus(dt: 0.50)
         expectFocus(focus.consumeCompletedHeal(), "full channel completes one heal")
         expectFocus(focus.essence == 0, "completed heal spends Essence")
         expectFocus(!focus.isFocusing, "focus returns idle after completion")
+        expectFocus(focus.focusProgress == 0, "completed Focus resets progress")
 
         focus.gainFromAcceptedMeleeHit()
         focus.gainFromAcceptedMeleeHit()
@@ -43,6 +47,7 @@ struct EssenceFocusControllerTestsMain {
         expectFocus(!focus.consumeCompletedHeal(), "cancelled focus does not heal")
         expectFocus(focus.essence == 100, "cancelled focus does not spend Essence")
         expectFocus(!focus.isFocusing, "cancelled focus returns idle")
+        expectFocus(focus.focusProgress == 0, "cancelled Focus resets progress")
 
         print("EssenceFocusControllerTests: PASS")
     }
