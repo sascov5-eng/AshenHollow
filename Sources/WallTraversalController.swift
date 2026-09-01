@@ -11,10 +11,12 @@ struct WallJumpImpulse: Equatable {
 }
 
 struct WallTraversalController {
-    let slideSpeed: Double = -180
-    let jumpHorizontalSpeed: Double = 360
-    let jumpVerticalSpeed: Double = 560
-    let sameWallLockDuration: TimeInterval = 0.12
+    private let tuning = PlayerMovementTuning.current
+
+    var slideSpeed: Double { tuning.wallSlideSpeed }
+    var jumpHorizontalSpeed: Double { tuning.wallJumpHorizontalSpeed }
+    var jumpVerticalSpeed: Double { tuning.wallJumpVerticalSpeed }
+    var sameWallLockDuration: TimeInterval { tuning.sameWallLockDuration }
 
     private(set) var lockedWall: WallSide?
     private var lockRemaining: TimeInterval = 0
