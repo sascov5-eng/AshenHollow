@@ -1,58 +1,18 @@
 from pathlib import Path
 
+path = Path("Sources/MultiEnemyRuntimeInstaller.swift")
+text = path.read_text()
 
-def replace_once(text: str, old: str, new: str, label: str) -> str:
+
+def replace_once(old: str, new: str, label: str) -> None:
+    global text
     count = text.count(old)
     if count != 1:
         raise SystemExit(f"{label}: expected exactly 1 match, found {count}")
-    return text.replace(old, new, 1)
+    text = text.replace(old, new, 1)
 
 
-# 1) V23 Ranged data tuning.
-stats_path = Path("Sources/EnemyArchetype.swift")
-stats = stats_path.read_text()
-stats = replace_once(
-    stats,
-'''        case .ranged:
-            return EnemyStats(
-                maxHP: 3,
-                contactDamage: 1,
-                patrolSpeed: 58,
-                chaseSpeed: 92,
-                detectionRange: 390,
-                attackRange: 310,
-                attackCooldown: 1.05,
-                attackDuration: 0.34,
-                hitStunDuration: 0.16,
-                knockbackSpeed: 320,
-                attackKind: .projectile
-            )
-''',
-'''        case .ranged:
-            return EnemyStats(
-                maxHP: 3,
-                contactDamage: 1,
-                patrolSpeed: 58,
-                chaseSpeed: 92,
-                detectionRange: 340,
-                attackRange: 270,
-                attackCooldown: 1.45,
-                attackDuration: 0.42,
-                hitStunDuration: 0.16,
-                knockbackSpeed: 320,
-                attackKind: .projectile
-            )
-''',
-    "ranged stats",
-)
-stats_path.write_text(stats)
-
-
-# 2) Replace legacy Ranged AI/pending-shot behavior with the tested V23 state machine.
-runtime_path = Path("Sources/MultiEnemyRuntimeInstaller.swift")
-runtime = runtime_path.read_text()
-runtime = replace_once(
-    runtime,
+replace_once(
 '''    var model: EnemyRuntimeModel
     var ai: EnemyAIController
     var attackElapsed: TimeInterval?
@@ -69,18 +29,18 @@ runtime = replace_once(
     var lastDamageAttackID: Int = -1
     var contactCooldown: TimeInterval = 0
 ''',
-    "live ranged controller",
+"live ranged controller",
 )
-runtime = replace_once(
-    runtime,
+
+replace_once(
 '''                velocityX: Double(direction * 325),
 ''',
 '''                velocityX: Double(direction * 285),
 ''',
-    "projectile speed",
+"projectile speed",
 )
-runtime = replace_once(
-    runtime,
+
+replace_once(
 '''                    if accepted {
                         enemy.attackElapsed = nil
                         enemy.pendingShotRemaining = nil
@@ -94,10 +54,10 @@ runtime = replace_once(
                         enemy.model.markAttackDamageWindowActive(false)
                         enemy.attackVisual.alpha = 0
 ''',
-    "hit reaction resets ranged aim",
+"hit reaction resets ranged aim",
 )
-runtime = replace_once(
-    runtime,
+
+replace_once(
 '''                if var pending = enemy.pendingShotRemaining {
                     pending -= Double(dt)
                     enemy.pendingShotRemaining = pending
@@ -113,11 +73,11 @@ runtime = replace_once(
                 }
 
 ''',
-    "",
-    "legacy pending shot",
+"",
+"legacy pending shot",
 )
-runtime = replace_once(
-    runtime,
+
+replace_once(
 '''                let verticalDistance = abs(player.position.y - enemy.node.position.y)
                 let sensedPlayerX: CGFloat = verticalDistance <= 95
                     ? player.position.x
@@ -220,29 +180,8 @@ runtime = replace_once(
                 enemy.attackVisual.position.x = facing * attackVisualOffset(for: enemy.spawn.archetype)
                 enemy.currentAttackID = output.attackID
 ''',
-    "ranged combat branch",
+"ranged combat branch",
 )
-runtime_path.write_text(runtime)
 
-
-# 3) Reduce Watcher Hall simultaneous pressure to one Ranged + one Grunt.
-room_path = Path("Sources/RoomController.swift")
-room = room_path.read_text()
-room = replace_once(
-    room,
-'''            enemySpawns: [
-                EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 420, y: 130)),
-                EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 930, y: 130)),
-                EnemySpawn(id: 3, archetype: .grunt, position: RoomPoint(x: 690, y: 130))
-            ],
-''',
-'''            enemySpawns: [
-                EnemySpawn(id: 1, archetype: .ranged, position: RoomPoint(x: 900, y: 130)),
-                EnemySpawn(id: 2, archetype: .grunt, position: RoomPoint(x: 620, y: 130))
-            ],
-''',
-    "watcher hall composition",
-)
-room_path.write_text(room)
-
-print("V23 staged patch applied: Ranged rebalance + Watcher Hall")
+path.write_text(text)
+print("V23 staged patch applied: final Ranged runtime integration")
