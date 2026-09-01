@@ -24,10 +24,13 @@ enum RoomRuntimeInstaller {
         scene.childNode(withName: "v21LeftMask")?.removeFromParent()
         scene.childNode(withName: "v21RightMask")?.removeFromParent()
         scene.childNode(withName: "v21ExitMarker")?.removeFromParent()
+        scene.childNode(withName: "v24AbilityShrine")?.removeFromParent()
+        scene.childNode(withName: "v24CheckpointMarker")?.removeFromParent()
         camera.childNode(withName: "v20RoomTitle")?.removeFromParent()
         camera.childNode(withName: "v21RoomTitle")?.removeFromParent()
         camera.childNode(withName: "v21CombatStatus")?.removeFromParent()
         camera.childNode(withName: "v21LevelComplete")?.removeFromParent()
+        camera.childNode(withName: "v24AbilityAcquired")?.removeFromParent()
 
         let state = V21RoomRuntimeState()
 
@@ -147,6 +150,111 @@ enum RoomRuntimeInstaller {
             }
         }
 
+        func shrineTitle(_ ability: PlayerAbility) -> String {
+            switch ability {
+            case .dash: return "DASH"
+            case .wallTraversal: return "WALL"
+            }
+        }
+
+        func acquisitionTitle(_ ability: PlayerAbility) -> String {
+            switch ability {
+            case .dash: return "DASH ACQUIRED"
+            case .wallTraversal: return "WALL TRAVERSAL ACQUIRED"
+            }
+        }
+
+        func buildShrine(_ placement: AbilityShrinePlacement) -> SKNode {
+            let shrine = SKNode()
+            shrine.name = "v24AbilityShrine"
+            shrine.position = CGPoint(x: CGFloat(placement.position.x), y: CGFloat(placement.position.y))
+            shrine.zPosition = 25
+
+            let glow = SKShapeNode(ellipseOf: CGSize(width: 96, height: 82))
+            glow.name = "glow"
+            glow.fillColor = UIColor(red: 0.28, green: 0.78, blue: 1.0, alpha: 0.13)
+            glow.strokeColor = UIColor(red: 0.38, green: 0.86, blue: 1.0, alpha: 0.42)
+            glow.lineWidth = 2
+            glow.position = CGPoint(x: 0, y: 12)
+            shrine.addChild(glow)
+
+            let pedestal = SKShapeNode(rectOf: CGSize(width: 78, height: 22), cornerRadius: 6)
+            pedestal.fillColor = UIColor(red: 0.15, green: 0.17, blue: 0.21, alpha: 1)
+            pedestal.strokeColor = UIColor(white: 0.55, alpha: 0.38)
+            pedestal.lineWidth = 2
+            pedestal.position = CGPoint(x: 0, y: -32)
+            shrine.addChild(pedestal)
+
+            let artifact = SKShapeNode(rectOf: CGSize(width: 34, height: 34), cornerRadius: 7)
+            artifact.name = "artifact"
+            artifact.fillColor = UIColor(red: 0.38, green: 0.84, blue: 1.0, alpha: 0.92)
+            artifact.strokeColor = UIColor(white: 1.0, alpha: 0.72)
+            artifact.lineWidth = 2
+            artifact.zRotation = .pi * 0.25
+            artifact.position = CGPoint(x: 0, y: 12)
+            shrine.addChild(artifact)
+
+            let label = SKLabelNode(fontNamed: "AvenirNext-Bold")
+            label.name = "shrineLabel"
+            label.text = shrineTitle(placement.ability)
+            label.fontSize = 9
+            label.fontColor = UIColor(white: 0.96, alpha: 0.94)
+            label.horizontalAlignmentMode = .center
+            label.verticalAlignmentMode = .center
+            label.position = CGPoint(x: 0, y: -56)
+            shrine.addChild(label)
+
+            scene.addChild(shrine)
+            return shrine
+        }
+
+        func refreshShrinePresentation(_ shrine: SKNode, placement: AbilityShrinePlacement) {
+            let consumed = context.progression.state.consumedShrines.contains(placement.id)
+            shrine.alpha = consumed ? 0.34 : 1.0
+            if let label = shrine.childNode(withName: "shrineLabel") as? SKLabelNode {
+                label.text = consumed ? "DORMANT" : shrineTitle(placement.ability)
+            }
+            if let artifact = shrine.childNode(withName: "artifact") as? SKShapeNode {
+                artifact.fillColor = consumed
+                    ? UIColor(white: 0.32, alpha: 0.72)
+                    : UIColor(red: 0.38, green: 0.84, blue: 1.0, alpha: 0.92)
+            }
+        }
+
+        func showAcquisition(_ ability: PlayerAbility) {
+            camera.childNode(withName: "v24AbilityAcquired")?.removeFromParent()
+            gameScene.setExternalInputLocked(true)
+            state.transitionCooldown = max(state.transitionCooldown, 0.50)
+
+            let label = SKLabelNode(fontNamed: "AvenirNext-Bold")
+            label.name = "v24AbilityAcquired"
+            label.text = acquisitionTitle(ability)
+            label.fontSize = 25
+            label.fontColor = UIColor(red: 0.64, green: 0.91, blue: 1.0, alpha: 1)
+            label.horizontalAlignmentMode = .center
+            label.verticalAlignmentMode = .center
+            label.position = CGPoint(x: 0, y: 28)
+            label.zPosition = 1500
+            label.alpha = 0
+            label.setScale(0.84)
+            camera.addChild(label)
+
+            let enter = SKAction.group([
+                SKAction.fadeIn(withDuration: 0.06),
+                SKAction.scale(to: 1.0, duration: 0.06)
+            ])
+            let leave = SKAction.fadeOut(withDuration: 0.06)
+            label.run(
+                SKAction.sequence([
+                    enter,
+                    SKAction.wait(forDuration: 0.33),
+                    leave,
+                    SKAction.run { gameScene.setExternalInputLocked(false) },
+                    SKAction.removeFromParent()
+                ])
+            )
+        }
+
         func showLevelComplete() {
             guard camera.childNode(withName: "v21LevelComplete") == nil else { return }
             context.levelComplete = true
@@ -176,6 +284,10 @@ enum RoomRuntimeInstaller {
         func applyRoom(_ roomID: RoomID, destinationSpawn: RoomPoint?) {
             guard let room = state.controller.room(roomID) else { return }
 
+            gameScene.setExternalInputLocked(false)
+            camera.childNode(withName: "v24AbilityAcquired")?.removeFromParent()
+            scene.childNode(withName: "v24AbilityShrine")?.removeFromParent()
+            scene.childNode(withName: "v24CheckpointMarker")?.removeFromParent()
             MultiEnemyRuntimeInstaller.clear(from: scene)
             BossRuntimeInstaller.clear(from: scene)
             context.damageInbox.clear()
@@ -215,6 +327,25 @@ enum RoomRuntimeInstaller {
                 )
             } else {
                 exitMarker.isHidden = true
+            }
+
+            if let placement = room.shrine {
+                let shrine = buildShrine(placement)
+                refreshShrinePresentation(shrine, placement: placement)
+            }
+
+            if let trigger = room.checkpointTriggers.first {
+                let marker = SKShapeNode(ellipseOf: CGSize(width: 34, height: 72))
+                marker.name = "v24CheckpointMarker"
+                marker.fillColor = UIColor(red: 0.26, green: 0.66, blue: 0.92, alpha: 0.14)
+                marker.strokeColor = UIColor(red: 0.48, green: 0.86, blue: 1.0, alpha: 0.58)
+                marker.lineWidth = 2
+                marker.position = CGPoint(
+                    x: CGFloat(trigger.trigger.x + trigger.trigger.width * 0.5),
+                    y: CGFloat(trigger.trigger.y + trigger.trigger.height * 0.5)
+                )
+                marker.zPosition = 23
+                scene.addChild(marker)
             }
 
             roomTitle.text = title(for: roomID)
@@ -278,13 +409,42 @@ enum RoomRuntimeInstaller {
 
             refreshExitPresentation(for: room)
 
+            let playerCenter = RoomPoint(
+                x: Double(player.position.x),
+                y: Double(player.position.y)
+            )
+            let playerSize = RoomSize(width: 36, height: 60)
+
+            if let placement = DemoRoomProgressionResolver.shrineToActivate(
+                in: room,
+                playerCenter: playerCenter,
+                playerSize: playerSize,
+                consumedShrines: context.progression.state.consumedShrines
+            ), context.progression.claimShrine(
+                placement.id,
+                ability: placement.ability,
+                checkpoint: placement.checkpoint
+            ) {
+                if let shrine = scene.childNode(withName: "v24AbilityShrine") {
+                    refreshShrinePresentation(shrine, placement: placement)
+                }
+                showAcquisition(placement.ability)
+            }
+
+            if (!room.requiresCombatClear || context.combatStatus.isCleared),
+               let checkpoint = DemoRoomProgressionResolver.checkpointToActivate(
+                   in: room,
+                   playerCenter: playerCenter,
+                   playerSize: playerSize,
+                   currentCheckpoint: context.progression.state.checkpoint
+               ) {
+                context.progression.activateCheckpoint(checkpoint)
+            }
+
             if !context.levelComplete && state.transitionCooldown <= 0 {
                 if let activation = state.controller.exitIfNeeded(
-                    playerCenter: RoomPoint(
-                        x: Double(player.position.x),
-                        y: Double(player.position.y)
-                    ),
-                    playerSize: RoomSize(width: 36, height: 60),
+                    playerCenter: playerCenter,
+                    playerSize: playerSize,
                     in: state.activeRoomID,
                     combatCleared: context.combatStatus.isCleared,
                     unlockedAbilities: context.progression.state.unlockedAbilities
