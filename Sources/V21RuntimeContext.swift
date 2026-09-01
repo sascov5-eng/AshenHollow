@@ -23,6 +23,9 @@ final class V21RuntimeContext: NSObject {
     let vitals = PlayerVitalState()
     var focus = EssenceFocusController()
 
+    var playerAttackDirection: PlayerAttackDirection = .horizontal
+    var playerAttackSequenceID: Int = 0
+
     var activeRoomID: RoomID = .approach
     var physicalRoomMinX: CGFloat = 0
     var physicalRoomMaxX: CGFloat = 1200
