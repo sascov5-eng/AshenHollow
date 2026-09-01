@@ -10,6 +10,7 @@ final class GameScene: SKScene {
         case focus
         case attack
         case jump
+        case dash
     }
 
     private enum PlayerAnimationState {
@@ -87,6 +88,9 @@ final class GameScene: SKScene {
     private var moveInput: CGFloat = 0
     private var smoothedMoveInput: CGFloat = 0
     private var facing: CGFloat = 1
+    private var dashController = DashController()
+    private var wallTraversalController = WallTraversalController()
+    private var currentWallClingSide: WallSide?
 
     // MARK: - Combat
 
@@ -128,6 +132,7 @@ final class GameScene: SKScene {
     private let focusButton = SKShapeNode(circleOfRadius: 42)
     private let attackButton = SKShapeNode(circleOfRadius: 47)
     private let jumpButton = SKShapeNode(circleOfRadius: 51)
+    private let dashButton = SKShapeNode(circleOfRadius: 42)
 
     private let leftArrow = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private let rightArrow = SKLabelNode(fontNamed: "AvenirNext-Bold")
@@ -136,6 +141,7 @@ final class GameScene: SKScene {
     private let focusLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private let attackLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private let jumpLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+    private let dashLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
 
     // MARK: - Lifecycle
 
@@ -204,6 +210,9 @@ final class GameScene: SKScene {
         animationState = .idle
         animationStateTime = 0
         landedThisFrame = false
+        dashController = DashController()
+        wallTraversalController = WallTraversalController()
+        currentWallClingSide = nil
     }
 
     // MARK: - World
@@ -485,6 +494,7 @@ final class GameScene: SKScene {
         configureButton(focusButton)
         configureButton(attackButton)
         configureButton(jumpButton)
+        configureButton(dashButton)
 
         leftArrow.text = "‹"
         leftArrow.fontSize = 50
@@ -528,6 +538,12 @@ final class GameScene: SKScene {
         jumpLabel.verticalAlignmentMode = .center
         jumpLabel.horizontalAlignmentMode = .center
 
+        dashLabel.text = "DASH"
+        dashLabel.fontSize = 13
+        dashLabel.fontColor = UIColor(white: 0.94, alpha: 0.9)
+        dashLabel.verticalAlignmentMode = .center
+        dashLabel.horizontalAlignmentMode = .center
+
         leftButton.addChild(leftArrow)
         rightButton.addChild(rightArrow)
         upButton.addChild(upArrow)
@@ -535,6 +551,7 @@ final class GameScene: SKScene {
         focusButton.addChild(focusLabel)
         attackButton.addChild(attackLabel)
         jumpButton.addChild(jumpLabel)
+        dashButton.addChild(dashLabel)
 
         hud.addChild(leftButton)
         hud.addChild(rightButton)
@@ -543,6 +560,7 @@ final class GameScene: SKScene {
         hud.addChild(focusButton)
         hud.addChild(attackButton)
         hud.addChild(jumpButton)
+        hud.addChild(dashButton)
     }
 
     private func configureButton(_ button: SKShapeNode) {
@@ -588,6 +606,7 @@ final class GameScene: SKScene {
         position(focusButton, as: .focus)
         position(attackButton, as: .attack)
         position(jumpButton, as: .jump)
+        position(dashButton, as: .dash)
     }
 
     // MARK: - Touch input
@@ -677,7 +696,7 @@ final class GameScene: SKScene {
                 releaseJump()
             case .focus:
                 cancelFocus()
-            case .left, .right, .up, .down, .attack, .none:
+            case .left, .right, .up, .down, .attack, .dash, .none:
                 break
             }
 
@@ -691,7 +710,9 @@ final class GameScene: SKScene {
     private func handleControlPressed(_ control: Control) {
         switch control {
         case .jump:
-            queueJump()
+            if !tryWallJump() {
+                queueJump()
+            }
         case .focus:
             beginFocus()
         case .attack:
@@ -701,6 +722,8 @@ final class GameScene: SKScene {
                 isGrounded: isGrounded
             )
             tryAttack(direction: direction)
+        case .dash:
+            tryDash()
         case .left, .right, .up, .down:
             break
         }
@@ -722,6 +745,7 @@ final class GameScene: SKScene {
         case .focus: return .focus
         case .attack: return .attack
         case .jump: return .jump
+        case .dash: return .dash
         }
     }
 
@@ -740,6 +764,47 @@ final class GameScene: SKScene {
         guard let context = V21RuntimeBootstrap.context(from: self) else { return }
         context.focus.cancelFocus()
         focusStartDamageSequence = nil
+    }
+
+    private func tryDash() {
+        guard let context = V21RuntimeBootstrap.context(from: self),
+              let direction = dashController.tryStart(
+                  unlocked: context.progression.state.has(.dash),
+                  isGrounded: isGrounded,
+                  inputX: Double(moveInput),
+                  facing: Double(facing)
+              ) else { return }
+
+        cancelFocus()
+        facing = direction > 0 ? 1 : -1
+    }
+
+    private func tryWallJump() -> Bool {
+        guard let context = V21RuntimeBootstrap.context(from: self),
+              context.progression.state.has(.wallTraversal) else {
+            return false
+        }
+
+        let detectedSide = detectedWallContact()
+        let side = currentWallClingSide ?? wallTraversalController.clingSide(
+            unlocked: true,
+            isGrounded: isGrounded,
+            heldDirectionX: Double(moveInput),
+            contactSide: detectedSide
+        )
+        guard let side else { return false }
+
+        cancelFocus()
+        let impulse = wallTraversalController.wallJump(from: side)
+        velocity.dx = CGFloat(impulse.velocityX)
+        velocity.dy = CGFloat(impulse.velocityY)
+        isGrounded = false
+        coyoteRemaining = 0
+        jumpBufferRemaining = 0
+        bufferedJumpWasReleased = false
+        dashController.restoreAirDash()
+        currentWallClingSide = nil
+        return true
     }
 
     private func queueJump() {
@@ -794,14 +859,24 @@ final class GameScene: SKScene {
         lastUpdateTime = currentTime
 
         attackController.update(dt)
+        dashController.update(dt: dt)
+        wallTraversalController.update(dt: dt)
         updateFocusState(dt)
         updateTimers(dt)
         consumeBufferedJumpIfPossible()
         updateHorizontalVelocity(CGFloat(dt))
         applyPendingCombatImpulses()
 
-        velocity.dy = max(maxFallSpeed, velocity.dy + gravity * CGFloat(dt))
+        if !dashController.isDashing {
+            velocity.dy = max(maxFallSpeed, velocity.dy + gravity * CGFloat(dt))
+        }
+        updateWallTraversalState()
         integrateKinematicMotion(CGFloat(dt))
+
+        if landedThisFrame {
+            dashController.restoreAirDash()
+            currentWallClingSide = nil
+        }
 
         resolveAttackHitOnEnemy()
         updateEnemyPresentation(CGFloat(dt))
@@ -833,7 +908,11 @@ final class GameScene: SKScene {
     private func applyPendingCombatImpulses() {
         guard !pendingCombatImpulses.isEmpty else { return }
 
+        dashController.cancelActiveDash()
         for impulse in pendingCombatImpulses {
+            if impulse.kind == .pogo {
+                dashController.restoreAirDash()
+            }
             if let velocityX = impulse.velocityX {
                 velocity.dx = CGFloat(velocityX)
             }
@@ -868,6 +947,12 @@ final class GameScene: SKScene {
     }
 
     private func updateHorizontalVelocity(_ dt: CGFloat) {
+        if dashController.isDashing {
+            velocity.dx = CGFloat(dashController.direction) * 720
+            velocity.dy = 0
+            return
+        }
+
         let focusing = V21RuntimeBootstrap.context(from: self)?.focus.isFocusing == true
         let effectiveInput: CGFloat = focusing ? 0 : moveInput
         let response: CGFloat = 12
@@ -919,10 +1004,12 @@ final class GameScene: SKScene {
         if player.position.x < halfW {
             player.position.x = halfW
             velocity.dx = max(0, velocity.dx)
+            dashController.cancelActiveDash()
         }
         if player.position.x > worldWidth - halfW {
             player.position.x = worldWidth - halfW
             velocity.dx = min(0, velocity.dx)
+            dashController.cancelActiveDash()
         }
     }
 
@@ -940,6 +1027,7 @@ final class GameScene: SKScene {
                 player.position.x = platform.maxX + halfW
             }
             velocity.dx = 0
+            dashController.cancelActiveDash()
             rect = playerRect
         }
     }
@@ -962,6 +1050,42 @@ final class GameScene: SKScene {
             }
             rect = playerRect
         }
+    }
+
+    private func detectedWallContact() -> WallSide? {
+        let probe: CGFloat = 1
+        let verticalInset: CGFloat = 2
+        let base = playerRect.insetBy(dx: 0, dy: verticalInset)
+        let leftProbe = base.offsetBy(dx: -probe, dy: 0)
+        let rightProbe = base.offsetBy(dx: probe, dy: 0)
+
+        let left = platformRects.contains { leftProbe.intersects($0) && !base.intersects($0) }
+        let right = platformRects.contains { rightProbe.intersects($0) && !base.intersects($0) }
+        if left { return .left }
+        if right { return .right }
+        return nil
+    }
+
+    private func updateWallTraversalState() {
+        guard let context = V21RuntimeBootstrap.context(from: self) else {
+            currentWallClingSide = nil
+            return
+        }
+
+        let side = wallTraversalController.clingSide(
+            unlocked: context.progression.state.has(.wallTraversal),
+            isGrounded: isGrounded,
+            heldDirectionX: Double(moveInput),
+            contactSide: detectedWallContact()
+        )
+
+        if let side {
+            if currentWallClingSide != side {
+                dashController.restoreAirDash()
+            }
+            velocity.dy = max(velocity.dy, CGFloat(wallTraversalController.slideSpeed))
+        }
+        currentWallClingSide = side
     }
 
     // MARK: - Presentation
@@ -1193,6 +1317,7 @@ final class GameScene: SKScene {
         animateButton(focusButton, pressed: activeControls.values.contains(.focus))
         animateButton(attackButton, pressed: activeControls.values.contains(.attack))
         animateButton(jumpButton, pressed: activeControls.values.contains(.jump))
+        animateButton(dashButton, pressed: activeControls.values.contains(.dash))
     }
 
     private func animateButton(_ button: SKShapeNode, pressed: Bool) {
