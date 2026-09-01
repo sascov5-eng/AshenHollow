@@ -8,12 +8,12 @@ The first implementation phase migrates only the Approach room end-to-end. The r
 
 ## Baseline
 
-The design targets the current V24 codebase on `main` at commit `3602934df8bde78b81bd0dde8fd66aaa52bcca39`.
+The design targets the V24 codebase whose TMX work started from `main` commit `3602934df8bde78b81bd0dde8fd66aaa52bcca39`.
 
 Existing systems remain authoritative:
 
 - `RoomController.swift` defines `RoomID`, `RoomDefinition`, `RoomPlatform`, `EnemySpawn`, `RoomExit`, `CheckpointTrigger`, shrine placement, room bounds, and transition behavior.
-- `V24LevelRebuildV2.swift` currently provides the 10-room V24 data set.
+- `V24LevelRebuildV2.swift` provides the 10-room V24 data set through `RoomController.makeV24Demo()` / `RoomController.makeV24DemoV2()`.
 - `V24MandatoryRoute.swift`, `V24RouteValidator.swift`, `TraversalSafetyValidator.swift`, and `V24EncounterSafetyValidator.swift` validate the same `RoomDefinition` model used by gameplay.
 - `RoomRuntimeInstaller.swift` and `GameScene.swift` consume room definitions and install the SpriteKit runtime.
 - Dash, Wall Traversal, combat, boss, health, respawn, progression, save, checkpoint, tutorial, and world-reaction systems must remain behaviorally unchanged.
@@ -41,9 +41,9 @@ No third-party TMX library will be introduced in this phase.
 
 ## Runtime Integration
 
-`V24LevelRebuildV2.makeController()` remains the public entry point for constructing the demo controller.
+`RoomController.makeV24Demo()` remains the public entry point for constructing the current demo and continues to delegate to `makeV24DemoV2()`.
 
-During phase 1 it will:
+During phase 1, `makeV24DemoV2()` will:
 
 1. construct the existing Swift-authored 10-room definitions;
 2. attempt to load `Resources/Maps/approach.tmx`;
@@ -94,7 +94,7 @@ Accepted object type/class:
 
 - `platform`
 
-Each platform uses the Tiled rectangle's width and height. Tiled top-left object coordinates are converted to SpriteKit/room-local center coordinates.
+Each platform uses the Tiled rectangle's width and height. Tiled top-left object coordinates are converted to room-local center coordinates.
 
 ### `Entities`
 
@@ -158,7 +158,7 @@ If these are absent, a finite map may derive width/height from `map.width * tile
 
 ## Coordinate Conversion
 
-Tiled object coordinates use a top-left origin with positive Y downward. Ashen Hollow room-local coordinates use a bottom-left style coordinate space with positive Y upward.
+Tiled object coordinates use a top-left origin with positive Y downward. Ashen Hollow room-local coordinates use a bottom-left coordinate space with positive Y upward.
 
 Given a finite map height `H`:
 
@@ -176,19 +176,22 @@ All conversion happens inside `TMXLevelLoader`. No SpriteKit/runtime consumer pe
 
 ## Approach Migration Contract
 
-The first production TMX map is `Resources/Maps/approach.tmx`.
+The first production TMX map is `Resources/Maps/approach.tmx` and must preserve the actual current Approach room from `V24LevelRebuildV2.swift`.
 
-It must preserve the current approved Approach design from V24 level rebuild v2:
+Required behavior and geometry contract:
 
-- long safe starting floor;
-- MOVE tutorial before hazards;
-- one low broad ledge for JUMP teaching;
-- one stable combat area with a single Grunt for ATTACK;
-- no precision traversal;
-- optional inaccessible high geometry may tease later traversal;
-- combat clear remains required before exit;
-- exit continues to Lower Hall with the currently approved destination spawn;
-- existing mandatory-route and encounter-safety validators remain green.
+- room ID `.approach`;
+- world origin `(4800, 1120)`;
+- bounds `(0, 0, 1200, 560)`;
+- player spawn `(120, 130)`;
+- long onboarding floor centered at `(430, 60)` with size `860 x 80`;
+- one solid tutorial block centered at `(450, 132)` with size `320 x 64`, producing a 64-point top rise;
+- exactly one Grunt encounter with enemy ID `1`, positioned at `(790, 130)`;
+- combat clear required before exit;
+- floor support ends before the exit so the player physically drops into the downward transition;
+- exit trigger `(900, 0, 300, 220)`;
+- destination `.lowerHall` at spawn `(1040, 420)`;
+- existing mandatory-route, Approach layout, encounter-placement, encounter-safety, progression, and world-reaction tests remain green.
 
 The TMX file becomes the source of geometry and placement for Approach, but tutorial state logic stays in existing controllers.
 
@@ -246,23 +249,11 @@ Cover:
 - rotation rejection;
 - malformed property rejection.
 
-Tests should use small inline XML strings through a loader API that accepts `Data`, so unit tests do not depend on app-bundle lookup.
+Tests use small inline XML strings through a loader API that accepts `Data`, so unit tests do not depend on app-bundle lookup.
 
 ### Approach parity tests
 
-Load the real `Resources/Maps/approach.tmx` and assert:
-
-- room ID and world origin;
-- bounds;
-- player spawn;
-- platform count/key geometry contract;
-- one Grunt encounter with expected ID;
-- combat-clear requirement;
-- Lower Hall exit and destination spawn;
-- route validator success;
-- encounter safety success.
-
-The parity test should verify design invariants rather than freezing every pixel coordinate unnecessarily.
+Load the real `Resources/Maps/approach.tmx` and assert the exact Approach migration contract above. Then run the existing route/encounter validators against a controller containing that parsed room.
 
 ### Regression suite
 
