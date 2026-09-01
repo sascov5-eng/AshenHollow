@@ -111,25 +111,22 @@ struct DemoRoomTopologyTestsMain {
         let dashFloors = dashRoom.platforms
             .filter { abs($0.center.y - 60) < 0.001 && abs($0.size.height - 80) < 0.001 }
             .sorted { $0.center.x < $1.center.x }
-        expectTopology(dashFloors.count == 2, "Dash Shrine has two teaching floor banks")
+        expectTopology(dashFloors.count == 2, "Dash Shrine has two recovery floor banks")
         if dashFloors.count == 2 {
             let gap = minX(dashFloors[1]) - maxX(dashFloors[0])
-            expectTopology(gap >= 250, "first Dash teaching gap is wider than ordinary running jump range")
-            expectTopology(gap <= 290, "first Dash teaching gap keeps recovery margin for Dash")
+            expectTopology(gap >= 250, "Dash Shrine recovery gap is wider than ordinary running jump range")
+            expectTopology(gap <= 290, "Dash Shrine recovery banks keep a controlled gap")
         }
 
-        let dashAscent = dashRoom.platforms
-            .filter { $0.center.y > 100 }
+        let dashLessonPlatforms = dashRoom.platforms
+            .filter { $0.center.y > 100 && $0.size.height <= 30 }
             .sorted { $0.center.y < $1.center.y }
-        expectTopology(dashAscent.count == 4, "Dash Shrine has four ascent platforms after the teaching gap")
-        if dashAscent.count == 4 {
-            for index in 0..<(dashAscent.count - 1) {
-                let current = dashAscent[index]
-                let next = dashAscent[index + 1]
-                let rise = next.center.y - current.center.y
-                expectTopology(rise <= 100, "Dash Shrine ascent vertical steps stay forgiving")
-                expectTopology(horizontalGap(current, next) <= 35, "Dash Shrine ascent horizontal steps stay reachable")
-            }
+        expectTopology(dashLessonPlatforms.count == 3, "Dash Shrine uses two Dash surfaces plus one short ascent step")
+        if dashLessonPlatforms.count == 3 {
+            let lowerHeight = dashLessonPlatforms[0].center.y
+            expectTopology(abs(dashLessonPlatforms[1].center.y - lowerHeight) < 0.001, "Dash takeoff and receiving surfaces share a safe height")
+            let rise = dashLessonPlatforms[2].center.y - lowerHeight
+            expectTopology(rise >= 55 && rise <= 75, "Dash Shrine post-lesson ascent stays in the 55–75 pt target band")
         }
 
         let hollowShaft = level.room(.hollowShaft)!
