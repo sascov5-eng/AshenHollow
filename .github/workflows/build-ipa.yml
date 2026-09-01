@@ -135,6 +135,12 @@ jobs:
           set -euo pipefail
           xcrun swiftc Tests/PlayerDamageInboxTests.swift Sources/PlayerDamageInbox.swift -o build/PlayerDamageInboxTests
           ./build/PlayerDamageInboxTests
+      - name: Test ranged combat controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/RangedCombatControllerTests.swift Sources/RangedCombatController.swift -o build/RangedCombatControllerTests
+          ./build/RangedCombatControllerTests
       - name: Test boss controller
         shell: bash
         run: |
