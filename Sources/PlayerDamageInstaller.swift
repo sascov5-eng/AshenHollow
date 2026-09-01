@@ -21,10 +21,6 @@ enum PlayerDamageInstaller {
         let hud = SKNode()
         hud.name = "playerHealthHUD"
         hud.zPosition = 1200
-        hud.position = CGPoint(
-            x: -scene.size.width * 0.5 + 104,
-            y: scene.size.height * 0.5 - 54
-        )
 
         let title = SKLabelNode(fontNamed: "AvenirNext-Bold")
         title.name = "playerHealthLabel"
@@ -99,10 +95,32 @@ enum PlayerDamageInstaller {
 
         camera.addChild(hud)
 
+        func layoutStatusHUD() {
+            let bounds = scene.view?.bounds ?? CGRect(origin: .zero, size: scene.size)
+            let viewWidth = bounds.width > 1 ? bounds.width : scene.size.width
+            let viewHeight = bounds.height > 1 ? bounds.height : scene.size.height
+            let insets = scene.view?.safeAreaInsets ?? .zero
+            let layout = HUDOverlayLayout(
+                viewWidth: Double(viewWidth),
+                viewHeight: Double(viewHeight),
+                safeTopInset: Double(insets.top),
+                safeLeftInset: Double(insets.left),
+                safeRightInset: Double(insets.right)
+            )
+            let local = layout.cameraLocalPosition(
+                for: layout.healthCenter,
+                sceneWidth: Double(scene.size.width),
+                sceneHeight: Double(scene.size.height)
+            )
+            hud.position = CGPoint(x: CGFloat(local.x), y: CGFloat(local.y))
+        }
+
         let runtime = PlayerDamageRuntime()
         let respawnSequence = PlayerRespawnSequence()
 
         func refreshHUD() {
+            layoutStatusHUD()
+
             let health = context.vitals.health
             let ratio = CGFloat(health.hp) / CGFloat(health.maxHP)
             fill.xScale = max(0, ratio)
