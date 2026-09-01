@@ -78,11 +78,9 @@ struct TMXLevelLoaderTestsMain {
             expectTMX(room.bounds == RoomRect(x: 0, y: 0, width: 1200, height: 560), "finite map dimensions derive room bounds")
             expectTMX(room.playerSpawn == RoomPoint(x: 120, y: 130), "point Y converts from Tiled to room coordinates")
             expectTMX(room.requiresCombatClear, "boolean map property parses")
-
             expectTMX(room.platforms.count == 2, "two Collision/platform rectangles are emitted")
             expectTMX(room.platforms[0] == RoomPlatform(center: RoomPoint(x: 430, y: 60), size: RoomSize(width: 860, height: 80)), "first rectangle converts to expected center")
             expectTMX(room.platforms[1] == RoomPlatform(center: RoomPoint(x: 450, y: 132), size: RoomSize(width: 320, height: 64)), "platform source order is preserved")
-
             expectTMX(room.enemySpawns == [EnemySpawn(id: 7, archetype: .grunt, position: RoomPoint(x: 790, y: 130))], "enemy point and archetype map into existing EnemySpawn")
             expectTMX(room.exits.count == 1, "room exit parses")
             if let exit = room.exits.first {
@@ -152,6 +150,19 @@ struct TMXLevelLoaderTestsMain {
             return false
         })
 
+        let nonNumericX = validTMX.replacingOccurrences(
+            of: #"<object id="3" class="player_spawn" x="120" y="430">"#,
+            with: #"<object id="3" class="player_spawn" x="not-a-number" y="430">"#
+        )
+        expectTMXError("nonnumeric object x", {
+            _ = try parseTMX(nonNumericX)
+        }, matches: {
+            if case .invalidObjectGeometry(let objectID, let reason) = $0 {
+                return objectID == 3 && reason.contains("x")
+            }
+            return false
+        })
+
         let rotated = validTMX.replacingOccurrences(
             of: #"<object id="2" type="platform" x="290" y="396" width="320" height="64"/>"#,
             with: #"<object id="2" type="platform" x="290" y="396" width="320" height="64" rotation="15"/>"#
@@ -161,6 +172,58 @@ struct TMXLevelLoaderTestsMain {
         }, matches: {
             if case .unsupportedRotation(let objectID, let degrees) = $0 {
                 return objectID == 2 && abs(degrees - 15) < 0.001
+            }
+            return false
+        })
+
+        let malformedRotation = validTMX.replacingOccurrences(
+            of: #"<object id="2" type="platform" x="290" y="396" width="320" height="64"/>"#,
+            with: #"<object id="2" type="platform" x="290" y="396" width="320" height="64" rotation="sideways"/>"#
+        )
+        expectTMXError("nonnumeric rotation", {
+            _ = try parseTMX(malformedRotation)
+        }, matches: {
+            if case .invalidObjectGeometry(let objectID, let reason) = $0 {
+                return objectID == 2 && reason.contains("rotation")
+            }
+            return false
+        })
+
+        let ellipse = validTMX.replacingOccurrences(
+            of: #"<object id="2" type="platform" x="290" y="396" width="320" height="64"/>"#,
+            with: #"<object id="2" type="platform" x="290" y="396" width="320" height="64"><ellipse/></object>"#
+        )
+        expectTMXError("ellipse geometry", {
+            _ = try parseTMX(ellipse)
+        }, matches: {
+            if case .invalidObjectGeometry(let objectID, let reason) = $0 {
+                return objectID == 2 && reason.contains("ellipse")
+            }
+            return false
+        })
+
+        let polygon = validTMX.replacingOccurrences(
+            of: #"<object id="2" type="platform" x="290" y="396" width="320" height="64"/>"#,
+            with: #"<object id="2" type="platform" x="290" y="396" width="320" height="64"><polygon points="0,0 320,0 320,64"/></object>"#
+        )
+        expectTMXError("polygon geometry", {
+            _ = try parseTMX(polygon)
+        }, matches: {
+            if case .invalidObjectGeometry(let objectID, let reason) = $0 {
+                return objectID == 2 && reason.contains("polygon")
+            }
+            return false
+        })
+
+        let tileObject = validTMX.replacingOccurrences(
+            of: #"<object id="2" type="platform" x="290" y="396" width="320" height="64"/>"#,
+            with: #"<object id="2" type="platform" gid="42" x="290" y="396" width="320" height="64"/>"#
+        )
+        expectTMXError("tile object geometry", {
+            _ = try parseTMX(tileObject)
+        }, matches: {
+            if case .invalidObjectGeometry(let objectID, let reason) = $0 {
+                return objectID == 2 && reason.contains("tile")
             }
             return false
         })
@@ -192,6 +255,14 @@ struct TMXLevelLoaderTestsMain {
         let malformed = "<map><objectgroup>"
         expectTMXError("malformed XML", {
             _ = try parseTMX(malformed)
+        }, matches: {
+            if case .malformedXML = $0 { return true }
+            return false
+        })
+
+        let truncatedAfterObjects = validTMX.replacingOccurrences(of: "</map>", with: "")
+        expectTMXError("truncated XML after complete objects", {
+            _ = try parseTMX(truncatedAfterObjects)
         }, matches: {
             if case .malformedXML = $0 { return true }
             return false
