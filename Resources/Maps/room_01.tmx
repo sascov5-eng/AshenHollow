@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="30" height="14" tilewidth="40" tileheight="40" infinite="0">
+ <properties>
+  <property name="roomID" value="room_01"/>
+  <property name="worldOriginX" type="float" value="0"/>
+  <property name="worldOriginY" type="float" value="0"/>
+ </properties>
+ <objectgroup id="1" name="Collision">
+  <object id="1" class="platform" x="0" y="460" width="860" height="80"/>
+  <object id="2" class="platform" x="290" y="396" width="320" height="64"/>
+ </objectgroup>
+ <objectgroup id="2" name="Entities">
+  <object id="3" class="player_spawn" x="120" y="430"><point/></object>
+ </objectgroup>
+ <objectgroup id="3" name="Triggers">
+  <object id="4" class="room_exit" x="900" y="340" width="300" height="220">
+   <properties>
+    <property name="destinationRoom" value="room_02"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>
