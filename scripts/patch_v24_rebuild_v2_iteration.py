@@ -19,6 +19,16 @@ replacements = [
         "Ashen Ascent Runner spawn safety"
     ),
     (
+        "platform(650, 280, 280, 40)",
+        "platform(690, 280, 360, 40)",
+        "Ashen Ascent first recovery arena"
+    ),
+    (
+        "EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 850, y: 130))",
+        "EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 600, y: 327))",
+        "Ashen Ascent Runner after first traversal"
+    ),
+    (
         "EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 650, y: 530))",
         "EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 760, y: 530))",
         "Ashen Ascent final landing safety"
