@@ -238,7 +238,7 @@ extension RoomController {
                 platform(840, 230, 40, 140),
                 platform(1060, 230, 40, 140),
                 // Recovery 1.
-                platform(650, 280, 280, 40),
+                platform(690, 280, 360, 40),
                 // Dash landing / recovery 2: 210 pt clear gap.
                 platform(150, 280, 300, 40),
                 // Short second wall pair above recovery 2.
@@ -248,7 +248,7 @@ extension RoomController {
                 platform(650, 480, 300, 40)
             ],
             enemySpawns: [
-                EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 850, y: 130)),
+                EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 600, y: 327)),
                 EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 760, y: 530))
             ],
             requiresCombatClear: true,
