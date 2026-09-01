@@ -5,6 +5,7 @@ final class GameScene: SKScene {
     private enum Control {
         case left
         case right
+        case focus
         case attack
         case jump
     }
@@ -81,6 +82,8 @@ final class GameScene: SKScene {
     // MARK: - Input
 
     private var activeControls: [ObjectIdentifier: Control] = [:]
+    private var attackTouchOrigins: [ObjectIdentifier: CGPoint] = [:]
+    private var triggeredAttackTouches: Set<ObjectIdentifier> = []
     private var moveInput: CGFloat = 0
     private var smoothedMoveInput: CGFloat = 0
     private var facing: CGFloat = 1
@@ -90,8 +93,7 @@ final class GameScene: SKScene {
     private var attackController = AttackController()
     private var attackFacing: CGFloat = 1
     private var attackSequenceID = 0
-    private let attackHitboxSize = CGSize(width: 62, height: 42)
-    private let attackHitboxOffset: CGFloat = 50
+    private var focusStartDamageSequence: Int?
 
     func enqueueCombatImpulse(_ impulse: CombatImpulse) {
         pendingCombatImpulses.append(impulse)
@@ -121,11 +123,13 @@ final class GameScene: SKScene {
 
     private let leftButton = SKShapeNode(circleOfRadius: 43)
     private let rightButton = SKShapeNode(circleOfRadius: 43)
+    private let focusButton = SKShapeNode(circleOfRadius: 42)
     private let attackButton = SKShapeNode(circleOfRadius: 47)
     private let jumpButton = SKShapeNode(circleOfRadius: 51)
 
     private let leftArrow = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private let rightArrow = SKLabelNode(fontNamed: "AvenirNext-Bold")
+    private let focusLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private let attackLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private let jumpLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
 
@@ -177,6 +181,8 @@ final class GameScene: SKScene {
 
         platformRects.removeAll(keepingCapacity: true)
         activeControls.removeAll(keepingCapacity: true)
+        attackTouchOrigins.removeAll(keepingCapacity: true)
+        triggeredAttackTouches.removeAll(keepingCapacity: true)
         pendingCombatImpulses.removeAll(keepingCapacity: true)
         velocity = .zero
         isGrounded = true
@@ -190,6 +196,7 @@ final class GameScene: SKScene {
         attackFacing = 1
         attackSequenceID = 0
         attackController.reset()
+        focusStartDamageSequence = nil
         enemyHealth = EnemyHealth(maxHP: 3)
         enemyHitFlashRemaining = 0
         animationState = .idle
@@ -268,6 +275,7 @@ final class GameScene: SKScene {
         player.name = "player"
         player.position = CGPoint(x: 230, y: 130)
         player.zPosition = 50
+        player.userData = player.userData ?? NSMutableDictionary()
 
         playerVisual.fillColor = UIColor(red: 0.78, green: 0.82, blue: 0.9, alpha: 1)
         playerVisual.strokeColor = UIColor(white: 1, alpha: 0.22)
@@ -317,10 +325,10 @@ final class GameScene: SKScene {
         attackHitboxVisual.fillColor = UIColor(red: 1.0, green: 0.34, blue: 0.20, alpha: 0.24)
         attackHitboxVisual.strokeColor = UIColor(red: 1.0, green: 0.58, blue: 0.42, alpha: 0.8)
         attackHitboxVisual.lineWidth = 2
-        attackHitboxVisual.position = CGPoint(x: attackHitboxOffset, y: 2)
         attackHitboxVisual.zPosition = 60
         attackHitboxVisual.alpha = 0
         attackHitboxVisual.name = "attackHitbox"
+        configureAttackHitboxVisual()
 
         player.addChild(attackHitboxVisual)
         player.addChild(playerVisual)
@@ -339,12 +347,16 @@ final class GameScene: SKScene {
     /// Scene-space damage rectangle for the active melee damage window.
     private var currentAttackHitbox: CGRect? {
         guard attackController.isHitboxActive else { return nil }
-        let centerX = player.position.x + attackFacing * attackHitboxOffset
+        let spec = attackController.currentDirection.hitboxSpec(facing: Double(attackFacing))
+        let center = CGPoint(
+            x: player.position.x + CGFloat(spec.offsetX),
+            y: player.position.y + CGFloat(spec.offsetY)
+        )
         return CGRect(
-            x: centerX - attackHitboxSize.width * 0.5,
-            y: player.position.y - attackHitboxSize.height * 0.5 + 2,
-            width: attackHitboxSize.width,
-            height: attackHitboxSize.height
+            x: center.x - CGFloat(spec.width) * 0.5,
+            y: center.y - CGFloat(spec.height) * 0.5,
+            width: CGFloat(spec.width),
+            height: CGFloat(spec.height)
         )
     }
 
@@ -466,6 +478,7 @@ final class GameScene: SKScene {
 
         configureButton(leftButton)
         configureButton(rightButton)
+        configureButton(focusButton)
         configureButton(attackButton)
         configureButton(jumpButton)
 
@@ -481,6 +494,12 @@ final class GameScene: SKScene {
         rightArrow.verticalAlignmentMode = .center
         rightArrow.horizontalAlignmentMode = .center
 
+        focusLabel.text = "FOCUS"
+        focusLabel.fontSize = 11
+        focusLabel.fontColor = UIColor(white: 0.94, alpha: 0.9)
+        focusLabel.verticalAlignmentMode = .center
+        focusLabel.horizontalAlignmentMode = .center
+
         attackLabel.text = "ATTACK"
         attackLabel.fontSize = 12
         attackLabel.fontColor = UIColor(white: 0.94, alpha: 0.9)
@@ -495,11 +514,13 @@ final class GameScene: SKScene {
 
         leftButton.addChild(leftArrow)
         rightButton.addChild(rightArrow)
+        focusButton.addChild(focusLabel)
         attackButton.addChild(attackLabel)
         jumpButton.addChild(jumpLabel)
 
         hud.addChild(leftButton)
         hud.addChild(rightButton)
+        hud.addChild(focusButton)
         hud.addChild(attackButton)
         hud.addChild(jumpButton)
     }
@@ -523,8 +544,9 @@ final class GameScene: SKScene {
 
         leftButton.position = CGPoint(x: -halfW + 86, y: -halfH + bottomPadding)
         rightButton.position = CGPoint(x: -halfW + 190, y: -halfH + bottomPadding)
-        attackButton.position = CGPoint(x: halfW - 215, y: -halfH + bottomPadding + 2)
-        jumpButton.position = CGPoint(x: halfW - 96, y: -halfH + bottomPadding + 4)
+        focusButton.position = CGPoint(x: halfW - 318, y: -halfH + bottomPadding + 2)
+        attackButton.position = CGPoint(x: halfW - 205, y: -halfH + bottomPadding + 2)
+        jumpButton.position = CGPoint(x: halfW - 88, y: -halfH + bottomPadding + 4)
     }
 
     // MARK: - Touch input
@@ -534,11 +556,16 @@ final class GameScene: SKScene {
 
         for touch in touches {
             let id = ObjectIdentifier(touch)
-            let control = classifyControl(at: touch.location(in: skView), in: skView)
+            let point = touch.location(in: skView)
+            let control = classifyControl(at: point, in: skView)
 
             if let control {
                 activeControls[id] = control
-                handleControlPressed(control)
+                if control == .attack {
+                    attackTouchOrigins[id] = point
+                } else {
+                    handleControlPressed(control)
+                }
             }
         }
 
@@ -552,16 +579,41 @@ final class GameScene: SKScene {
         for touch in touches {
             let id = ObjectIdentifier(touch)
             let oldControl = activeControls[id]
+
+            if oldControl == .attack, let origin = attackTouchOrigins[id] {
+                activeControls[id] = .attack
+                if !triggeredAttackTouches.contains(id) {
+                    let point = touch.location(in: skView)
+                    let direction = AttackGestureResolver.resolve(
+                        deltaX: Double(point.x - origin.x),
+                        deltaY: Double(point.y - origin.y),
+                        isGrounded: isGrounded
+                    )
+                    if direction != .horizontal {
+                        tryAttack(direction: direction)
+                        triggeredAttackTouches.insert(id)
+                    }
+                }
+                continue
+            }
+
             let newControl = classifyControl(at: touch.location(in: skView), in: skView)
 
             if oldControl == .jump && newControl != .jump {
                 releaseJump()
             }
+            if oldControl == .focus && newControl != .focus {
+                cancelFocus()
+            }
 
             if let newControl {
                 activeControls[id] = newControl
                 if newControl != oldControl {
-                    handleControlPressed(newControl)
+                    if newControl == .attack {
+                        attackTouchOrigins[id] = touch.location(in: skView)
+                    } else {
+                        handleControlPressed(newControl)
+                    }
                 }
             } else {
                 activeControls.removeValue(forKey: id)
@@ -583,10 +635,22 @@ final class GameScene: SKScene {
     private func releaseTouches(_ touches: Set<UITouch>) {
         for touch in touches {
             let id = ObjectIdentifier(touch)
-            if activeControls[id] == .jump {
+            switch activeControls[id] {
+            case .jump:
                 releaseJump()
+            case .attack:
+                if !triggeredAttackTouches.contains(id) {
+                    tryAttack(direction: .horizontal)
+                }
+            case .focus:
+                cancelFocus()
+            case .left, .right, .none:
+                break
             }
+
             activeControls.removeValue(forKey: id)
+            attackTouchOrigins.removeValue(forKey: id)
+            triggeredAttackTouches.remove(id)
         }
 
         recalculateMoveInput()
@@ -597,8 +661,10 @@ final class GameScene: SKScene {
         switch control {
         case .jump:
             queueJump()
+        case .focus:
+            beginFocus()
         case .attack:
-            tryAttack()
+            break
         case .left, .right:
             break
         }
@@ -609,14 +675,13 @@ final class GameScene: SKScene {
         let height = skView.bounds.height
         guard width > 0, height > 0 else { return nil }
 
-        // UIKit/SKView touch coordinates have their origin at the top-left.
-        // Hit areas are intentionally a little larger than the visible controls.
         let controlY = height * 0.80
         let candidates: [(control: Control, center: CGPoint, radius: CGFloat)] = [
             (.left, CGPoint(x: width * 0.10, y: controlY), 70),
             (.right, CGPoint(x: width * 0.225, y: controlY), 70),
-            (.attack, CGPoint(x: width * 0.74, y: controlY), 76),
-            (.jump, CGPoint(x: width * 0.89, y: controlY), 82)
+            (.focus, CGPoint(x: width * 0.62, y: controlY), 56),
+            (.attack, CGPoint(x: width * 0.76, y: controlY), 60),
+            (.jump, CGPoint(x: width * 0.90, y: controlY), 64)
         ]
 
         var best: (control: Control, distance: CGFloat)?
@@ -633,7 +698,25 @@ final class GameScene: SKScene {
         return best?.control
     }
 
+    private func beginFocus() {
+        guard let context = V21RuntimeBootstrap.context(from: self) else { return }
+        guard context.focus.beginFocus(
+            currentHP: context.vitals.health.hp,
+            maxHP: context.vitals.health.maxHP
+        ) else {
+            return
+        }
+        focusStartDamageSequence = context.vitals.acceptedDamageSequence
+    }
+
+    private func cancelFocus() {
+        guard let context = V21RuntimeBootstrap.context(from: self) else { return }
+        context.focus.cancelFocus()
+        focusStartDamageSequence = nil
+    }
+
     private func queueJump() {
+        cancelFocus()
         jumpBufferRemaining = jumpBufferDuration
         bufferedJumpWasReleased = false
     }
@@ -642,17 +725,22 @@ final class GameScene: SKScene {
         if velocity.dy > jumpReleaseVelocity {
             velocity.dy = jumpReleaseVelocity
         } else if jumpBufferRemaining > 0 {
-            // A very fast tap that begins and ends between frames still produces a short hop.
             bufferedJumpWasReleased = true
         }
     }
 
-    private func tryAttack() {
-        guard attackController.tryStart() else { return }
+    private func tryAttack(direction: PlayerAttackDirection) {
+        cancelFocus()
+        guard attackController.tryStart(direction: direction) else { return }
         attackFacing = facing
         attackSequenceID += 1
         animationState = .attack
         animationStateTime = 0
+
+        if let context = V21RuntimeBootstrap.context(from: self) {
+            context.playerAttackDirection = direction
+            context.playerAttackSequenceID = attackSequenceID
+        }
     }
 
     private func recalculateMoveInput() {
@@ -679,6 +767,7 @@ final class GameScene: SKScene {
         lastUpdateTime = currentTime
 
         attackController.update(dt)
+        updateFocusState(dt)
         updateTimers(dt)
         consumeBufferedJumpIfPossible()
         updateHorizontalVelocity(CGFloat(dt))
@@ -693,6 +782,25 @@ final class GameScene: SKScene {
         updatePlayerVisuals(CGFloat(dt))
         updateAttackHitboxVisual()
         updateCamera(CGFloat(dt))
+    }
+
+    private func updateFocusState(_ dt: TimeInterval) {
+        guard let context = V21RuntimeBootstrap.context(from: self) else { return }
+
+        if context.focus.isFocusing {
+            if let startSequence = focusStartDamageSequence,
+               context.vitals.acceptedDamageSequence != startSequence {
+                context.focus.cancelFocus()
+                focusStartDamageSequence = nil
+                return
+            }
+            context.focus.updateFocus(dt: dt)
+        }
+
+        if context.focus.consumeCompletedHeal() {
+            _ = context.vitals.heal(1)
+            focusStartDamageSequence = nil
+        }
     }
 
     private func applyPendingCombatImpulses() {
@@ -733,11 +841,13 @@ final class GameScene: SKScene {
     }
 
     private func updateHorizontalVelocity(_ dt: CGFloat) {
+        let focusing = V21RuntimeBootstrap.context(from: self)?.focus.isFocusing == true
+        let effectiveInput: CGFloat = focusing ? 0 : moveInput
         let response: CGFloat = 12
-        smoothedMoveInput += (moveInput - smoothedMoveInput) * min(1, response * dt)
+        smoothedMoveInput += (effectiveInput - smoothedMoveInput) * min(1, response * dt)
 
         let targetVX = smoothedMoveInput * runSpeed
-        let hasInput = abs(moveInput) > 0.01
+        let hasInput = abs(effectiveInput) > 0.01
         let acceleration = hasInput
             ? (isGrounded ? groundAcceleration : airAcceleration)
             : (isGrounded ? groundDeceleration : airAcceleration * 0.5)
@@ -752,8 +862,8 @@ final class GameScene: SKScene {
             velocity.dx = 0
         }
 
-        if abs(moveInput) > 0.01 {
-            facing = moveInput > 0 ? 1 : -1
+        if abs(effectiveInput) > 0.01 {
+            facing = effectiveInput > 0 ? 1 : -1
         }
     }
 
@@ -965,10 +1075,22 @@ final class GameScene: SKScene {
             targetScaleX = 1.04
             targetScaleY = 0.98
             targetVisualY = isGrounded ? 0.4 : 1.0
-            targetRotation = attackFacing * swing * 0.18
             bladeAlpha = 1
-            bladePosition = CGPoint(x: attackFacing * 31, y: 5)
-            bladeRotation = -attackFacing * swing * 0.72
+
+            switch attackController.currentDirection {
+            case .horizontal:
+                targetRotation = attackFacing * swing * 0.18
+                bladePosition = CGPoint(x: attackFacing * 31, y: 5)
+                bladeRotation = -attackFacing * swing * 0.72
+            case .up:
+                targetRotation = attackFacing * 0.04
+                bladePosition = CGPoint(x: attackFacing * 5, y: 31)
+                bladeRotation = .pi * 0.5 + attackFacing * swing * 0.22
+            case .down:
+                targetRotation = -attackFacing * 0.03
+                bladePosition = CGPoint(x: attackFacing * 5, y: -30)
+                bladeRotation = -.pi * 0.5 - attackFacing * swing * 0.22
+            }
 
             if isGrounded {
                 leftFootTarget = CGPoint(x: -10 - attackFacing * 2, y: -30)
@@ -1016,14 +1138,30 @@ final class GameScene: SKScene {
         }
     }
 
+    private func configureAttackHitboxVisual() {
+        let spec = attackController.currentDirection.hitboxSpec(facing: Double(attackFacing))
+        let rect = CGRect(
+            x: -CGFloat(spec.width) * 0.5,
+            y: -CGFloat(spec.height) * 0.5,
+            width: CGFloat(spec.width),
+            height: CGFloat(spec.height)
+        )
+        attackHitboxVisual.path = CGPath(rect: rect, transform: nil)
+        attackHitboxVisual.position = CGPoint(
+            x: CGFloat(spec.offsetX),
+            y: CGFloat(spec.offsetY)
+        )
+    }
+
     private func updateAttackHitboxVisual() {
-        attackHitboxVisual.position = CGPoint(x: attackFacing * attackHitboxOffset, y: 2)
+        configureAttackHitboxVisual()
         attackHitboxVisual.alpha = attackController.isHitboxActive ? 1 : 0
     }
 
     private func refreshButtonVisuals() {
         animateButton(leftButton, pressed: activeControls.values.contains(.left))
         animateButton(rightButton, pressed: activeControls.values.contains(.right))
+        animateButton(focusButton, pressed: activeControls.values.contains(.focus))
         animateButton(attackButton, pressed: activeControls.values.contains(.attack))
         animateButton(jumpButton, pressed: activeControls.values.contains(.jump))
     }
