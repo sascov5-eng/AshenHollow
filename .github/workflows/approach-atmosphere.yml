@@ -22,3 +22,19 @@ jobs:
             Sources/ApproachAtmosphereLayout.swift \
             -o /tmp/ApproachAtmosphereLayoutTests
           /tmp/ApproachAtmosphereLayoutTests
+
+      - name: Compile iOS runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          xcrun swiftc \
+            -parse-as-library \
+            -target arm64-apple-ios15.0 \
+            -sdk "$SDK" \
+            -framework Foundation \
+            -framework SwiftUI \
+            -framework UIKit \
+            -framework SpriteKit \
+            Sources/*.swift \
+            -o /tmp/AshenHollow
