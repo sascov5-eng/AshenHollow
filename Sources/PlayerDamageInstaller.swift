@@ -22,8 +22,8 @@ enum PlayerDamageInstaller {
         hud.name = "playerHealthHUD"
         hud.zPosition = 1200
         hud.position = CGPoint(
-            x: -scene.size.width * 0.5 + 100,
-            y: scene.size.height * 0.5 - 48
+            x: -scene.size.width * 0.5 + 104,
+            y: scene.size.height * 0.5 - 54
         )
 
         let title = SKLabelNode(fontNamed: "AvenirNext-Bold")
@@ -33,14 +33,14 @@ enum PlayerDamageInstaller {
         title.fontColor = UIColor(white: 0.96, alpha: 0.95)
         title.horizontalAlignmentMode = .center
         title.verticalAlignmentMode = .center
-        title.position = CGPoint(x: 0, y: 15)
+        title.position = CGPoint(x: 0, y: 29)
         hud.addChild(title)
 
         let background = SKSpriteNode(
             color: UIColor(white: 0.06, alpha: 0.88),
             size: CGSize(width: 126, height: 13)
         )
-        background.position = .zero
+        background.position = CGPoint(x: 0, y: 14)
         hud.addChild(background)
 
         let fill = SKSpriteNode(
@@ -49,9 +49,53 @@ enum PlayerDamageInstaller {
         )
         fill.name = "playerHealthFill"
         fill.anchorPoint = CGPoint(x: 0, y: 0.5)
-        fill.position = CGPoint(x: -60, y: 0)
+        fill.position = CGPoint(x: -60, y: 14)
         fill.zPosition = 1
         hud.addChild(fill)
+
+        let essenceLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        essenceLabel.name = "essenceLabel"
+        essenceLabel.text = "ESSENCE  0/100"
+        essenceLabel.fontSize = 10
+        essenceLabel.fontColor = UIColor(red: 0.72, green: 0.90, blue: 1.0, alpha: 0.95)
+        essenceLabel.horizontalAlignmentMode = .center
+        essenceLabel.verticalAlignmentMode = .center
+        essenceLabel.position = CGPoint(x: 0, y: -2)
+        hud.addChild(essenceLabel)
+
+        let essenceBackground = SKSpriteNode(
+            color: UIColor(white: 0.05, alpha: 0.88),
+            size: CGSize(width: 126, height: 9)
+        )
+        essenceBackground.position = CGPoint(x: 0, y: -15)
+        hud.addChild(essenceBackground)
+
+        let essenceFill = SKSpriteNode(
+            color: UIColor(red: 0.36, green: 0.72, blue: 1.0, alpha: 1),
+            size: CGSize(width: 120, height: 5)
+        )
+        essenceFill.anchorPoint = CGPoint(x: 0, y: 0.5)
+        essenceFill.position = CGPoint(x: -60, y: -15)
+        essenceFill.zPosition = 1
+        essenceFill.xScale = 0
+        hud.addChild(essenceFill)
+
+        let focusBackground = SKSpriteNode(
+            color: UIColor(white: 0.05, alpha: 0.75),
+            size: CGSize(width: 126, height: 6)
+        )
+        focusBackground.position = CGPoint(x: 0, y: -27)
+        hud.addChild(focusBackground)
+
+        let focusFill = SKSpriteNode(
+            color: UIColor(white: 0.95, alpha: 0.95),
+            size: CGSize(width: 120, height: 3)
+        )
+        focusFill.anchorPoint = CGPoint(x: 0, y: 0.5)
+        focusFill.position = CGPoint(x: -60, y: -27)
+        focusFill.zPosition = 1
+        focusFill.xScale = 0
+        hud.addChild(focusFill)
 
         camera.addChild(hud)
 
@@ -62,6 +106,7 @@ enum PlayerDamageInstaller {
             let health = context.vitals.health
             let ratio = CGFloat(health.hp) / CGFloat(health.maxHP)
             fill.xScale = max(0, ratio)
+
             if health.isAlive {
                 title.text = "PLAYER  HP \(health.hp)/\(health.maxHP)"
                 title.fontColor = UIColor(white: 0.96, alpha: 0.95)
@@ -69,6 +114,11 @@ enum PlayerDamageInstaller {
                 title.text = "PLAYER  DEAD"
                 title.fontColor = UIColor(red: 1.0, green: 0.32, blue: 0.28, alpha: 1)
             }
+
+            essenceLabel.text = "ESSENCE  \(context.focus.essence)/\(context.focus.maxEssence)"
+            essenceFill.xScale = CGFloat(context.focus.essence) / CGFloat(context.focus.maxEssence)
+            focusFill.xScale = CGFloat(context.focus.focusProgress)
+            focusFill.alpha = context.focus.isFocusing ? 1 : 0.28
         }
 
         func beginDeathAndRespawn() {
@@ -76,6 +126,7 @@ enum PlayerDamageInstaller {
             runtime.deathPresented = true
             context.damageInbox.clear()
             context.focus.cancelFocus()
+            context.hitStop.reset()
             player.removeAction(forKey: "playerIFrameBlink")
             player.alpha = 0.38
             refreshHUD()
@@ -96,6 +147,7 @@ enum PlayerDamageInstaller {
             }
             runtime.lastElapsed = elapsed
             context.vitals.update(Double(dt))
+            refreshHUD()
 
             guard context.vitals.health.isAlive else {
                 beginDeathAndRespawn()
@@ -116,11 +168,12 @@ enum PlayerDamageInstaller {
                 refreshHUD()
 
                 let sourceX = CGFloat(event.sourceX)
-                let knockbackDirection: CGFloat = node.position.x >= sourceX ? 1 : -1
-                let targetX = node.position.x + knockbackDirection * 34
-                let minX = context.physicalRoomMinX + 18
-                let maxX = context.physicalRoomMaxX - 18
-                node.position.x = max(minX, min(maxX, targetX))
+                let knockbackDirection: Double = node.position.x >= sourceX ? 1 : -1
+                if let gameScene = scene as? GameScene {
+                    gameScene.enqueueCombatImpulse(
+                        .recoil(direction: knockbackDirection, speed: 265)
+                    )
+                }
 
                 node.removeAction(forKey: "playerIFrameBlink")
 
