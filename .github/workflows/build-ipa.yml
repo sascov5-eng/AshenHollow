@@ -12,216 +12,101 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Prepare app bundle
         shell: bash
         run: |
           set -euo pipefail
           rm -rf build
           mkdir -p build/Payload/AshenHollow.app
-      - name: Test player movement tuning
+
+      - name: Test V24 level and progression
         shell: bash
         run: |
           set -euo pipefail
+          set -x
           xcrun swiftc Tests/PlayerMovementTuningTests.swift Sources/PlayerMovementTuning.swift -o build/PlayerMovementTuningTests
           ./build/PlayerMovementTuningTests
-      - name: Test traversal safety validator
-        shell: bash
-        run: |
-          set -euo pipefail
           xcrun swiftc Tests/TraversalSafetyValidatorTests.swift Sources/TraversalSafetyValidator.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/TraversalSafetyValidatorTests
           ./build/TraversalSafetyValidatorTests
-      - name: Test onboarding tutorial
-        shell: bash
-        run: |
-          set -euo pipefail
           xcrun swiftc Tests/OnboardingTutorialControllerTests.swift Sources/OnboardingTutorialController.swift -o build/OnboardingTutorialControllerTests
           ./build/OnboardingTutorialControllerTests
-      - name: Test attack controller
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/AttackControllerTests.swift Sources/AttackController.swift Sources/PlayerAttackDirection.swift -o build/AttackControllerTests
-          ./build/AttackControllerTests
-      - name: Test player attack direction
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/PlayerAttackDirectionTests.swift Sources/PlayerAttackDirection.swift -o build/PlayerAttackDirectionTests
-          ./build/PlayerAttackDirectionTests
-      - name: Test dpad attack direction resolver
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/DPadAttackDirectionResolverTests.swift Sources/DPadAttackDirectionResolver.swift Sources/PlayerAttackDirection.swift -o build/DPadAttackDirectionResolverTests
-          ./build/DPadAttackDirectionResolverTests
-      - name: Test attack gesture resolver
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/AttackGestureResolverTests.swift Sources/AttackGestureResolver.swift Sources/PlayerAttackDirection.swift -o build/AttackGestureResolverTests
-          ./build/AttackGestureResolverTests
-      - name: Test combat impulse
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/CombatImpulseTests.swift Sources/CombatImpulse.swift -o build/CombatImpulseTests
-          ./build/CombatImpulseTests
-      - name: Test combat hit-stop controller
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/CombatHitStopControllerTests.swift Sources/CombatHitStopController.swift -o build/CombatHitStopControllerTests
-          ./build/CombatHitStopControllerTests
-      - name: Test player vital state
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/PlayerVitalStateTests.swift Sources/PlayerVitalState.swift Sources/PlayerHealth.swift -o build/PlayerVitalStateTests
-          ./build/PlayerVitalStateTests
-      - name: Test essence focus controller
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/EssenceFocusControllerTests.swift Sources/EssenceFocusController.swift -o build/EssenceFocusControllerTests
-          ./build/EssenceFocusControllerTests
-      - name: Test touch retention policy
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/TouchRetentionPolicyTests.swift Sources/TouchRetentionPolicy.swift -o build/TouchRetentionPolicyTests
-          ./build/TouchRetentionPolicyTests
-      - name: Test demo progression
-        shell: bash
-        run: |
-          set -euo pipefail
           xcrun swiftc Tests/DemoProgressionTests.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/EnemyArchetype.swift -o build/DemoProgressionTests
           ./build/DemoProgressionTests
-      - name: Test demo save store
-        shell: bash
-        run: |
-          set -euo pipefail
           xcrun swiftc Tests/DemoSaveStoreTests.swift Sources/DemoSaveStore.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/EnemyArchetype.swift -o build/DemoSaveStoreTests
           ./build/DemoSaveStoreTests
-      - name: Test V24 room topology
-        shell: bash
-        run: |
-          set -euo pipefail
           xcrun swiftc Tests/DemoRoomTopologyTests.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/DemoRoomTopologyTests
           ./build/DemoRoomTopologyTests
-      - name: Test V24 mandatory traversal
-        shell: bash
-        run: |
-          set -euo pipefail
           xcrun swiftc Tests/V24MandatoryTraversalTests.swift Sources/TraversalSafetyValidator.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24MandatoryTraversalTests
           ./build/V24MandatoryTraversalTests
-      - name: Test V24 encounter placement
-        shell: bash
-        run: |
-          set -euo pipefail
           xcrun swiftc Tests/V24EncounterPlacementTests.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24EncounterPlacementTests
           ./build/V24EncounterPlacementTests
-      - name: Test V24 room progression resolver
-        shell: bash
-        run: |
-          set -euo pipefail
           xcrun swiftc Tests/DemoRoomProgressionResolverTests.swift Sources/DemoRoomProgressionResolver.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/DemoRoomProgressionResolverTests
           ./build/DemoRoomProgressionResolverTests
-      - name: Test V24 exit presentation resolver
+          xcrun swiftc Tests/RoomExitPresentationResolverTests.swift Sources/RoomExitPresentationResolver.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/RoomExitPresentationResolverTests
+          ./build/RoomExitPresentationResolverTests
+          xcrun swiftc Tests/V24WorldReactionTests.swift Sources/V24WorldReactionResolver.swift Sources/TraversalTeachingController.swift Sources/RoomExitPresentationResolver.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24WorldReactionTests
+          ./build/V24WorldReactionTests
+
+      - name: Test combat and controls
         shell: bash
         run: |
           set -euo pipefail
-          xcrun swiftc Tests/RoomExitPresentationResolverTests.swift Sources/RoomExitPresentationResolver.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/RoomExitPresentationResolverTests
-          ./build/RoomExitPresentationResolverTests
+          set -x
+          xcrun swiftc Tests/AttackControllerTests.swift Sources/AttackController.swift Sources/PlayerAttackDirection.swift -o build/AttackControllerTests
+          ./build/AttackControllerTests
+          xcrun swiftc Tests/PlayerAttackDirectionTests.swift Sources/PlayerAttackDirection.swift -o build/PlayerAttackDirectionTests
+          ./build/PlayerAttackDirectionTests
+          xcrun swiftc Tests/DPadAttackDirectionResolverTests.swift Sources/DPadAttackDirectionResolver.swift Sources/PlayerAttackDirection.swift -o build/DPadAttackDirectionResolverTests
+          ./build/DPadAttackDirectionResolverTests
+          xcrun swiftc Tests/AttackGestureResolverTests.swift Sources/AttackGestureResolver.swift Sources/PlayerAttackDirection.swift -o build/AttackGestureResolverTests
+          ./build/AttackGestureResolverTests
+          xcrun swiftc Tests/CombatImpulseTests.swift Sources/CombatImpulse.swift -o build/CombatImpulseTests
+          ./build/CombatImpulseTests
+          xcrun swiftc Tests/CombatHitStopControllerTests.swift Sources/CombatHitStopController.swift -o build/CombatHitStopControllerTests
+          ./build/CombatHitStopControllerTests
+          xcrun swiftc Tests/PlayerVitalStateTests.swift Sources/PlayerVitalState.swift Sources/PlayerHealth.swift -o build/PlayerVitalStateTests
+          ./build/PlayerVitalStateTests
+          xcrun swiftc Tests/EssenceFocusControllerTests.swift Sources/EssenceFocusController.swift -o build/EssenceFocusControllerTests
+          ./build/EssenceFocusControllerTests
+          xcrun swiftc Tests/TouchRetentionPolicyTests.swift Sources/TouchRetentionPolicy.swift -o build/TouchRetentionPolicyTests
+          ./build/TouchRetentionPolicyTests
+          xcrun swiftc Tests/DashControllerTests.swift Sources/DashController.swift Sources/PlayerMovementTuning.swift -o build/DashControllerTests
+          ./build/DashControllerTests
+          xcrun swiftc Tests/WallTraversalControllerTests.swift Sources/WallTraversalController.swift Sources/PlayerMovementTuning.swift -o build/WallTraversalControllerTests
+          ./build/WallTraversalControllerTests
+          xcrun swiftc Tests/HUDControlLayoutTests.swift Sources/HUDControlLayout.swift -o build/HUDControlLayoutTests
+          ./build/HUDControlLayoutTests
+          xcrun swiftc Tests/EnemyHealthTests.swift Sources/EnemyHealth.swift -o build/EnemyHealthTests
+          ./build/EnemyHealthTests
+          xcrun swiftc Tests/EnemyAIControllerTests.swift Sources/EnemyAIController.swift Sources/EnemyArchetype.swift -o build/EnemyAIControllerTests
+          ./build/EnemyAIControllerTests
+          xcrun swiftc Tests/PlayerHealthTests.swift Sources/PlayerHealth.swift -o build/PlayerHealthTests
+          ./build/PlayerHealthTests
+          xcrun swiftc Tests/PlayerRespawnSequenceTests.swift Sources/PlayerRespawnSequence.swift -o build/PlayerRespawnSequenceTests
+          ./build/PlayerRespawnSequenceTests
+          xcrun swiftc Tests/RoomControllerTests.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/RoomControllerTests
+          ./build/RoomControllerTests
+          xcrun swiftc Tests/EnemyArchetypeTests.swift Sources/EnemyArchetype.swift -o build/EnemyArchetypeTests
+          ./build/EnemyArchetypeTests
+          xcrun swiftc Tests/EnemyRuntimeModelTests.swift Sources/EnemyArchetype.swift Sources/EnemyRuntimeModel.swift -o build/EnemyRuntimeModelTests
+          ./build/EnemyRuntimeModelTests
+          xcrun swiftc Tests/ProjectileControllerTests.swift Sources/ProjectileController.swift -o build/ProjectileControllerTests
+          ./build/ProjectileControllerTests
+          xcrun swiftc Tests/PlayerDamageInboxTests.swift Sources/PlayerDamageInbox.swift -o build/PlayerDamageInboxTests
+          ./build/PlayerDamageInboxTests
+          xcrun swiftc Tests/RangedCombatControllerTests.swift Sources/RangedCombatController.swift -o build/RangedCombatControllerTests
+          ./build/RangedCombatControllerTests
+          xcrun swiftc Tests/BossControllerTests.swift Sources/BossController.swift -o build/BossControllerTests
+          ./build/BossControllerTests
+
       - name: Typecheck GameScene input lock contract
         shell: bash
         run: |
           set -euo pipefail
           SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
           xcrun swiftc -parse-as-library -typecheck -target arm64-apple-ios15.0 -sdk "$SDK" -framework Foundation -framework SwiftUI -framework UIKit -framework SpriteKit Sources/*.swift Tests/GameSceneInputLockContractTests.swift
-      - name: Test dash controller
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/DashControllerTests.swift Sources/DashController.swift Sources/PlayerMovementTuning.swift -o build/DashControllerTests
-          ./build/DashControllerTests
-      - name: Test wall traversal controller
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/WallTraversalControllerTests.swift Sources/WallTraversalController.swift Sources/PlayerMovementTuning.swift -o build/WallTraversalControllerTests
-          ./build/WallTraversalControllerTests
-      - name: Test HUD control layout
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/HUDControlLayoutTests.swift Sources/HUDControlLayout.swift -o build/HUDControlLayoutTests
-          ./build/HUDControlLayoutTests
-      - name: Test enemy health
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/EnemyHealthTests.swift Sources/EnemyHealth.swift -o build/EnemyHealthTests
-          ./build/EnemyHealthTests
-      - name: Test enemy AI
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/EnemyAIControllerTests.swift Sources/EnemyAIController.swift Sources/EnemyArchetype.swift -o build/EnemyAIControllerTests
-          ./build/EnemyAIControllerTests
-      - name: Test player health
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/PlayerHealthTests.swift Sources/PlayerHealth.swift -o build/PlayerHealthTests
-          ./build/PlayerHealthTests
-      - name: Test player respawn sequence
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/PlayerRespawnSequenceTests.swift Sources/PlayerRespawnSequence.swift -o build/PlayerRespawnSequenceTests
-          ./build/PlayerRespawnSequenceTests
-      - name: Test room controller
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/RoomControllerTests.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/RoomControllerTests
-          ./build/RoomControllerTests
-      - name: Test enemy archetypes
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/EnemyArchetypeTests.swift Sources/EnemyArchetype.swift -o build/EnemyArchetypeTests
-          ./build/EnemyArchetypeTests
-      - name: Test enemy runtime model
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/EnemyRuntimeModelTests.swift Sources/EnemyArchetype.swift Sources/EnemyRuntimeModel.swift -o build/EnemyRuntimeModelTests
-          ./build/EnemyRuntimeModelTests
-      - name: Test projectile controller
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/ProjectileControllerTests.swift Sources/ProjectileController.swift -o build/ProjectileControllerTests
-          ./build/ProjectileControllerTests
-      - name: Test player damage inbox
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/PlayerDamageInboxTests.swift Sources/PlayerDamageInbox.swift -o build/PlayerDamageInboxTests
-          ./build/PlayerDamageInboxTests
-      - name: Test ranged combat controller
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/RangedCombatControllerTests.swift Sources/RangedCombatController.swift -o build/RangedCombatControllerTests
-          ./build/RangedCombatControllerTests
-      - name: Test boss controller
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc Tests/BossControllerTests.swift Sources/BossController.swift -o build/BossControllerTests
-          ./build/BossControllerTests
+
       - name: Compile Ashen Hollow
         shell: bash
         run: |
@@ -233,6 +118,7 @@ jobs:
           cp Info.plist "$APP/Info.plist"
           test -f "$APP/AshenHollow"
           test -f "$APP/Info.plist"
+
       - name: Package unsigned IPA
         shell: bash
         run: |
@@ -240,6 +126,7 @@ jobs:
           cd build
           zip -qry AshenHollow-unsigned.ipa Payload
           test -f AshenHollow-unsigned.ipa
+
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
