@@ -18,6 +18,11 @@ replacements = [
         "EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 850, y: 130))",
         "Ashen Ascent Runner spawn safety"
     ),
+    (
+        "EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 650, y: 530))",
+        "EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 760, y: 530))",
+        "Ashen Ascent final landing safety"
+    ),
 ]
 
 changed = False
