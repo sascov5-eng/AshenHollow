@@ -22,7 +22,7 @@ struct DemoProgressionTestsMain {
             checkpoint: CheckpointSnapshot(
                 id: .postDash,
                 roomID: .dashShrine,
-                spawn: RoomPoint(x: 760, y: 130)
+                spawn: RoomPoint(x: 360, y: 130)
             )
         )
         expectProgression(accepted, "first Dash shrine activation succeeds")
@@ -42,6 +42,21 @@ struct DemoProgressionTestsMain {
         )
         expectProgression(!duplicate, "consumed shrine cannot activate twice")
         expectProgression(state.checkpoint == checkpointBeforeDuplicate, "duplicate shrine cannot move checkpoint backward")
+
+        let wallAccepted = state.claimShrine(
+            .wallTraversal,
+            ability: .wallTraversal,
+            checkpoint: CheckpointSnapshot(
+                id: .postWallTraversal,
+                roomID: .hollowShaft,
+                spawn: RoomPoint(x: 600, y: 150)
+            )
+        )
+        expectProgression(wallAccepted, "first Wall Traversal shrine activation succeeds")
+        expectProgression(state.has(.wallTraversal), "Wall Traversal is unlocked")
+        expectProgression(state.has(.dash), "Dash stays unlocked after Wall Traversal acquisition")
+        expectProgression(state.consumedShrines.contains(.wallTraversal), "Wall Traversal shrine is consumed")
+        expectProgression(state.checkpoint.id == .postWallTraversal, "Wall Traversal checkpoint activates atomically")
 
         state = .fresh
         expectProgression(state.unlockedAbilities.isEmpty, "New Game reset clears abilities")
