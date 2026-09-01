@@ -30,6 +30,7 @@ private final class V21LiveEnemy {
     var currentAttackID: Int = 0
     var lastDamageAttackID: Int = -1
     var pendingShotRemaining: TimeInterval?
+    var contactCooldown: TimeInterval = 0
     var defeatCounted = false
 
     init(
@@ -60,8 +61,7 @@ private final class V21NormalCombatRuntime {
     var enemies: [V21LiveEnemy] = []
     var projectiles: [V21LiveProjectile] = []
     var lastElapsed: CGFloat = 0
-    var playerHitboxWasActive = false
-    var playerSwingID = 0
+    var lastPlayerImpulseSwingID: Int = -1
 }
 
 enum MultiEnemyRuntimeInstaller {
@@ -145,6 +145,24 @@ enum MultiEnemyRuntimeInstaller {
             )
         }
 
+        func emitPlayerImpact(on enemy: V21LiveEnemy) {
+            context.focus.gainFromAcceptedMeleeHit()
+
+            guard runtime.lastPlayerImpulseSwingID != context.playerAttackSequenceID,
+                  let gameScene = scene as? GameScene else {
+                return
+            }
+
+            runtime.lastPlayerImpulseSwingID = context.playerAttackSequenceID
+            switch context.playerAttackDirection {
+            case .down:
+                gameScene.enqueueCombatImpulse(.pogo(verticalSpeed: 465))
+            case .horizontal, .up:
+                let away: Double = player.position.x >= enemy.node.position.x ? 1 : -1
+                gameScene.enqueueCombatImpulse(.recoil(direction: away, speed: 240))
+            }
+        }
+
         let updateAction = SKAction.customAction(withDuration: 1_000_000) { _, elapsed in
             let dt: CGFloat
             if runtime.lastElapsed == 0 {
@@ -163,33 +181,46 @@ enum MultiEnemyRuntimeInstaller {
 
             let attackHitboxNode = player.childNode(withName: "attackHitbox")
             let playerHitboxActive = (attackHitboxNode?.alpha ?? 0) > 0.5
-            if playerHitboxActive && !runtime.playerHitboxWasActive {
-                runtime.playerSwingID += 1
-            }
-            runtime.playerHitboxWasActive = playerHitboxActive
-
             let playerAttackRect: CGRect? = {
-                guard playerHitboxActive, let attackHitboxNode else { return nil }
+                guard playerHitboxActive else { return nil }
+                let spec = context.playerAttackDirection.hitboxSpec(
+                    facing: Double(player.xScale >= 0 ? 1 : -1)
+                )
+                let facingSign: CGFloat
+                if let attackHitboxNode {
+                    facingSign = attackHitboxNode.position.x == 0
+                        ? 1
+                        : (attackHitboxNode.position.x > 0 ? 1 : -1)
+                } else {
+                    facingSign = 1
+                }
+                let correctedOffsetX: CGFloat
+                if context.playerAttackDirection == .horizontal {
+                    correctedOffsetX = abs(CGFloat(spec.offsetX)) * facingSign
+                } else {
+                    correctedOffsetX = CGFloat(spec.offsetX) * facingSign
+                }
                 let center = CGPoint(
-                    x: player.position.x + attackHitboxNode.position.x,
-                    y: player.position.y + attackHitboxNode.position.y
+                    x: player.position.x + correctedOffsetX,
+                    y: player.position.y + CGFloat(spec.offsetY)
                 )
                 return CGRect(
-                    x: center.x - 31,
-                    y: center.y - 21,
-                    width: 62,
-                    height: 42
+                    x: center.x - CGFloat(spec.width) * 0.5,
+                    y: center.y - CGFloat(spec.height) * 0.5,
+                    width: CGFloat(spec.width),
+                    height: CGFloat(spec.height)
                 )
             }()
 
             for enemy in runtime.enemies {
                 guard enemy.model.isAlive else { continue }
+                enemy.contactCooldown = max(0, enemy.contactCooldown - Double(dt))
 
                 if let playerAttackRect,
                    playerAttackRect.intersects(hurtbox(for: enemy)) {
                     let accepted = enemy.model.applyPlayerHit(
                         damage: 1,
-                        playerAttackID: runtime.playerSwingID,
+                        playerAttackID: context.playerAttackSequenceID,
                         playerX: Double(player.position.x),
                         enemyX: Double(enemy.node.position.x)
                     )
@@ -199,6 +230,7 @@ enum MultiEnemyRuntimeInstaller {
                         enemy.attackVisual.alpha = 0
                         flash(enemy.body)
                         refreshHP(enemy)
+                        emitPlayerImpact(on: enemy)
 
                         if !enemy.model.isAlive {
                             presentDeath(enemy, context: context)
@@ -220,6 +252,15 @@ enum MultiEnemyRuntimeInstaller {
                 }
 
                 enemy.model.update(dt: Double(dt))
+
+                if enemy.contactCooldown <= 0,
+                   hurtbox(for: enemy).intersects(playerRect) {
+                    enemy.contactCooldown = 0.20
+                    context.damageInbox.enqueue(
+                        damage: enemy.stats.contactDamage,
+                        sourceX: Double(enemy.node.position.x)
+                    )
+                }
 
                 if var pending = enemy.pendingShotRemaining {
                     pending -= Double(dt)
