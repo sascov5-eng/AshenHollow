@@ -29,16 +29,6 @@ private func minY(_ platform: RoomPlatform) -> Double {
     platform.center.y - platform.size.height * 0.5
 }
 
-private func horizontalGap(_ first: RoomPlatform, _ second: RoomPlatform) -> Double {
-    if maxX(first) < minX(second) {
-        return minX(second) - maxX(first)
-    }
-    if maxX(second) < minX(first) {
-        return minX(first) - maxX(second)
-    }
-    return 0
-}
-
 @main
 struct DemoRoomTopologyTestsMain {
     static func main() {
@@ -105,42 +95,54 @@ struct DemoRoomTopologyTestsMain {
         expectTopology(level.room(.ashenAscent)?.exits.first?.destinationRoomID == .wardenGate, "Ashen Ascent routes to Warden Gate")
         expectTopology(level.room(.wardenGate)?.exits.first?.destinationRoomID == .wardenChamber, "Warden Gate routes to Warden Chamber")
 
+        // V2 Dash Shrine: one obvious equal-height Dash gap, large landing, low recovery.
         let dashRoom = level.room(.dashShrine)!
         expectTopology(dashRoom.enemySpawns.isEmpty, "Dash Shrine has no mandatory combat encounter")
         expectTopology(dashRoom.shrine?.ability == .dash, "Dash Shrine teaches Dash")
-        let dashFloors = dashRoom.platforms
+        let dashBanks = dashRoom.platforms
             .filter { abs($0.center.y - 60) < 0.001 && abs($0.size.height - 80) < 0.001 }
             .sorted { $0.center.x < $1.center.x }
-        expectTopology(dashFloors.count == 2, "Dash Shrine has two recovery floor banks")
-        if dashFloors.count == 2 {
-            let gap = minX(dashFloors[1]) - maxX(dashFloors[0])
-            expectTopology(gap >= 250, "Dash Shrine recovery gap is wider than ordinary running jump range")
-            expectTopology(gap <= 290, "Dash Shrine recovery banks keep a controlled gap")
+        expectTopology(dashBanks.count == 2, "Dash Shrine has exactly two main Dash banks")
+        if dashBanks.count == 2 {
+            let gap = minX(dashBanks[1]) - maxX(dashBanks[0])
+            expectTopology(gap >= 230 && gap <= 255, "Dash Shrine teaching gap stays in the 230–255 pt envelope")
+            expectTopology(dashBanks[0].size.width >= 320, "Dash Shrine receiving bank is at least 320 pt wide")
+            expectTopology(dashBanks[1].size.width >= 320, "Dash Shrine takeoff bank is broad")
         }
+        expectTopology(
+            dashRoom.platforms.contains(where: { $0.center.y < 60 && $0.size.width >= 180 }),
+            "Dash Shrine keeps a low recovery surface below the teaching gap"
+        )
+        expectTopology(
+            dashRoom.platforms.filter { $0.center.y > 100 && $0.size.height <= 30 }.isEmpty,
+            "Dash Shrine no longer chains into a post-Dash precision shelf ladder"
+        )
 
-        let dashLessonPlatforms = dashRoom.platforms
-            .filter { $0.center.y > 100 && $0.size.height <= 30 }
-            .sorted { $0.center.y < $1.center.y }
-        expectTopology(dashLessonPlatforms.count == 3, "Dash Shrine uses two Dash surfaces plus one short ascent step")
-        if dashLessonPlatforms.count == 3 {
-            let lowerHeight = dashLessonPlatforms[0].center.y
-            expectTopology(abs(dashLessonPlatforms[1].center.y - lowerHeight) < 0.001, "Dash takeoff and receiving surfaces share a safe height")
-            let rise = dashLessonPlatforms[2].center.y - lowerHeight
-            expectTopology(rise >= 55 && rise <= 75, "Dash Shrine post-lesson ascent stays in the 55–75 pt target band")
-        }
+        // V2 Furnace: two broad banks plus only two large terraces; old 8-shelf zigzag is gone.
+        let furnace = level.room(.furnacePassage)!
+        expectTopology(furnace.platforms.count == 4, "Furnace Passage uses four broad route surfaces")
+        expectTopology(
+            furnace.platforms.filter { $0.size.width < 220 }.isEmpty,
+            "Furnace Passage has no narrow mandatory shelf staircase"
+        )
 
         let hollowShaft = level.room(.hollowShaft)!
         expectTopology(hollowShaft.shrine?.ability == .wallTraversal, "Hollow Shaft teaches Wall Traversal")
-        expectTopology(hollowShaft.exits.contains(where: { $0.trigger.minY >= 500 }), "Hollow Shaft exits through the upper band")
+        expectTopology(hollowShaft.enemySpawns.isEmpty, "Hollow Shaft remains a quiet traversal tutorial")
+        expectTopology(hollowShaft.exits.contains(where: { $0.trigger.minY >= 480 }), "Hollow Shaft exits through the upper band")
         let climbWalls = hollowShaft.platforms
             .filter { $0.size.width <= 50 && $0.size.height >= 300 }
             .sorted { $0.center.x < $1.center.x }
-        expectTopology(climbWalls.count >= 2, "Hollow Shaft has opposing climb walls")
-        if climbWalls.count >= 2 {
+        expectTopology(climbWalls.count == 2, "Hollow Shaft has one clean opposing wall pair")
+        if climbWalls.count == 2 {
             let innerGap = minX(climbWalls[1]) - maxX(climbWalls[0])
-            expectTopology(innerGap >= 160 && innerGap <= 220, "Hollow Shaft wall gap supports repeated wall jumps")
-            expectTopology(minY(climbWalls[0]) >= 165 && minY(climbWalls[1]) >= 165, "Wall Traversal shrine remains walk-accessible below climb walls")
+            expectTopology(innerGap >= 170 && innerGap <= 200, "Hollow Shaft wall gap is 170–200 pt")
+            expectTopology(minY(climbWalls[0]) >= 145 && minY(climbWalls[1]) >= 145, "Wall shrine remains walk-accessible below climb walls")
         }
+        expectTopology(
+            hollowShaft.platforms.contains(where: { $0.size.width >= 300 && $0.center.y >= 480 }),
+            "Hollow Shaft ends on a broad upper recovery ledge"
+        )
 
         let watcher = level.room(.watcherHall)!
         expectTopology(watcher.enemySpawns.contains(where: { $0.archetype == .ranged }), "Watcher Hall keeps ranged pressure")
@@ -151,10 +153,14 @@ struct DemoRoomTopologyTestsMain {
         expectTopology(gate.enemySpawns.contains(where: { $0.archetype == .ranged }), "Warden Gate contains Ranged")
 
         let gallery = level.room(.brokenGallery)!
-        expectTopology(gallery.exits.contains(where: { $0.requiredAbility != nil }), "Broken Gallery exposes an ability-gated shortcut")
+        expectTopology(gallery.exits.contains(where: { $0.requiredAbility == .wallTraversal }), "Broken Gallery exposes the Wall Traversal shortcut")
 
         let bossRoom = level.room(.wardenChamber)!
         expectTopology(bossRoom.enemySpawns.filter { $0.archetype == .boss }.count == 1, "Warden Chamber contains exactly one boss")
+        expectTopology(
+            !bossRoom.platforms.contains(where: { $0.size.height <= 30 && $0.size.width >= 100 && $0.size.width <= 500 && $0.center.y > 150 }),
+            "Warden Chamber has no catch shelves in the boss arena"
+        )
 
         print("DemoRoomTopologyTests: PASS")
     }
