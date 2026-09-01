@@ -23,6 +23,21 @@ replacements = [
         "EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 760, y: 530))",
         "Ashen Ascent final landing safety"
     ),
+    (
+        "platform(820, 155, 260, 110)",
+        "platform(450, 180, 300, 28)",
+        "Warden Gate ranged platform"
+    ),
+    (
+        "EnemySpawn(id: 1, archetype: .heavy, position: RoomPoint(x: 620, y: 136))",
+        "EnemySpawn(id: 1, archetype: .heavy, position: RoomPoint(x: 700, y: 136))",
+        "Warden Gate Heavy role"
+    ),
+    (
+        "EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 820, y: 240))",
+        "EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 450, y: 224))",
+        "Warden Gate Ranged spawn safety"
+    ),
 ]
 
 changed = False
