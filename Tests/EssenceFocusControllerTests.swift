@@ -24,19 +24,29 @@ struct EssenceFocusControllerTestsMain {
         expectFocus(focus.essence == 100, "Essence caps at 100")
 
         expectFocus(!focus.beginFocus(currentHP: 5, maxHP: 5), "cannot focus at full HP")
-        expectFocus(focus.beginFocus(currentHP: 4, maxHP: 5), "focus starts with full resource and missing HP")
+        expectFocus(focus.beginFocus(currentHP: 4, maxHP: 5), "focus starts with enough Essence and missing HP")
         expectFocus(focus.isFocusing, "focus reports active")
         expectFocus(focus.focusProgress == 0, "Focus starts at zero progress")
 
         focus.updateFocus(dt: 0.50)
         expectFocus(abs(focus.focusProgress - 0.5) < 0.001, "half channel exposes half progress")
         expectFocus(!focus.consumeCompletedHeal(), "half channel does not heal")
+        expectFocus(focus.essence == 100, "partial channel spends nothing")
+
         focus.updateFocus(dt: 0.50)
-        expectFocus(!focus.consumeCompletedHeal(), "completion waits one confirmation frame so same-frame damage can cancel")
-        expectFocus(focus.essence == 100, "Essence is not spent before heal confirmation")
-        expectFocus(focus.consumeCompletedHeal(), "confirmed completion produces one heal")
-        expectFocus(focus.essence == 0, "confirmed heal spends Essence")
-        expectFocus(!focus.isFocusing, "focus returns idle after completion")
+        expectFocus(!focus.isFocusing, "completed channel stops focusing")
+        expectFocus(focus.essence == 0, "completion spends Essence atomically")
+        expectFocus(
+            !focus.beginFocus(currentHP: 4, maxHP: 5),
+            "pending completed heal blocks a second channel"
+        )
+
+        focus.cancelFocus() // finger release immediately after completion
+        expectFocus(
+            focus.consumeCompletedHeal(),
+            "release after completion cannot erase the completed heal"
+        )
+        expectFocus(!focus.consumeCompletedHeal(), "completed heal emits exactly once")
         expectFocus(focus.focusProgress == 0, "completed Focus resets progress")
 
         focus.gainFromAcceptedMeleeHit()
@@ -44,12 +54,11 @@ struct EssenceFocusControllerTestsMain {
         focus.gainFromAcceptedMeleeHit()
         expectFocus(focus.essence == 100, "resource can refill")
         expectFocus(focus.beginFocus(currentHP: 4, maxHP: 5), "second focus starts")
-        focus.updateFocus(dt: 1.0)
-        expectFocus(!focus.consumeCompletedHeal(), "second completion also enters confirmation frame")
+        focus.updateFocus(dt: 0.70)
         focus.cancelFocus()
-        expectFocus(!focus.consumeCompletedHeal(), "damage-style cancellation clears pending heal")
-        expectFocus(focus.essence == 100, "cancelled pending heal does not spend Essence")
-        expectFocus(!focus.isFocusing, "cancelled focus returns idle")
+        expectFocus(!focus.consumeCompletedHeal(), "release before completion cancels heal")
+        expectFocus(focus.essence == 100, "early cancellation spends no Essence")
+        expectFocus(!focus.isFocusing, "cancelled Focus returns idle")
         expectFocus(focus.focusProgress == 0, "cancelled Focus resets progress")
 
         print("EssenceFocusControllerTests: PASS")
