@@ -1,0 +1,44 @@
+name: Activate V24 Rebuild V2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  activate:
+    runs-on: macos-15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Activate rebuilt runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/patch_activate_v24_rebuild_v2.py
+
+      - name: Verify rebuilt runtime compiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          xcrun swiftc -parse-as-library -typecheck -target arm64-apple-ios15.0 -sdk "$SDK" -framework Foundation -framework SwiftUI -framework UIKit -framework SpriteKit Sources/*.swift
+
+      - name: Commit runtime activation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- Sources/RoomRuntimeInstaller.swift; then
+            echo "Runtime already uses V24 rebuild v2."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add Sources/RoomRuntimeInstaller.swift
+            git commit -m "feat: activate V24 rebuild v2 runtime"
+            git push origin HEAD:main
+          fi
