@@ -1,0 +1,24 @@
+name: Approach Layering
+
+on:
+  push:
+    branches:
+      - fix/approach-atmosphere-layering
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  layering-contract:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run layering contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc \
+            Tests/ApproachAtmosphereLayeringTests.swift \
+            Sources/ApproachAtmosphereLayeringPolicy.swift \
+            -o /tmp/ApproachAtmosphereLayeringTests
+          /tmp/ApproachAtmosphereLayeringTests
