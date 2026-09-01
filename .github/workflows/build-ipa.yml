@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -20,38 +23,49 @@ jobs:
           rm -rf build
           mkdir -p build/Payload/AshenHollow.app
 
+      - name: Test TMX loader and Approach parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -x
+          xcrun swiftc Tests/TMXLevelLoaderTests.swift Sources/TMXRoomSchema.swift Sources/TMXLevelLoader.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/TMXLevelLoaderTests
+          ./build/TMXLevelLoaderTests
+          xcrun swiftc Tests/TMXApproachParityTests.swift Sources/TMXRoomSchema.swift Sources/TMXLevelLoader.swift Sources/V24LevelRebuildV2.swift Sources/V24RouteValidator.swift Sources/V24MandatoryRoute.swift Sources/V24EncounterSafetyValidator.swift Sources/TraversalSafetyValidator.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/TMXApproachParityTests
+          ./build/TMXApproachParityTests
+
       - name: Test V24 level and progression
         shell: bash
         run: |
           set -euo pipefail
           set -x
+          TMX_SOURCES=(Sources/TMXRoomSchema.swift Sources/TMXLevelLoader.swift)
           xcrun swiftc Tests/PlayerMovementTuningTests.swift Sources/PlayerMovementTuning.swift -o build/PlayerMovementTuningTests
           ./build/PlayerMovementTuningTests
           xcrun swiftc Tests/TraversalSafetyValidatorTests.swift Sources/TraversalSafetyValidator.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/TraversalSafetyValidatorTests
           ./build/TraversalSafetyValidatorTests
           xcrun swiftc Tests/OnboardingTutorialControllerTests.swift Sources/OnboardingTutorialController.swift -o build/OnboardingTutorialControllerTests
           ./build/OnboardingTutorialControllerTests
-          xcrun swiftc Tests/DemoProgressionTests.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift -o build/DemoProgressionTests
+          xcrun swiftc Tests/DemoProgressionTests.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift "${TMX_SOURCES[@]}" Sources/EnemyArchetype.swift -o build/DemoProgressionTests
           ./build/DemoProgressionTests
-          xcrun swiftc Tests/DemoSaveStoreTests.swift Sources/DemoSaveStore.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift -o build/DemoSaveStoreTests
+          xcrun swiftc Tests/DemoSaveStoreTests.swift Sources/DemoSaveStore.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift "${TMX_SOURCES[@]}" Sources/EnemyArchetype.swift -o build/DemoSaveStoreTests
           ./build/DemoSaveStoreTests
-          xcrun swiftc Tests/DemoRoomTopologyTests.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/DemoRoomTopologyTests
+          xcrun swiftc Tests/DemoRoomTopologyTests.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift "${TMX_SOURCES[@]}" Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/DemoRoomTopologyTests
           ./build/DemoRoomTopologyTests
-          xcrun swiftc Tests/V24MandatoryTraversalTests.swift Sources/TraversalSafetyValidator.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24MandatoryTraversalTests
+          xcrun swiftc Tests/V24MandatoryTraversalTests.swift Sources/TraversalSafetyValidator.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift "${TMX_SOURCES[@]}" Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24MandatoryTraversalTests
           ./build/V24MandatoryTraversalTests
-          xcrun swiftc Tests/V24FullRouteValidationTests.swift Sources/V24RouteValidator.swift Sources/V24MandatoryRoute.swift Sources/V24LevelRebuildV2.swift Sources/TraversalSafetyValidator.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24FullRouteValidationTests
+          xcrun swiftc Tests/V24FullRouteValidationTests.swift Sources/V24RouteValidator.swift Sources/V24MandatoryRoute.swift Sources/V24LevelRebuildV2.swift "${TMX_SOURCES[@]}" Sources/TraversalSafetyValidator.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24FullRouteValidationTests
           ./build/V24FullRouteValidationTests
-          xcrun swiftc Tests/V24EncounterPlacementTests.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24EncounterPlacementTests
+          xcrun swiftc Tests/V24EncounterPlacementTests.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift "${TMX_SOURCES[@]}" Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24EncounterPlacementTests
           ./build/V24EncounterPlacementTests
-          xcrun swiftc Tests/V24EncounterSafetyValidatorTests.swift Sources/V24EncounterSafetyValidator.swift Sources/V24MandatoryRoute.swift Sources/V24LevelRebuildV2.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24EncounterSafetyValidatorTests
+          xcrun swiftc Tests/V24EncounterSafetyValidatorTests.swift Sources/V24EncounterSafetyValidator.swift Sources/V24MandatoryRoute.swift Sources/V24LevelRebuildV2.swift "${TMX_SOURCES[@]}" Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24EncounterSafetyValidatorTests
           ./build/V24EncounterSafetyValidatorTests
           xcrun swiftc Tests/GameplayFramingTests.swift Sources/GameplayFraming.swift Sources/HUDControlLayout.swift -o build/GameplayFramingTests
           ./build/GameplayFramingTests
-          xcrun swiftc Tests/DemoRoomProgressionResolverTests.swift Sources/DemoRoomProgressionResolver.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/DemoRoomProgressionResolverTests
+          xcrun swiftc Tests/DemoRoomProgressionResolverTests.swift Sources/DemoRoomProgressionResolver.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift "${TMX_SOURCES[@]}" Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/DemoRoomProgressionResolverTests
           ./build/DemoRoomProgressionResolverTests
-          xcrun swiftc Tests/RoomExitPresentationResolverTests.swift Sources/RoomExitPresentationResolver.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/RoomExitPresentationResolverTests
+          xcrun swiftc Tests/RoomExitPresentationResolverTests.swift Sources/RoomExitPresentationResolver.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift "${TMX_SOURCES[@]}" Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/RoomExitPresentationResolverTests
           ./build/RoomExitPresentationResolverTests
-          xcrun swiftc Tests/V24WorldReactionTests.swift Sources/V24WorldReactionResolver.swift Sources/TraversalTeachingController.swift Sources/RoomExitPresentationResolver.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24WorldReactionTests
+          xcrun swiftc Tests/V24WorldReactionTests.swift Sources/V24WorldReactionResolver.swift Sources/TraversalTeachingController.swift Sources/RoomExitPresentationResolver.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift "${TMX_SOURCES[@]}" Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24WorldReactionTests
           ./build/V24WorldReactionTests
 
       - name: Test combat and controls
@@ -91,7 +105,7 @@ jobs:
           ./build/PlayerHealthTests
           xcrun swiftc Tests/PlayerRespawnSequenceTests.swift Sources/PlayerRespawnSequence.swift -o build/PlayerRespawnSequenceTests
           ./build/PlayerRespawnSequenceTests
-          xcrun swiftc Tests/RoomControllerTests.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/RoomControllerTests
+          xcrun swiftc Tests/RoomControllerTests.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/TMXRoomSchema.swift Sources/TMXLevelLoader.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/RoomControllerTests
           ./build/RoomControllerTests
           xcrun swiftc Tests/EnemyArchetypeTests.swift Sources/EnemyArchetype.swift -o build/EnemyArchetypeTests
           ./build/EnemyArchetypeTests
@@ -119,11 +133,14 @@ jobs:
           set -euo pipefail
           SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
           APP="build/Payload/AshenHollow.app"
+          mkdir -p "$APP/Resources/Maps"
+          cp Resources/Maps/*.tmx "$APP/Resources/Maps/"
           xcrun swiftc -parse-as-library -target arm64-apple-ios15.0 -sdk "$SDK" -O -framework Foundation -framework SwiftUI -framework UIKit -framework SpriteKit Sources/*.swift -o "$APP/AshenHollow"
           chmod +x "$APP/AshenHollow"
           cp Info.plist "$APP/Info.plist"
           test -f "$APP/AshenHollow"
           test -f "$APP/Info.plist"
+          test -f "$APP/Resources/Maps/approach.tmx"
 
       - name: Package unsigned IPA
         shell: bash
@@ -132,6 +149,7 @@ jobs:
           cd build
           zip -qry AshenHollow-unsigned.ipa Payload
           test -f AshenHollow-unsigned.ipa
+          unzip -l AshenHollow-unsigned.ipa | grep -q 'Payload/AshenHollow.app/Resources/Maps/approach.tmx'
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
