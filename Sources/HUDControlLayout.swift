@@ -129,3 +129,62 @@ struct HUDControlLayout {
         )
     }
 }
+
+struct HUDOverlayLayout {
+    let viewWidth: Double
+    let viewHeight: Double
+    let safeTopInset: Double
+    let safeLeftInset: Double
+    let safeRightInset: Double
+
+    init(
+        viewWidth: Double,
+        viewHeight: Double,
+        safeTopInset: Double = 0,
+        safeLeftInset: Double = 0,
+        safeRightInset: Double = 0
+    ) {
+        self.viewWidth = max(1, viewWidth)
+        self.viewHeight = max(1, viewHeight)
+        self.safeTopInset = max(0, safeTopInset)
+        self.safeLeftInset = max(0, safeLeftInset)
+        self.safeRightInset = max(0, safeRightInset)
+    }
+
+    var healthCenter: HUDPoint {
+        HUDPoint(
+            x: min(viewWidth - safeRightInset - 76, safeLeftInset + 76),
+            y: safeTopInset + 58
+        )
+    }
+
+    var roomTitleCenter: HUDPoint {
+        HUDPoint(
+            x: viewWidth * 0.5,
+            y: safeTopInset + 26
+        )
+    }
+
+    var combatStatusCenter: HUDPoint {
+        HUDPoint(
+            x: viewWidth * 0.5,
+            y: safeTopInset + 44
+        )
+    }
+
+    func cameraLocalPosition(
+        for screenPoint: HUDPoint,
+        sceneWidth: Double,
+        sceneHeight: Double
+    ) -> HUDPoint {
+        let safeSceneWidth = max(1, sceneWidth)
+        let safeSceneHeight = max(1, sceneHeight)
+        let sceneX = screenPoint.x / viewWidth * safeSceneWidth
+        let sceneY = screenPoint.y / viewHeight * safeSceneHeight
+
+        return HUDPoint(
+            x: sceneX - safeSceneWidth * 0.5,
+            y: safeSceneHeight * 0.5 - sceneY
+        )
+    }
+}
