@@ -242,7 +242,12 @@ enum RoomRuntimeInstaller {
             camera.position.x = originX + CGFloat(localCameraX)
         }
 
-        applyRoom(state.controller.initialRoomID, destinationSpawn: nil)
+        let checkpoint = context.progression.state.checkpoint
+        if state.controller.room(checkpoint.roomID) != nil {
+            applyRoom(checkpoint.roomID, destinationSpawn: checkpoint.spawn)
+        } else {
+            applyRoom(state.controller.initialRoomID, destinationSpawn: nil)
+        }
 
         let runtimeAction = SKAction.customAction(withDuration: 1_000_000) { _, elapsed in
             let dt: CGFloat
@@ -312,7 +317,9 @@ enum RoomRuntimeInstaller {
         }
 
         scene.userData = scene.userData ?? NSMutableDictionary()
-        let context = V21RuntimeContext()
+        let context = V21RuntimeContext(
+            progression: DemoProgressionRuntime(launchMode: .continueGame)
+        )
         scene.userData?["v21RuntimeContext"] = context
         install(on: scene, context: context)
     }
@@ -322,9 +329,13 @@ enum RoomRuntimeInstaller {
         case .approach: return "ROOM 1 — APPROACH"
         case .lowerHall: return "ROOM 2 — LOWER HALL"
         case .brokenGallery: return "ROOM 3 — BROKEN GALLERY"
-        case .furnacePassage: return "ROOM 4 — FURNACE PASSAGE"
-        case .watcherHall: return "ROOM 5 — WATCHER HALL"
-        case .wardenChamber: return "ROOM 6 — WARDEN CHAMBER"
+        case .dashShrine: return "ROOM 4 — DASH SHRINE"
+        case .furnacePassage: return "ROOM 5 — FURNACE PASSAGE"
+        case .watcherHall: return "ROOM 6 — WATCHER HALL"
+        case .hollowShaft: return "ROOM 7 — HOLLOW SHAFT"
+        case .ashenAscent: return "ROOM 8 — ASHEN ASCENT"
+        case .wardenGate: return "ROOM 9 — WARDEN GATE"
+        case .wardenChamber: return "ROOM 10 — WARDEN CHAMBER"
         }
     }
 }
