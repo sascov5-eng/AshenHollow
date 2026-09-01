@@ -229,7 +229,7 @@ extension RoomController {
             playerSpawn: RoomPoint(x: 1080, y: 130),
             platforms: [
                 // Entry arena.
-                platform(1050, 60, 300, 80),
+                platform(1000, 60, 400, 80),
                 // First wall-jump pair: 180 pt inner gap.
                 platform(840, 230, 40, 140),
                 platform(1060, 230, 40, 140),
@@ -244,7 +244,7 @@ extension RoomController {
                 platform(650, 480, 300, 40)
             ],
             enemySpawns: [
-                EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 930, y: 130)),
+                EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 850, y: 130)),
                 EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 650, y: 530))
             ],
             requiresCombatClear: true,
