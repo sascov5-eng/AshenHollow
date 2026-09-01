@@ -18,6 +18,12 @@ jobs:
           set -euo pipefail
           rm -rf build
           mkdir -p build/Payload/AshenHollow.app
+      - name: Test player movement tuning
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/PlayerMovementTuningTests.swift Sources/PlayerMovementTuning.swift -o build/PlayerMovementTuningTests
+          ./build/PlayerMovementTuningTests
       - name: Test attack controller
         shell: bash
         run: |
