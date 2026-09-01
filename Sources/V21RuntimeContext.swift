@@ -18,6 +18,7 @@ final class RoomCombatStatus: NSObject {
 }
 
 final class V21RuntimeContext: NSObject {
+    let progression: DemoProgressionRuntime
     let damageInbox = PlayerDamageInbox()
     let combatStatus = RoomCombatStatus()
     let vitals = PlayerVitalState()
@@ -43,16 +44,25 @@ final class V21RuntimeContext: NSObject {
     var physicalRoomMaxX: CGFloat = 1200
     var levelComplete = false
 
+    init(progression: DemoProgressionRuntime) {
+        self.progression = progression
+        super.init()
+    }
+
     func attach(to scene: SKScene) {
         attachedScene = scene
     }
 }
 
 enum V21RuntimeBootstrap {
-    static func install(on scene: SKScene) {
+    static func install(
+        on scene: SKScene,
+        launchMode: DemoLaunchMode = .continueGame
+    ) {
         scene.userData = scene.userData ?? NSMutableDictionary()
 
-        let context = V21RuntimeContext()
+        let progression = DemoProgressionRuntime(launchMode: launchMode)
+        let context = V21RuntimeContext(progression: progression)
         context.attach(to: scene)
         scene.userData?["v21RuntimeContext"] = context
 
