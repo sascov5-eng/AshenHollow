@@ -30,6 +30,17 @@ jobs:
             -o /tmp/V24FullRouteValidationTests
           /tmp/V24FullRouteValidationTests
 
+      - name: Compile and run gameplay framing tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc \
+            Tests/GameplayFramingTests.swift \
+            Sources/GameplayFraming.swift \
+            Sources/HUDControlLayout.swift \
+            -o /tmp/GameplayFramingTests
+          /tmp/GameplayFramingTests
+
       - name: Compile and run encounter safety tests
         shell: bash
         run: |
@@ -45,14 +56,3 @@ jobs:
             Sources/DemoProgression.swift \
             -o /tmp/V24EncounterSafetyValidatorTests
           /tmp/V24EncounterSafetyValidatorTests
-
-      - name: Compile and run gameplay framing tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun swiftc \
-            Tests/GameplayFramingTests.swift \
-            Sources/GameplayFraming.swift \
-            Sources/HUDControlLayout.swift \
-            -o /tmp/GameplayFramingTests
-          /tmp/GameplayFramingTests
