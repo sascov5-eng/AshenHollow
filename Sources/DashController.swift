@@ -1,8 +1,10 @@
 import Foundation
 
 struct DashController {
-    let cooldown: TimeInterval = 0.60
-    let duration: TimeInterval = 0.16
+    private let tuning = PlayerMovementTuning.current
+
+    var cooldown: TimeInterval { tuning.dashCooldown }
+    var duration: TimeInterval { tuning.dashDuration }
     private(set) var cooldownRemaining: TimeInterval = 0
     private(set) var dashRemaining: TimeInterval = 0
     private(set) var direction: Double = 1
