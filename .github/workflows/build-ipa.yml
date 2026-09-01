@@ -15,12 +15,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Apply V23 Task 2 source patch
-        if: contains(github.event.head_commit.message, '[V23-T2-APPLY]')
+      - name: Apply staged V23 source patch
+        if: contains(github.event.head_commit.message, '[V23-STAGED-APPLY]')
         shell: bash
         run: |
           set -euo pipefail
-          python3 Scripts/apply_v23_task2.py
+          python3 Scripts/apply_v23_staged.py
       - name: Prepare app bundle
         shell: bash
         run: |
@@ -166,14 +166,14 @@ jobs:
           path: build/AshenHollow-unsigned.ipa
           if-no-files-found: error
           retention-days: 30
-      - name: Commit V23 Task 2 source patch
-        if: contains(github.event.head_commit.message, '[V23-T2-APPLY]')
+      - name: Commit staged V23 source patch
+        if: contains(github.event.head_commit.message, '[V23-STAGED-APPLY]')
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Sources/GameScene.swift
-          git diff --cached --quiet && { echo "Expected GameScene.swift changes were not produced"; exit 1; }
-          git commit -m "feat: switch combat input to immediate dpad attacks"
+          git add Sources/*.swift
+          git diff --cached --quiet && { echo "Expected staged V23 source changes were not produced"; exit 1; }
+          git commit -m "fix: retain focus touch through finger drift"
           git push origin HEAD:main
