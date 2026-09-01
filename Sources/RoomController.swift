@@ -57,22 +57,37 @@ struct EnemySpawn: Equatable {
     let position: RoomPoint
 }
 
+struct AbilityShrinePlacement: Equatable {
+    let id: ShrineID
+    let ability: PlayerAbility
+    let position: RoomPoint
+    let checkpoint: CheckpointSnapshot
+}
+
+struct CheckpointTrigger: Equatable {
+    let checkpoint: CheckpointSnapshot
+    let trigger: RoomRect
+}
+
 struct RoomExit: Equatable {
     let trigger: RoomRect
     let destinationRoomID: RoomID?
     let destinationSpawn: RoomPoint?
     let completesLevel: Bool
+    let requiredAbility: PlayerAbility?
 
     init(
         trigger: RoomRect,
         destinationRoomID: RoomID? = nil,
         destinationSpawn: RoomPoint? = nil,
-        completesLevel: Bool = false
+        completesLevel: Bool = false,
+        requiredAbility: PlayerAbility? = nil
     ) {
         self.trigger = trigger
         self.destinationRoomID = destinationRoomID
         self.destinationSpawn = destinationSpawn
         self.completesLevel = completesLevel
+        self.requiredAbility = requiredAbility
     }
 }
 
@@ -85,6 +100,32 @@ struct RoomDefinition: Equatable {
     let enemySpawns: [EnemySpawn]
     let requiresCombatClear: Bool
     let exits: [RoomExit]
+    let shrine: AbilityShrinePlacement?
+    let checkpointTriggers: [CheckpointTrigger]
+
+    init(
+        id: RoomID,
+        worldOrigin: RoomPoint,
+        bounds: RoomRect,
+        playerSpawn: RoomPoint,
+        platforms: [RoomPlatform],
+        enemySpawns: [EnemySpawn],
+        requiresCombatClear: Bool,
+        exits: [RoomExit],
+        shrine: AbilityShrinePlacement? = nil,
+        checkpointTriggers: [CheckpointTrigger] = []
+    ) {
+        self.id = id
+        self.worldOrigin = worldOrigin
+        self.bounds = bounds
+        self.playerSpawn = playerSpawn
+        self.platforms = platforms
+        self.enemySpawns = enemySpawns
+        self.requiresCombatClear = requiresCombatClear
+        self.exits = exits
+        self.shrine = shrine
+        self.checkpointTriggers = checkpointTriggers
+    }
 
     // Compatibility for the V20 single-enemy runtime until Task 7 replaces it.
     var enemySpawn: RoomPoint? {
@@ -130,7 +171,8 @@ struct RoomController {
         playerCenter: RoomPoint,
         playerSize: RoomSize,
         in roomID: RoomID,
-        combatCleared: Bool
+        combatCleared: Bool,
+        unlockedAbilities: Set<PlayerAbility> = []
     ) -> RoomExitActivation? {
         guard let room = definitions[roomID] else { return nil }
         if room.requiresCombatClear && !combatCleared {
@@ -144,7 +186,14 @@ struct RoomController {
             height: playerSize.height
         )
 
-        guard let exit = room.exits.first(where: { $0.trigger.intersects(playerRect) }) else {
+        guard let exit = room.exits.first(where: { candidate in
+            guard candidate.trigger.intersects(playerRect) else { return false }
+            if let requiredAbility = candidate.requiredAbility,
+               !unlockedAbilities.contains(requiredAbility) {
+                return false
+            }
+            return true
+        }) else {
             return nil
         }
 
@@ -330,6 +379,323 @@ struct RoomController {
                 brokenGallery,
                 furnacePassage,
                 watcherHall,
+                wardenChamber
+            ]
+        )
+    }
+
+    static func makeV24Demo() -> RoomController {
+        let bounds = RoomRect(x: 0, y: 0, width: 1200, height: 560)
+
+        func platform(_ x: Double, _ y: Double, _ width: Double, _ height: Double = 28) -> RoomPlatform {
+            RoomPlatform(center: RoomPoint(x: x, y: y), size: RoomSize(width: width, height: height))
+        }
+
+        let fullFloor = platform(600, 60, 1200, 80)
+
+        let approach = RoomDefinition(
+            id: .approach,
+            worldOrigin: RoomPoint(x: 0, y: 0),
+            bounds: bounds,
+            playerSpawn: RoomPoint(x: 120, y: 130),
+            platforms: [
+                platform(500, 60, 1000, 80),
+                platform(1150, 60, 100, 80),
+                platform(330, 185, 220),
+                platform(690, 250, 200),
+                platform(900, 190, 140)
+            ],
+            enemySpawns: [
+                EnemySpawn(id: 1, archetype: .grunt, position: RoomPoint(x: 720, y: 130))
+            ],
+            requiresCombatClear: true,
+            exits: [
+                RoomExit(
+                    trigger: RoomRect(x: 1000, y: 0, width: 100, height: 100),
+                    destinationRoomID: .lowerHall,
+                    destinationSpawn: RoomPoint(x: 1070, y: 130)
+                )
+            ]
+        )
+
+        let lowerHall = RoomDefinition(
+            id: .lowerHall,
+            worldOrigin: RoomPoint(x: 1200, y: 0),
+            bounds: bounds,
+            playerSpawn: RoomPoint(x: 1070, y: 130),
+            platforms: [
+                fullFloor,
+                platform(430, 205, 240),
+                platform(820, 175, 210)
+            ],
+            enemySpawns: [
+                EnemySpawn(id: 1, archetype: .grunt, position: RoomPoint(x: 520, y: 130)),
+                EnemySpawn(id: 2, archetype: .grunt, position: RoomPoint(x: 850, y: 130))
+            ],
+            requiresCombatClear: true,
+            exits: [
+                RoomExit(
+                    trigger: RoomRect(x: 0, y: 100, width: 72, height: 160),
+                    destinationRoomID: .brokenGallery,
+                    destinationSpawn: RoomPoint(x: 1090, y: 130)
+                )
+            ]
+        )
+
+        let brokenGallery = RoomDefinition(
+            id: .brokenGallery,
+            worldOrigin: RoomPoint(x: 2400, y: 0),
+            bounds: bounds,
+            playerSpawn: RoomPoint(x: 1090, y: 130),
+            platforms: [
+                platform(90, 60, 180, 80),
+                platform(750, 60, 900, 80),
+                platform(300, 190, 190),
+                platform(590, 275, 180),
+                platform(890, 215, 220),
+                platform(1080, 390, 120)
+            ],
+            enemySpawns: [
+                EnemySpawn(id: 1, archetype: .grunt, position: RoomPoint(x: 520, y: 130)),
+                EnemySpawn(id: 2, archetype: .runner, position: RoomPoint(x: 880, y: 130))
+            ],
+            requiresCombatClear: true,
+            exits: [
+                RoomExit(
+                    trigger: RoomRect(x: 180, y: 0, width: 120, height: 100),
+                    destinationRoomID: .dashShrine,
+                    destinationSpawn: RoomPoint(x: 260, y: 130)
+                ),
+                RoomExit(
+                    trigger: RoomRect(x: 1128, y: 330, width: 72, height: 170),
+                    destinationRoomID: .ashenAscent,
+                    destinationSpawn: RoomPoint(x: 1080, y: 430),
+                    requiredAbility: .wallTraversal
+                )
+            ]
+        )
+
+        let dashCheckpoint = CheckpointSnapshot(
+            id: .postDash,
+            roomID: .dashShrine,
+            spawn: RoomPoint(x: 360, y: 130)
+        )
+        let dashShrine = RoomDefinition(
+            id: .dashShrine,
+            worldOrigin: RoomPoint(x: 3600, y: 0),
+            bounds: bounds,
+            playerSpawn: RoomPoint(x: 260, y: 130),
+            platforms: [
+                platform(260, 60, 520, 80),
+                platform(950, 60, 500, 80),
+                platform(850, 190, 180),
+                platform(650, 285, 170),
+                platform(430, 375, 170),
+                platform(150, 465, 220)
+            ],
+            enemySpawns: [],
+            requiresCombatClear: false,
+            exits: [
+                RoomExit(
+                    trigger: RoomRect(x: 0, y: 410, width: 72, height: 150),
+                    destinationRoomID: .furnacePassage,
+                    destinationSpawn: RoomPoint(x: 1090, y: 130),
+                    requiredAbility: .dash
+                )
+            ],
+            shrine: AbilityShrinePlacement(
+                id: .dash,
+                ability: .dash,
+                position: RoomPoint(x: 300, y: 130),
+                checkpoint: dashCheckpoint
+            )
+        )
+
+        let furnacePassage = RoomDefinition(
+            id: .furnacePassage,
+            worldOrigin: RoomPoint(x: 4800, y: 0),
+            bounds: bounds,
+            playerSpawn: RoomPoint(x: 1090, y: 130),
+            platforms: [
+                fullFloor,
+                platform(920, 180, 180),
+                platform(650, 270, 170),
+                platform(370, 365, 170),
+                platform(140, 455, 180)
+            ],
+            enemySpawns: [
+                EnemySpawn(id: 1, archetype: .grunt, position: RoomPoint(x: 790, y: 130)),
+                EnemySpawn(id: 2, archetype: .runner, position: RoomPoint(x: 470, y: 130))
+            ],
+            requiresCombatClear: true,
+            exits: [
+                RoomExit(
+                    trigger: RoomRect(x: 80, y: 500, width: 150, height: 60),
+                    destinationRoomID: .watcherHall,
+                    destinationSpawn: RoomPoint(x: 1080, y: 130),
+                    requiredAbility: .dash
+                )
+            ]
+        )
+
+        let watcherHall = RoomDefinition(
+            id: .watcherHall,
+            worldOrigin: RoomPoint(x: 6000, y: 0),
+            bounds: bounds,
+            playerSpawn: RoomPoint(x: 1080, y: 130),
+            platforms: [
+                fullFloor,
+                platform(335, 200, 220),
+                platform(760, 250, 270)
+            ],
+            enemySpawns: [
+                EnemySpawn(id: 1, archetype: .ranged, position: RoomPoint(x: 840, y: 130)),
+                EnemySpawn(id: 2, archetype: .grunt, position: RoomPoint(x: 560, y: 130))
+            ],
+            requiresCombatClear: true,
+            exits: [
+                RoomExit(
+                    trigger: RoomRect(x: 0, y: 100, width: 72, height: 160),
+                    destinationRoomID: .hollowShaft,
+                    destinationSpawn: RoomPoint(x: 1040, y: 130)
+                )
+            ]
+        )
+
+        let wallCheckpoint = CheckpointSnapshot(
+            id: .postWallTraversal,
+            roomID: .hollowShaft,
+            spawn: RoomPoint(x: 600, y: 150)
+        )
+        let hollowShaft = RoomDefinition(
+            id: .hollowShaft,
+            worldOrigin: RoomPoint(x: 7200, y: 0),
+            bounds: bounds,
+            playerSpawn: RoomPoint(x: 1040, y: 130),
+            platforms: [
+                fullFloor,
+                platform(430, 310, 40, 420),
+                platform(770, 310, 40, 420),
+                platform(360, 220, 120),
+                platform(840, 330, 120),
+                platform(360, 440, 120)
+            ],
+            enemySpawns: [],
+            requiresCombatClear: false,
+            exits: [
+                RoomExit(
+                    trigger: RoomRect(x: 500, y: 500, width: 200, height: 60),
+                    destinationRoomID: .ashenAscent,
+                    destinationSpawn: RoomPoint(x: 1080, y: 130),
+                    requiredAbility: .wallTraversal
+                )
+            ],
+            shrine: AbilityShrinePlacement(
+                id: .wallTraversal,
+                ability: .wallTraversal,
+                position: RoomPoint(x: 600, y: 130),
+                checkpoint: wallCheckpoint
+            )
+        )
+
+        let ashenAscent = RoomDefinition(
+            id: .ashenAscent,
+            worldOrigin: RoomPoint(x: 8400, y: 0),
+            bounds: bounds,
+            playerSpawn: RoomPoint(x: 1080, y: 130),
+            platforms: [
+                fullFloor,
+                platform(990, 150, 220),
+                platform(700, 250, 210),
+                platform(405, 350, 210),
+                platform(140, 455, 200)
+            ],
+            enemySpawns: [
+                EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 720, y: 294)),
+                EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 420, y: 394))
+            ],
+            requiresCombatClear: true,
+            exits: [
+                RoomExit(
+                    trigger: RoomRect(x: 0, y: 400, width: 72, height: 160),
+                    destinationRoomID: .wardenGate,
+                    destinationSpawn: RoomPoint(x: 1090, y: 130),
+                    requiredAbility: .wallTraversal
+                )
+            ]
+        )
+
+        let preWardenCheckpoint = CheckpointSnapshot(
+            id: .preWarden,
+            roomID: .wardenGate,
+            spawn: RoomPoint(x: 880, y: 130)
+        )
+        let wardenGate = RoomDefinition(
+            id: .wardenGate,
+            worldOrigin: RoomPoint(x: 9600, y: 0),
+            bounds: bounds,
+            playerSpawn: RoomPoint(x: 1090, y: 130),
+            platforms: [
+                platform(500, 60, 1000, 80),
+                platform(1150, 60, 100, 80),
+                platform(380, 205, 220),
+                platform(760, 245, 220)
+            ],
+            enemySpawns: [
+                EnemySpawn(id: 1, archetype: .heavy, position: RoomPoint(x: 650, y: 130)),
+                EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 900, y: 130))
+            ],
+            requiresCombatClear: true,
+            exits: [
+                RoomExit(
+                    trigger: RoomRect(x: 1000, y: 0, width: 100, height: 100),
+                    destinationRoomID: .wardenChamber,
+                    destinationSpawn: RoomPoint(x: 120, y: 130)
+                )
+            ],
+            checkpointTriggers: [
+                CheckpointTrigger(
+                    checkpoint: preWardenCheckpoint,
+                    trigger: RoomRect(x: 830, y: 100, width: 150, height: 120)
+                )
+            ]
+        )
+
+        let wardenChamber = RoomDefinition(
+            id: .wardenChamber,
+            worldOrigin: RoomPoint(x: 10800, y: 0),
+            bounds: bounds,
+            playerSpawn: RoomPoint(x: 120, y: 130),
+            platforms: [
+                fullFloor,
+                platform(35, 300, 70, 400),
+                platform(1165, 300, 70, 400),
+                platform(600, 230, 260)
+            ],
+            enemySpawns: [
+                EnemySpawn(id: 1, archetype: .boss, position: RoomPoint(x: 790, y: 140))
+            ],
+            requiresCombatClear: true,
+            exits: [
+                RoomExit(
+                    trigger: RoomRect(x: 1128, y: 100, width: 72, height: 160),
+                    completesLevel: true
+                )
+            ]
+        )
+
+        return RoomController(
+            initialRoomID: .approach,
+            definitions: [
+                approach,
+                lowerHall,
+                brokenGallery,
+                dashShrine,
+                furnacePassage,
+                watcherHall,
+                hollowShaft,
+                ashenAscent,
+                wardenGate,
                 wardenChamber
             ]
         )
