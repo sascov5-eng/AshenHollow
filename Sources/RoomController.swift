@@ -1,11 +1,15 @@
 import Foundation
 
-enum RoomID: String, Equatable, Hashable {
+enum RoomID: String, Equatable, Hashable, Codable {
     case approach
     case lowerHall
     case brokenGallery
+    case dashShrine
     case furnacePassage
     case watcherHall
+    case hollowShaft
+    case ashenAscent
+    case wardenGate
     case wardenChamber
 
     // Temporary compatibility aliases while the V20 SpriteKit runtime is migrated.
@@ -13,7 +17,7 @@ enum RoomID: String, Equatable, Hashable {
     static let combat: RoomID = .lowerHall
 }
 
-struct RoomPoint: Equatable {
+struct RoomPoint: Equatable, Codable {
     let x: Double
     let y: Double
 }
