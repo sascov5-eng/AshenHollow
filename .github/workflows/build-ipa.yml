@@ -6,12 +6,20 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Apply staged V24 input lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Scripts/apply_v24_task5_input_lock.py
       - name: Prepare app bundle
         shell: bash
         run: |
@@ -204,6 +212,19 @@ jobs:
           cd build
           zip -qry AshenHollow-unsigned.ipa Payload
           test -f AshenHollow-unsigned.ipa
+      - name: Commit staged V24 input lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add Sources/GameScene.swift
+          if git diff --cached --quiet; then
+            echo "No staged GameScene changes to commit"
+            exit 0
+          fi
+          git config user.name "Ashen Hollow CI"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "feat: add V24 external input lock"
+          git push origin HEAD:main
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
