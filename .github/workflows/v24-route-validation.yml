@@ -21,6 +21,7 @@ jobs:
             Tests/V24FullRouteValidationTests.swift \
             Sources/V24RouteValidator.swift \
             Sources/V24MandatoryRoute.swift \
+            Sources/V24LevelRebuildV2.swift \
             Sources/TraversalSafetyValidator.swift \
             Sources/PlayerMovementTuning.swift \
             Sources/RoomController.swift \
