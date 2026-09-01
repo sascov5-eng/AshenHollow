@@ -54,7 +54,7 @@ extension RoomController {
                 platform(280, 60, 560, 80)
             ],
             enemySpawns: [
-                EnemySpawn(id: 1, archetype: .grunt, position: RoomPoint(x: 720, y: 300)),
+                EnemySpawn(id: 1, archetype: .grunt, position: RoomPoint(x: 660, y: 300)),
                 EnemySpawn(id: 2, archetype: .grunt, position: RoomPoint(x: 250, y: 130))
             ],
             requiresCombatClear: true,
