@@ -68,7 +68,17 @@ struct TMXLevelLoader {
         let parser = XMLParser(data: data)
         parser.delegate = delegate
 
-        guard parser.parse() else {
+        let parsed = parser.parse()
+
+        // Domain validation discovered while reading XML has priority over the
+        // generic XMLParser failure so callers get the precise TMX error.
+        if let domainFailure = delegate.domainFailure {
+            throw domainFailure
+        }
+
+        // XMLParser can report a parser error even when parse() returns true on
+        // some FoundationXML implementations. Always inspect both channels.
+        if !parsed || delegate.parserFailure != nil || parser.parserError != nil {
             let message = delegate.parserFailure
                 ?? parser.parserError?.localizedDescription
                 ?? "unknown parser failure"
@@ -480,8 +490,8 @@ struct TMXLevelLoader {
     }
 
     private static func parseDouble(_ raw: String, name: String) throws -> Double {
-        guard let value = Double(raw) else {
-            throw TMXLevelLoaderError.invalidProperty(name: name, value: raw, expected: "number")
+        guard let value = Double(raw), value.isFinite else {
+            throw TMXLevelLoaderError.invalidProperty(name: name, value: raw, expected: "finite number")
         }
         return value
     }
@@ -531,6 +541,7 @@ private final class TMXParserDelegate: NSObject, XMLParserDelegate {
     let sourceName: String
     var document = TMXParsedDocument()
     var parserFailure: String?
+    var domainFailure: TMXLevelLoaderError?
 
     private var currentLayer: String?
     private var currentObject: TMXParsedObject?
@@ -568,21 +579,44 @@ private final class TMXParserDelegate: NSObject, XMLParserDelegate {
                 className: attributeDict["class"],
                 legacyType: attributeDict["type"]
             )
+
+            let x = finiteObjectAttribute("x", attributes: attributeDict, objectID: id, defaultValue: "0")
+            let y = finiteObjectAttribute("y", attributes: attributeDict, objectID: id, defaultValue: "0")
+            let width = finiteObjectAttribute("width", attributes: attributeDict, objectID: id, defaultValue: "0")
+            let height = finiteObjectAttribute("height", attributes: attributeDict, objectID: id, defaultValue: "0")
+            let rotation = finiteObjectAttribute("rotation", attributes: attributeDict, objectID: id, defaultValue: "0")
+
+            if attributeDict["gid"] != nil {
+                recordDomainFailure(
+                    .invalidObjectGeometry(objectID: id, reason: "tile object geometry is unsupported")
+                )
+            }
+
             currentObject = TMXParsedObject(
                 id: id,
                 layer: currentLayer ?? "",
                 objectType: className,
-                x: Double(attributeDict["x"] ?? "0") ?? .nan,
-                y: Double(attributeDict["y"] ?? "0") ?? .nan,
-                width: Double(attributeDict["width"] ?? "0") ?? .nan,
-                height: Double(attributeDict["height"] ?? "0") ?? .nan,
-                rotation: Double(attributeDict["rotation"] ?? "0") ?? .nan,
+                x: x,
+                y: y,
+                width: width,
+                height: height,
+                rotation: rotation,
                 isPoint: false,
                 properties: [:]
             )
 
         case "point":
             currentObject?.isPoint = true
+
+        case "ellipse", "polygon", "polyline":
+            if let object = currentObject {
+                recordDomainFailure(
+                    .invalidObjectGeometry(
+                        objectID: object.id,
+                        reason: "\(elementName) geometry is unsupported"
+                    )
+                )
+            }
 
         case "property":
             guard let name = attributeDict["name"], !name.isEmpty else { return }
@@ -640,5 +674,30 @@ private final class TMXParserDelegate: NSObject, XMLParserDelegate {
 
     func parser(_ parser: XMLParser, parseErrorOccurred parseError: Error) {
         parserFailure = parseError.localizedDescription
+    }
+
+    private func finiteObjectAttribute(
+        _ name: String,
+        attributes: [String: String],
+        objectID: Int,
+        defaultValue: String
+    ) -> Double {
+        let raw = attributes[name] ?? defaultValue
+        guard let value = Double(raw), value.isFinite else {
+            recordDomainFailure(
+                .invalidObjectGeometry(
+                    objectID: objectID,
+                    reason: "\(name) must be a finite number (got \(raw))"
+                )
+            )
+            return 0
+        }
+        return value
+    }
+
+    private func recordDomainFailure(_ error: TMXLevelLoaderError) {
+        if domainFailure == nil {
+            domainFailure = error
+        }
     }
 }
