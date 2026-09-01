@@ -11,7 +11,7 @@ func expectFullRoute(_ condition: @autoclosure () -> Bool, _ message: String) {
 @main
 struct V24FullRouteValidationTestsMain {
     static func main() {
-        let level = RoomController.makeV24Demo()
+        let level = RoomController.makeV24DemoV2()
         let validator = V24RouteValidator(tuning: .current)
         let report = validator.validate(level: level)
 
@@ -24,7 +24,7 @@ struct V24FullRouteValidationTestsMain {
         for roomID in mandatoryRooms {
             expectFullRoute(
                 report.roomResults[roomID] == .safe,
-                "\(roomID) has a safe ordered route from spawn to exit"
+                "\(roomID) has a safe ordered route from spawn to exit: \(String(describing: report.roomResults[roomID]))"
             )
         }
 
