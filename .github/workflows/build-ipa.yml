@@ -30,6 +30,12 @@ jobs:
           set -euo pipefail
           xcrun swiftc Tests/TraversalSafetyValidatorTests.swift Sources/TraversalSafetyValidator.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/TraversalSafetyValidatorTests
           ./build/TraversalSafetyValidatorTests
+      - name: Test onboarding tutorial
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/OnboardingTutorialControllerTests.swift Sources/OnboardingTutorialController.swift -o build/OnboardingTutorialControllerTests
+          ./build/OnboardingTutorialControllerTests
       - name: Test attack controller
         shell: bash
         run: |
