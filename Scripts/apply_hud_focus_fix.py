@@ -173,3 +173,4 @@ replace_once(
 
 path.write_text(text)
 print("HUD/Focus staged patch applied")
+# trigger HUD/Focus staged verification
