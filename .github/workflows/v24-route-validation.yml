@@ -13,6 +13,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Compile and run Approach room layout tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc \
+            Tests/ApproachRoomLayoutTests.swift \
+            Sources/V24LevelRebuildV2.swift \
+            Sources/RoomController.swift \
+            Sources/EnemyArchetype.swift \
+            Sources/DemoProgression.swift \
+            -o /tmp/ApproachRoomLayoutTests
+          /tmp/ApproachRoomLayoutTests
+
       - name: Compile and run full-route validator tests
         shell: bash
         run: |
