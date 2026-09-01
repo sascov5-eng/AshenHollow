@@ -290,9 +290,8 @@ struct RoomController {
                 RoomPlatform(center: RoomPoint(x: 1030, y: 315), size: RoomSize(width: 180, height: 28))
             ],
             enemySpawns: [
-                EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 420, y: 130)),
-                EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 930, y: 130)),
-                EnemySpawn(id: 3, archetype: .grunt, position: RoomPoint(x: 690, y: 130))
+                EnemySpawn(id: 1, archetype: .ranged, position: RoomPoint(x: 900, y: 130)),
+                EnemySpawn(id: 2, archetype: .grunt, position: RoomPoint(x: 620, y: 130))
             ],
             requiresCombatClear: true,
             exits: [exit(to: .wardenChamber)]
