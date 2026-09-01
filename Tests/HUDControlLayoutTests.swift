@@ -61,6 +61,18 @@ struct HUDControlLayoutTestsMain {
             "focus has a usable touch radius around its visible center"
         )
 
+        let dash = layout.target(for: .dash)
+        expectHUD(layout.resolve(x: dash.center.x, y: dash.center.y) == .dash, "visible Dash center resolves to Dash")
+        expectHUD(dash.center.x - dash.visualRadius >= 0, "Dash stays inside left edge")
+        expectHUD(dash.center.x + dash.visualRadius <= width, "Dash stays inside right edge")
+        expectHUD(dash.center.y - dash.visualRadius >= 0, "Dash stays inside top edge")
+        expectHUD(dash.center.y + dash.visualRadius <= height - safeBottom, "Dash stays above bottom safe area")
+
+        let attack = layout.target(for: .attack)
+        let jump = layout.target(for: .jump)
+        expectHUD(distance(dash.center, attack.center) > dash.visualRadius + attack.visualRadius, "Dash does not visually overlap Attack")
+        expectHUD(distance(dash.center, jump.center) > dash.visualRadius + jump.visualRadius, "Dash does not visually overlap Jump")
+
         let overlay = HUDOverlayLayout(
             viewWidth: width,
             viewHeight: height,
