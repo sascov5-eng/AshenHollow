@@ -72,6 +72,18 @@ jobs:
           set -euo pipefail
           xcrun swiftc Tests/TouchRetentionPolicyTests.swift Sources/TouchRetentionPolicy.swift -o build/TouchRetentionPolicyTests
           ./build/TouchRetentionPolicyTests
+      - name: Test demo progression
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/DemoProgressionTests.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/EnemyArchetype.swift -o build/DemoProgressionTests
+          ./build/DemoProgressionTests
+      - name: Test demo save store
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/DemoSaveStoreTests.swift Sources/DemoSaveStore.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/EnemyArchetype.swift -o build/DemoSaveStoreTests
+          ./build/DemoSaveStoreTests
       - name: Test HUD control layout
         shell: bash
         run: |
