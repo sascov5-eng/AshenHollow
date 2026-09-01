@@ -72,6 +72,12 @@ jobs:
           set -euo pipefail
           xcrun swiftc Tests/TouchRetentionPolicyTests.swift Sources/TouchRetentionPolicy.swift -o build/TouchRetentionPolicyTests
           ./build/TouchRetentionPolicyTests
+      - name: Test HUD control layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/HUDControlLayoutTests.swift Sources/HUDControlLayout.swift -o build/HUDControlLayoutTests
+          ./build/HUDControlLayoutTests
       - name: Test enemy health
         shell: bash
         run: |
