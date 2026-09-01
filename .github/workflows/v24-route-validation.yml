@@ -1,0 +1,30 @@
+name: V24 Full Route Validation
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  route-validation:
+    runs-on: macos-15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compile and run full-route validator tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc \
+            Tests/V24FullRouteValidationTests.swift \
+            Sources/V24RouteValidator.swift \
+            Sources/V24MandatoryRoute.swift \
+            Sources/TraversalSafetyValidator.swift \
+            Sources/PlayerMovementTuning.swift \
+            Sources/RoomController.swift \
+            Sources/EnemyArchetype.swift \
+            Sources/DemoProgression.swift \
+            -o /tmp/V24FullRouteValidationTests
+          /tmp/V24FullRouteValidationTests
