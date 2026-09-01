@@ -126,7 +126,13 @@ final class GameScene: SKScene {
     private let cameraZoom: CGFloat = 1.55
     private let cameraFollowSpeed: CGFloat = 5.0
     private let cameraLookAhead: CGFloat = 95
-    private let cameraVerticalOffset: CGFloat = 12
+    private var gameplayFraming: GameplayFraming {
+        GameplayFraming(
+            cameraScale: Double(cameraZoom),
+            playerColliderHeight: movementTuning.colliderHeight,
+            lowerControlMargin: 18
+        )
+    }
 
     // MARK: - HUD
 
@@ -539,7 +545,7 @@ final class GameScene: SKScene {
         let startX = max(halfVisibleWidth, player.position.x + 100)
         gameCamera.position = CGPoint(
             x: startX,
-            y: size.height * 0.5 + cameraVerticalOffset
+            y: gameplayCameraBaseY()
         )
     }
 
@@ -650,6 +656,17 @@ final class GameScene: SKScene {
             viewWidth: viewWidth,
             viewHeight: viewHeight,
             safeBottomInset: safeBottom
+        )
+    }
+
+    private func gameplayCameraBaseY() -> CGFloat {
+        let layout = currentHUDLayout(in: view)
+        return CGFloat(
+            gameplayFraming.cameraBaseY(
+                sceneHeight: Double(size.height),
+                playerGroundCenterY: 130,
+                hudLayout: layout
+            )
         )
     }
 
@@ -1295,7 +1312,7 @@ final class GameScene: SKScene {
         let follow = min(1, cameraFollowSpeed * dt)
         gameCamera.position.x += (targetX - gameCamera.position.x) * follow
 
-        let baseY = size.height * 0.5 + cameraVerticalOffset
+        let baseY = gameplayCameraBaseY()
         let relativeY = player.position.y - 150
         let targetY = baseY + max(-30, min(80, relativeY * 0.20))
         gameCamera.position.y += (targetY - gameCamera.position.y) * min(1, 3.2 * dt)
