@@ -26,10 +26,10 @@ private final class V21LiveEnemy {
 
     var model: EnemyRuntimeModel
     var ai: EnemyAIController
+    var rangedCombat = RangedCombatController()
     var attackElapsed: TimeInterval?
     var currentAttackID: Int = 0
     var lastDamageAttackID: Int = -1
-    var pendingShotRemaining: TimeInterval?
     var contactCooldown: TimeInterval = 0
     var defeatCounted = false
 
@@ -131,7 +131,7 @@ enum MultiEnemyRuntimeInstaller {
 
             let controller = ProjectileController(
                 x: Double(shape.position.x),
-                velocityX: Double(direction * 325),
+                velocityX: Double(direction * 285),
                 damage: enemy.stats.contactDamage,
                 lifetime: 3.2
             )
@@ -226,7 +226,10 @@ enum MultiEnemyRuntimeInstaller {
                     )
                     if accepted {
                         enemy.attackElapsed = nil
-                        enemy.pendingShotRemaining = nil
+                        if enemy.spawn.archetype == .ranged {
+                            enemy.rangedCombat = RangedCombatController()
+                        }
+                        enemy.model.markAttackDamageWindowActive(false)
                         enemy.attackVisual.alpha = 0
                         flash(enemy.body)
                         refreshHP(enemy)
@@ -262,21 +265,58 @@ enum MultiEnemyRuntimeInstaller {
                     )
                 }
 
-                if var pending = enemy.pendingShotRemaining {
-                    pending -= Double(dt)
-                    enemy.pendingShotRemaining = pending
-                    enemy.stateLabel.text = "AIM"
-                    enemy.attackVisual.alpha = 0.45
-                    if pending <= 0 {
-                        enemy.pendingShotRemaining = nil
+                let verticalDistance = abs(player.position.y - enemy.node.position.y)
+
+                if enemy.spawn.archetype == .ranged {
+                    let delta = player.position.x - enemy.node.position.x
+                    let directionToPlayer: Double = delta >= 0 ? 1 : -1
+                    let horizontalDistance = abs(Double(delta))
+                    let playerDetected = verticalDistance <= 95
+                        && horizontalDistance <= enemy.stats.detectionRange
+                    let controllerDistance = playerDetected
+                        ? horizontalDistance
+                        : enemy.stats.detectionRange + 1
+
+                    let rangedOutput = enemy.rangedCombat.update(
+                        dt: Double(dt),
+                        distanceToPlayer: controllerDistance,
+                        directionToPlayer: directionToPlayer
+                    )
+                    let rangedFacing: CGFloat = directionToPlayer >= 0 ? 1 : -1
+                    enemy.attackVisual.position.x = rangedFacing * attackVisualOffset(for: .ranged)
+
+                    switch rangedOutput.state {
+                    case .aiming:
+                        enemy.stateLabel.text = "AIM"
+                        enemy.attackVisual.alpha = 0.70
+                    case .recovery:
+                        enemy.stateLabel.text = "RECOVER"
+                        enemy.attackVisual.alpha = 0.16
+                    case .retreating:
+                        enemy.stateLabel.text = "EVADE"
                         enemy.attackVisual.alpha = 0
-                        let direction: CGFloat = player.position.x >= enemy.node.position.x ? 1 : -1
-                        spawnProjectile(from: enemy, direction: direction)
+                        enemy.node.position.x += CGFloat(rangedOutput.movementDirection)
+                            * CGFloat(enemy.stats.chaseSpeed * 0.72) * dt
+                    case .tracking:
+                        enemy.stateLabel.text = playerDetected ? "TRACK" : "IDLE"
+                        enemy.attackVisual.alpha = 0
+                        if playerDetected {
+                            enemy.node.position.x += CGFloat(rangedOutput.movementDirection)
+                                * CGFloat(enemy.stats.patrolSpeed) * dt
+                        }
                     }
+
+                    if rangedOutput.shouldFire {
+                        spawnProjectile(from: enemy, direction: rangedFacing)
+                    }
+
+                    enemy.node.position.x = max(
+                        physicalOriginX + 28,
+                        min(physicalOriginX + roomWidth - 28, enemy.node.position.x)
+                    )
                     continue
                 }
 
-                let verticalDistance = abs(player.position.y - enemy.node.position.y)
                 let sensedPlayerX: CGFloat = verticalDistance <= 95
                     ? player.position.x
                     : enemy.node.position.x + 1000
@@ -290,27 +330,6 @@ enum MultiEnemyRuntimeInstaller {
                 let facing: CGFloat = output.facing >= 0 ? 1 : -1
                 enemy.attackVisual.position.x = facing * attackVisualOffset(for: enemy.spawn.archetype)
                 enemy.currentAttackID = output.attackID
-
-                if enemy.spawn.archetype == .ranged {
-                    let distance = abs(player.position.x - enemy.node.position.x)
-                    if output.startedAttack {
-                        enemy.pendingShotRemaining = 0.18
-                        enemy.stateLabel.text = "AIM"
-                        enemy.attackVisual.alpha = 0.45
-                    } else if distance < 145 {
-                        let away: CGFloat = player.position.x >= enemy.node.position.x ? -1 : 1
-                        enemy.node.position.x += away * CGFloat(enemy.stats.chaseSpeed * 0.72) * dt
-                        enemy.stateLabel.text = "EVADE"
-                    } else {
-                        enemy.node.position.x += CGFloat(output.moveDirection) * CGFloat(speed(for: output.state, enemy: enemy)) * dt
-                        enemy.stateLabel.text = output.state.rawValue.uppercased()
-                    }
-                    enemy.node.position.x = max(
-                        physicalOriginX + 28,
-                        min(physicalOriginX + roomWidth - 28, enemy.node.position.x)
-                    )
-                    continue
-                }
 
                 if output.startedAttack {
                     enemy.attackElapsed = 0
