@@ -18,6 +18,11 @@ struct DemoSaveStoreTestsMain {
 
         expectSave(!store.hasSave, "empty store has no Continue state")
 
+        defaults.set(Data([0xFF, 0x00, 0xA5]), forKey: "ashenHollow.v24.demoProgression")
+        expectSave(store.load() == nil, "corrupted save cannot decode")
+        expectSave(!store.hasSave, "corrupted save must not enable Continue")
+        store.clear()
+
         var state = DemoProgressionState.fresh
         _ = state.claimShrine(
             .dash,
