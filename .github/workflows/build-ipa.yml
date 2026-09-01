@@ -31,21 +31,27 @@ jobs:
           ./build/TraversalSafetyValidatorTests
           xcrun swiftc Tests/OnboardingTutorialControllerTests.swift Sources/OnboardingTutorialController.swift -o build/OnboardingTutorialControllerTests
           ./build/OnboardingTutorialControllerTests
-          xcrun swiftc Tests/DemoProgressionTests.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/EnemyArchetype.swift -o build/DemoProgressionTests
+          xcrun swiftc Tests/DemoProgressionTests.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift -o build/DemoProgressionTests
           ./build/DemoProgressionTests
-          xcrun swiftc Tests/DemoSaveStoreTests.swift Sources/DemoSaveStore.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/EnemyArchetype.swift -o build/DemoSaveStoreTests
+          xcrun swiftc Tests/DemoSaveStoreTests.swift Sources/DemoSaveStore.swift Sources/DemoProgression.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift -o build/DemoSaveStoreTests
           ./build/DemoSaveStoreTests
-          xcrun swiftc Tests/DemoRoomTopologyTests.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/DemoRoomTopologyTests
+          xcrun swiftc Tests/DemoRoomTopologyTests.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/DemoRoomTopologyTests
           ./build/DemoRoomTopologyTests
-          xcrun swiftc Tests/V24MandatoryTraversalTests.swift Sources/TraversalSafetyValidator.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24MandatoryTraversalTests
+          xcrun swiftc Tests/V24MandatoryTraversalTests.swift Sources/TraversalSafetyValidator.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24MandatoryTraversalTests
           ./build/V24MandatoryTraversalTests
-          xcrun swiftc Tests/V24EncounterPlacementTests.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24EncounterPlacementTests
+          xcrun swiftc Tests/V24FullRouteValidationTests.swift Sources/V24RouteValidator.swift Sources/V24MandatoryRoute.swift Sources/V24LevelRebuildV2.swift Sources/TraversalSafetyValidator.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24FullRouteValidationTests
+          ./build/V24FullRouteValidationTests
+          xcrun swiftc Tests/V24EncounterPlacementTests.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24EncounterPlacementTests
           ./build/V24EncounterPlacementTests
-          xcrun swiftc Tests/DemoRoomProgressionResolverTests.swift Sources/DemoRoomProgressionResolver.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/DemoRoomProgressionResolverTests
+          xcrun swiftc Tests/V24EncounterSafetyValidatorTests.swift Sources/V24EncounterSafetyValidator.swift Sources/V24MandatoryRoute.swift Sources/V24LevelRebuildV2.swift Sources/PlayerMovementTuning.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24EncounterSafetyValidatorTests
+          ./build/V24EncounterSafetyValidatorTests
+          xcrun swiftc Tests/GameplayFramingTests.swift Sources/GameplayFraming.swift Sources/HUDControlLayout.swift -o build/GameplayFramingTests
+          ./build/GameplayFramingTests
+          xcrun swiftc Tests/DemoRoomProgressionResolverTests.swift Sources/DemoRoomProgressionResolver.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/DemoRoomProgressionResolverTests
           ./build/DemoRoomProgressionResolverTests
-          xcrun swiftc Tests/RoomExitPresentationResolverTests.swift Sources/RoomExitPresentationResolver.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/RoomExitPresentationResolverTests
+          xcrun swiftc Tests/RoomExitPresentationResolverTests.swift Sources/RoomExitPresentationResolver.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/RoomExitPresentationResolverTests
           ./build/RoomExitPresentationResolverTests
-          xcrun swiftc Tests/V24WorldReactionTests.swift Sources/V24WorldReactionResolver.swift Sources/TraversalTeachingController.swift Sources/RoomExitPresentationResolver.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24WorldReactionTests
+          xcrun swiftc Tests/V24WorldReactionTests.swift Sources/V24WorldReactionResolver.swift Sources/TraversalTeachingController.swift Sources/RoomExitPresentationResolver.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/V24WorldReactionTests
           ./build/V24WorldReactionTests
 
       - name: Test combat and controls
@@ -85,7 +91,7 @@ jobs:
           ./build/PlayerHealthTests
           xcrun swiftc Tests/PlayerRespawnSequenceTests.swift Sources/PlayerRespawnSequence.swift -o build/PlayerRespawnSequenceTests
           ./build/PlayerRespawnSequenceTests
-          xcrun swiftc Tests/RoomControllerTests.swift Sources/RoomController.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/RoomControllerTests
+          xcrun swiftc Tests/RoomControllerTests.swift Sources/RoomController.swift Sources/V24LevelRebuildV2.swift Sources/EnemyArchetype.swift Sources/DemoProgression.swift -o build/RoomControllerTests
           ./build/RoomControllerTests
           xcrun swiftc Tests/EnemyArchetypeTests.swift Sources/EnemyArchetype.swift -o build/EnemyArchetypeTests
           ./build/EnemyArchetypeTests
