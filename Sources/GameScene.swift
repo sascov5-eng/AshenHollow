@@ -5,6 +5,8 @@ final class GameScene: SKScene {
     private enum Control {
         case left
         case right
+        case up
+        case down
         case focus
         case attack
         case jump
@@ -82,8 +84,6 @@ final class GameScene: SKScene {
     // MARK: - Input
 
     private var activeControls: [ObjectIdentifier: Control] = [:]
-    private var attackTouchOrigins: [ObjectIdentifier: CGPoint] = [:]
-    private var triggeredAttackTouches: Set<ObjectIdentifier> = []
     private var moveInput: CGFloat = 0
     private var smoothedMoveInput: CGFloat = 0
     private var facing: CGFloat = 1
@@ -121,14 +121,18 @@ final class GameScene: SKScene {
 
     // MARK: - HUD
 
-    private let leftButton = SKShapeNode(circleOfRadius: 43)
-    private let rightButton = SKShapeNode(circleOfRadius: 43)
+    private let leftButton = SKShapeNode(circleOfRadius: 40)
+    private let rightButton = SKShapeNode(circleOfRadius: 40)
+    private let upButton = SKShapeNode(circleOfRadius: 40)
+    private let downButton = SKShapeNode(circleOfRadius: 40)
     private let focusButton = SKShapeNode(circleOfRadius: 42)
     private let attackButton = SKShapeNode(circleOfRadius: 47)
     private let jumpButton = SKShapeNode(circleOfRadius: 51)
 
     private let leftArrow = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private let rightArrow = SKLabelNode(fontNamed: "AvenirNext-Bold")
+    private let upArrow = SKLabelNode(fontNamed: "AvenirNext-Bold")
+    private let downArrow = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private let focusLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private let attackLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private let jumpLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
@@ -181,8 +185,6 @@ final class GameScene: SKScene {
 
         platformRects.removeAll(keepingCapacity: true)
         activeControls.removeAll(keepingCapacity: true)
-        attackTouchOrigins.removeAll(keepingCapacity: true)
-        triggeredAttackTouches.removeAll(keepingCapacity: true)
         pendingCombatImpulses.removeAll(keepingCapacity: true)
         velocity = .zero
         isGrounded = true
@@ -478,6 +480,8 @@ final class GameScene: SKScene {
 
         configureButton(leftButton)
         configureButton(rightButton)
+        configureButton(upButton)
+        configureButton(downButton)
         configureButton(focusButton)
         configureButton(attackButton)
         configureButton(jumpButton)
@@ -493,6 +497,18 @@ final class GameScene: SKScene {
         rightArrow.fontColor = UIColor(white: 0.94, alpha: 0.9)
         rightArrow.verticalAlignmentMode = .center
         rightArrow.horizontalAlignmentMode = .center
+
+        upArrow.text = "↑"
+        upArrow.fontSize = 31
+        upArrow.fontColor = UIColor(white: 0.94, alpha: 0.9)
+        upArrow.verticalAlignmentMode = .center
+        upArrow.horizontalAlignmentMode = .center
+
+        downArrow.text = "↓"
+        downArrow.fontSize = 31
+        downArrow.fontColor = UIColor(white: 0.94, alpha: 0.9)
+        downArrow.verticalAlignmentMode = .center
+        downArrow.horizontalAlignmentMode = .center
 
         focusLabel.text = "FOCUS"
         focusLabel.fontSize = 11
@@ -514,12 +530,16 @@ final class GameScene: SKScene {
 
         leftButton.addChild(leftArrow)
         rightButton.addChild(rightArrow)
+        upButton.addChild(upArrow)
+        downButton.addChild(downArrow)
         focusButton.addChild(focusLabel)
         attackButton.addChild(attackLabel)
         jumpButton.addChild(jumpLabel)
 
         hud.addChild(leftButton)
         hud.addChild(rightButton)
+        hud.addChild(upButton)
+        hud.addChild(downButton)
         hud.addChild(focusButton)
         hud.addChild(attackButton)
         hud.addChild(jumpButton)
@@ -542,8 +562,12 @@ final class GameScene: SKScene {
         let halfH = size.height * 0.5
         let bottomPadding = max(76, size.height * 0.15)
 
-        leftButton.position = CGPoint(x: -halfW + 86, y: -halfH + bottomPadding)
-        rightButton.position = CGPoint(x: -halfW + 190, y: -halfH + bottomPadding)
+        let dpadCenterX = -halfW + 145
+        let dpadCenterY = -halfH + bottomPadding
+        leftButton.position = CGPoint(x: dpadCenterX - 55, y: dpadCenterY)
+        rightButton.position = CGPoint(x: dpadCenterX + 55, y: dpadCenterY)
+        upButton.position = CGPoint(x: dpadCenterX, y: dpadCenterY + 55)
+        downButton.position = CGPoint(x: dpadCenterX, y: dpadCenterY - 55)
         focusButton.position = CGPoint(x: halfW - 318, y: -halfH + bottomPadding + 2)
         attackButton.position = CGPoint(x: halfW - 205, y: -halfH + bottomPadding + 2)
         jumpButton.position = CGPoint(x: halfW - 88, y: -halfH + bottomPadding + 4)
@@ -561,11 +585,7 @@ final class GameScene: SKScene {
 
             if let control {
                 activeControls[id] = control
-                if control == .attack {
-                    attackTouchOrigins[id] = point
-                } else {
-                    handleControlPressed(control)
-                }
+                handleControlPressed(control)
             }
         }
 
@@ -579,24 +599,6 @@ final class GameScene: SKScene {
         for touch in touches {
             let id = ObjectIdentifier(touch)
             let oldControl = activeControls[id]
-
-            if oldControl == .attack, let origin = attackTouchOrigins[id] {
-                activeControls[id] = .attack
-                if !triggeredAttackTouches.contains(id) {
-                    let point = touch.location(in: skView)
-                    let direction = AttackGestureResolver.resolve(
-                        deltaX: Double(point.x - origin.x),
-                        deltaY: Double(point.y - origin.y),
-                        isGrounded: isGrounded
-                    )
-                    if direction != .horizontal {
-                        tryAttack(direction: direction)
-                        triggeredAttackTouches.insert(id)
-                    }
-                }
-                continue
-            }
-
             let newControl = classifyControl(at: touch.location(in: skView), in: skView)
 
             if oldControl == .jump && newControl != .jump {
@@ -609,11 +611,7 @@ final class GameScene: SKScene {
             if let newControl {
                 activeControls[id] = newControl
                 if newControl != oldControl {
-                    if newControl == .attack {
-                        attackTouchOrigins[id] = touch.location(in: skView)
-                    } else {
-                        handleControlPressed(newControl)
-                    }
+                    handleControlPressed(newControl)
                 }
             } else {
                 activeControls.removeValue(forKey: id)
@@ -638,19 +636,13 @@ final class GameScene: SKScene {
             switch activeControls[id] {
             case .jump:
                 releaseJump()
-            case .attack:
-                if !triggeredAttackTouches.contains(id) {
-                    tryAttack(direction: .horizontal)
-                }
             case .focus:
                 cancelFocus()
-            case .left, .right, .none:
+            case .left, .right, .up, .down, .attack, .none:
                 break
             }
 
             activeControls.removeValue(forKey: id)
-            attackTouchOrigins.removeValue(forKey: id)
-            triggeredAttackTouches.remove(id)
         }
 
         recalculateMoveInput()
@@ -664,8 +656,13 @@ final class GameScene: SKScene {
         case .focus:
             beginFocus()
         case .attack:
-            break
-        case .left, .right:
+            let direction = DPadAttackDirectionResolver.resolve(
+                upHeld: activeControls.values.contains(.up),
+                downHeld: activeControls.values.contains(.down),
+                isGrounded: isGrounded
+            )
+            tryAttack(direction: direction)
+        case .left, .right, .up, .down:
             break
         }
     }
@@ -675,13 +672,17 @@ final class GameScene: SKScene {
         let height = skView.bounds.height
         guard width > 0, height > 0 else { return nil }
 
-        let controlY = height * 0.80
+        let dpadX = width * 0.17
+        let dpadY = height * 0.80
+        let dpadStep = min(width, height) * 0.075
         let candidates: [(control: Control, center: CGPoint, radius: CGFloat)] = [
-            (.left, CGPoint(x: width * 0.10, y: controlY), 70),
-            (.right, CGPoint(x: width * 0.225, y: controlY), 70),
-            (.focus, CGPoint(x: width * 0.62, y: controlY), 56),
-            (.attack, CGPoint(x: width * 0.76, y: controlY), 60),
-            (.jump, CGPoint(x: width * 0.90, y: controlY), 64)
+            (.left, CGPoint(x: dpadX - dpadStep, y: dpadY), 54),
+            (.right, CGPoint(x: dpadX + dpadStep, y: dpadY), 54),
+            (.up, CGPoint(x: dpadX, y: dpadY - dpadStep), 54),
+            (.down, CGPoint(x: dpadX, y: dpadY + dpadStep), 54),
+            (.focus, CGPoint(x: width * 0.62, y: dpadY), 56),
+            (.attack, CGPoint(x: width * 0.76, y: dpadY), 60),
+            (.jump, CGPoint(x: width * 0.90, y: dpadY), 64)
         ]
 
         var best: (control: Control, distance: CGFloat)?
@@ -1161,6 +1162,8 @@ final class GameScene: SKScene {
     private func refreshButtonVisuals() {
         animateButton(leftButton, pressed: activeControls.values.contains(.left))
         animateButton(rightButton, pressed: activeControls.values.contains(.right))
+        animateButton(upButton, pressed: activeControls.values.contains(.up))
+        animateButton(downButton, pressed: activeControls.values.contains(.down))
         animateButton(focusButton, pressed: activeControls.values.contains(.focus))
         animateButton(attackButton, pressed: activeControls.values.contains(.attack))
         animateButton(jumpButton, pressed: activeControls.values.contains(.jump))
