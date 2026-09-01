@@ -8,6 +8,16 @@ replacements = [
         "EnemySpawn(id: 1, archetype: .grunt, position: RoomPoint(x: 660, y: 300))",
         "Lower Hall landing safety"
     ),
+    (
+        "platform(1050, 60, 300, 80)",
+        "platform(1000, 60, 400, 80)",
+        "Ashen Ascent entry arena width"
+    ),
+    (
+        "EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 930, y: 130))",
+        "EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 850, y: 130))",
+        "Ashen Ascent Runner spawn safety"
+    ),
 ]
 
 changed = False
