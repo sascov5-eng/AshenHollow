@@ -271,11 +271,11 @@ extension RoomController {
             platforms: [
                 // Left opening is the DOWN transition after the final encounter.
                 platform(680, 60, 1040, 80),
-                platform(820, 155, 260, 110)
+                platform(450, 180, 300, 28)
             ],
             enemySpawns: [
-                EnemySpawn(id: 1, archetype: .heavy, position: RoomPoint(x: 620, y: 136)),
-                EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 820, y: 240))
+                EnemySpawn(id: 1, archetype: .heavy, position: RoomPoint(x: 700, y: 136)),
+                EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 450, y: 224))
             ],
             requiresCombatClear: true,
             exits: [
