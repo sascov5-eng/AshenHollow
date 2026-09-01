@@ -489,9 +489,9 @@ struct RoomController {
                 platform(260, 60, 520, 80),
                 platform(990, 60, 400, 80),
                 platform(860, 160, 260),
-                platform(650, 285, 170),
-                platform(430, 375, 170),
-                platform(150, 465, 220)
+                platform(650, 255, 220),
+                platform(430, 345, 220),
+                platform(160, 435, 260)
             ],
             enemySpawns: [],
             requiresCombatClear: false,
