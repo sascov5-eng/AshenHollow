@@ -3,6 +3,8 @@ import SpriteKit
 import UIKit
 
 struct GameView: UIViewRepresentable {
+    let launchMode: DemoLaunchMode
+
     func makeUIView(context: Context) -> SKView {
         let skView = SKView(frame: .zero)
         skView.backgroundColor = .black
@@ -14,7 +16,7 @@ struct GameView: UIViewRepresentable {
         let scene = GameScene(size: CGSize(width: 844, height: 390))
         scene.scaleMode = .resizeFill
         skView.presentScene(scene)
-        V21RuntimeBootstrap.install(on: scene)
+        V21RuntimeBootstrap.install(on: scene, launchMode: launchMode)
 
         return skView
     }
@@ -25,6 +27,6 @@ struct GameView: UIViewRepresentable {
         let scene = GameScene(size: CGSize(width: 844, height: 390))
         scene.scaleMode = .resizeFill
         skView.presentScene(scene)
-        V21RuntimeBootstrap.install(on: scene)
+        V21RuntimeBootstrap.install(on: scene, launchMode: launchMode)
     }
 }
