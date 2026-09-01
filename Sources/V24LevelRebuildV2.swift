@@ -1,6 +1,10 @@
 import Foundation
 
 extension RoomController {
+    static func makeV24Demo() -> RoomController {
+        makeV24DemoV2()
+    }
+
     static func makeV24DemoV2() -> RoomController {
         let bounds = RoomRect(x: 0, y: 0, width: 1200, height: 560)
 

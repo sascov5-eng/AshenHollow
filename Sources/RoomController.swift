@@ -384,7 +384,7 @@ struct RoomController {
         )
     }
 
-    static func makeV24Demo() -> RoomController {
+    static func makeV24DemoLegacy() -> RoomController {
         let bounds = RoomRect(x: 0, y: 0, width: 1200, height: 560)
 
         func platform(_ x: Double, _ y: Double, _ width: Double, _ height: Double = 28) -> RoomPlatform {
