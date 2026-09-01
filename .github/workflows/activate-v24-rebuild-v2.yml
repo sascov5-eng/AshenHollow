@@ -21,6 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/patch_activate_v24_rebuild_v2.py
+          python3 scripts/patch_v24_rebuild_v2_iteration.py
 
       - name: Verify rebuilt runtime compiles
         shell: bash
@@ -29,16 +30,16 @@ jobs:
           SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
           xcrun swiftc -parse-as-library -typecheck -target arm64-apple-ios15.0 -sdk "$SDK" -framework Foundation -framework SwiftUI -framework UIKit -framework SpriteKit Sources/*.swift
 
-      - name: Commit runtime activation
+      - name: Commit staged rebuild changes
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- Sources/RoomRuntimeInstaller.swift; then
-            echo "Runtime already uses V24 rebuild v2."
+          if git diff --quiet -- Sources/RoomRuntimeInstaller.swift Sources/V24LevelRebuildV2.swift; then
+            echo "V24 rebuild v2 runtime and tuning already integrated."
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add Sources/RoomRuntimeInstaller.swift
-            git commit -m "feat: activate V24 rebuild v2 runtime"
+            git add Sources/RoomRuntimeInstaller.swift Sources/V24LevelRebuildV2.swift
+            git commit -m "fix: tune V24 rebuild v2 safety"
             git push origin HEAD:main
           fi
