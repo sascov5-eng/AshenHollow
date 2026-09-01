@@ -84,7 +84,7 @@ struct V24MandatoryTraversalTestsMain {
 
         // Hollow Shaft must be accessible before unlock and forgiving after it.
         expectV24Traversal(shaft.shrine?.ability == .wallTraversal, "Hollow Shaft still grants Wall Traversal")
-        expectV24Traversal(shaft.shrine?.position.y <= 140, "Wall shrine remains walk-accessible on the lower floor")
+        expectV24Traversal((shaft.shrine?.position.y ?? .infinity) <= 140, "Wall shrine remains walk-accessible on the lower floor")
         let walls = shaft.platforms
             .filter { $0.size.width <= 50 && $0.size.height >= 300 }
             .sorted { $0.center.x < $1.center.x }
