@@ -17,6 +17,14 @@ enum BossPatternStage: Equatable {
     case telegraph
     case committed
     case recovery
+    case staggered
+}
+
+enum BossHitResponse: Equatable {
+    case accepted
+    case blocked
+    case staggered
+    case defeated
 }
 
 struct BossController {
@@ -24,12 +32,15 @@ struct BossController {
     private(set) var phase: BossPhase = .one
     private(set) var currentPattern: BossPattern?
     private(set) var stage: BossPatternStage = .idle
+    private(set) var staggerHitCount: Int = 0
 
     private var stageRemaining: TimeInterval = 0
+    private let staggerDuration: TimeInterval = 1.45
 
     var isCommitted: Bool { stage == .committed }
     var isAlive: Bool { phase != .defeated && hp > 0 }
     var volleyProjectileCount: Int { phase == .two ? 5 : 3 }
+    private var staggerThreshold: Int { phase == .two ? 7 : 6 }
 
     func telegraphDuration(for pattern: BossPattern) -> TimeInterval {
         switch pattern {
@@ -50,11 +61,11 @@ struct BossController {
     func recoveryDuration(for pattern: BossPattern) -> TimeInterval {
         let base: TimeInterval
         switch pattern {
-        case .slash: base = 0.58
-        case .charge: base = 0.72
-        case .volley: base = 0.82
+        case .slash: base = 0.76
+        case .charge: base = 0.98
+        case .volley: base = 1.10
         }
-        return phase == .two ? base * 0.72 : base
+        return phase == .two ? base * 0.74 : base
     }
 
     @discardableResult
@@ -67,27 +78,64 @@ struct BossController {
     }
 
     @discardableResult
-    mutating func applyPlayerHit(damage: Int) -> Bool {
-        guard isAlive, damage > 0 else { return false }
+    mutating func applyPlayerHit(damage: Int) -> BossHitResponse {
+        guard isAlive, damage > 0 else { return .blocked }
 
+        let wasStaggered = stage == .staggered
+        let previousPhase = phase
         hp = max(0, hp - damage)
+
         if hp == 0 {
             phase = .defeated
             currentPattern = nil
             stage = .idle
             stageRemaining = 0
-        } else if hp <= 10 {
-            phase = .two
+            staggerHitCount = 0
+            return .defeated
         }
 
-        return true
+        if previousPhase == .one, hp <= 10 {
+            phase = .two
+            staggerHitCount = 0
+            return .accepted
+        }
+
+        if wasStaggered {
+            return .accepted
+        }
+
+        staggerHitCount += 1
+        if staggerHitCount >= staggerThreshold {
+            currentPattern = nil
+            stage = .staggered
+            stageRemaining = staggerDuration
+            return .staggered
+        }
+
+        return .accepted
     }
 
     mutating func update(dt: TimeInterval) {
-        guard isAlive, dt > 0, stage != .idle, let pattern = currentPattern else { return }
+        guard isAlive, dt > 0, stage != .idle else { return }
+
+        if stage == .staggered {
+            stageRemaining = max(0, stageRemaining - dt)
+            if stageRemaining == 0 {
+                stage = .idle
+                currentPattern = nil
+                staggerHitCount = 0
+            }
+            return
+        }
+
+        guard let pattern = currentPattern else {
+            stage = .idle
+            stageRemaining = 0
+            return
+        }
 
         var remainingDT = dt
-        while remainingDT > 0, stage != .idle, isAlive {
+        while remainingDT > 0, stage != .idle, stage != .staggered, isAlive {
             if remainingDT < stageRemaining {
                 stageRemaining -= remainingDT
                 break
@@ -112,6 +160,8 @@ struct BossController {
             stage = .idle
             currentPattern = nil
             stageRemaining = 0
+        case .staggered:
+            break
         }
     }
 }
