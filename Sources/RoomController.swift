@@ -560,7 +560,7 @@ struct RoomController {
             platforms: [
                 fullFloor,
                 // Entry-side cover interrupts the first projectile lane.
-                platform(980, 166, 220),
+                platform(930, 166, 220),
                 // Readable elevated firing position.
                 platform(650, 216, 260)
             ],
@@ -636,7 +636,7 @@ struct RoomController {
                 platform(200, 496, 400)
             ],
             enemySpawns: [
-                EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 820, y: 230)),
+                EnemySpawn(id: 1, archetype: .runner, position: RoomPoint(x: 180, y: 537)),
                 EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 560, y: 540))
             ],
             requiresCombatClear: true,
@@ -667,7 +667,7 @@ struct RoomController {
                 platform(760, 206, 280)
             ],
             enemySpawns: [
-                EnemySpawn(id: 1, archetype: .heavy, position: RoomPoint(x: 620, y: 130)),
+                EnemySpawn(id: 1, archetype: .heavy, position: RoomPoint(x: 620, y: 136)),
                 EnemySpawn(id: 2, archetype: .ranged, position: RoomPoint(x: 870, y: 250))
             ],
             requiresCombatClear: true,
