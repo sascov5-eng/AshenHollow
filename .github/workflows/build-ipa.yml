@@ -6,35 +6,12 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   build:
     runs-on: macos-15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Apply Dash Shrine ascent fix
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('Sources/RoomController.swift')
-          text = path.read_text()
-          replacements = [
-              ('                platform(650, 285, 170),', '                platform(650, 255, 220),'),
-              ('                platform(430, 375, 170),', '                platform(430, 345, 220),'),
-              ('                platform(150, 465, 220)', '                platform(160, 435, 260)'),
-          ]
-          for old, new in replacements:
-              if old in text:
-                  text = text.replace(old, new, 1)
-              elif new not in text:
-                  raise SystemExit(f'Expected Dash Shrine platform signature not found: {old}')
-          path.write_text(text)
-          PY
       - name: Prepare app bundle
         shell: bash
         run: |
@@ -226,19 +203,6 @@ jobs:
           cp Info.plist "$APP/Info.plist"
           test -f "$APP/AshenHollow"
           test -f "$APP/Info.plist"
-      - name: Commit Dash Shrine ascent fix
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- Sources/RoomController.swift; then
-            echo "Dash Shrine ascent already fixed."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add Sources/RoomController.swift
-            git commit -m "fix: rebalance Dash Shrine ascent platforms"
-            git push origin HEAD:main
-          fi
       - name: Package unsigned IPA
         shell: bash
         run: |
