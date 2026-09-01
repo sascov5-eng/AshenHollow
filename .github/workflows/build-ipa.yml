@@ -6,12 +6,20 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Apply V24 encounter placement fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/patch_v24_encounter_placement.py
       - name: Prepare app bundle
         shell: bash
         run: |
@@ -233,6 +241,19 @@ jobs:
           cp Info.plist "$APP/Info.plist"
           test -f "$APP/AshenHollow"
           test -f "$APP/Info.plist"
+      - name: Commit V24 encounter placement fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- Sources/RoomController.swift; then
+            echo "V24 encounter placement already fixed."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add Sources/RoomController.swift
+            git commit -m "feat: rebalance V24 enemy placement"
+            git push origin HEAD:main
+          fi
       - name: Package unsigned IPA
         shell: bash
         run: |
