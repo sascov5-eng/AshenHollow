@@ -33,6 +33,14 @@ struct DemoSaveStoreTestsMain {
         expectSave(store.hasSave, "save enables Continue")
         expectSave(store.load() == state, "save round trip preserves exact state")
 
+        let continued = DemoProgressionRuntime(store: store, launchMode: .continueGame)
+        expectSave(continued.state == state, "Continue loads the durable progression state")
+        expectSave(continued.state.has(.dash), "Continue keeps unlocked abilities")
+
+        let restarted = DemoProgressionRuntime(store: store, launchMode: .newGame)
+        expectSave(restarted.state == .fresh, "New Game resets runtime state")
+        expectSave(store.load() == .fresh, "New Game persists the fresh reset immediately")
+
         store.clear()
         expectSave(!store.hasSave, "clear removes Continue state")
         expectSave(store.load() == nil, "clear removes decodable state")
