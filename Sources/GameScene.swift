@@ -147,6 +147,7 @@ final class GameScene: SKScene {
     private let attackLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private let jumpLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private let dashLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+    private let tutorialLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
 
     // MARK: - Lifecycle
 
@@ -603,6 +604,14 @@ final class GameScene: SKScene {
         dashLabel.verticalAlignmentMode = .center
         dashLabel.horizontalAlignmentMode = .center
 
+        tutorialLabel.name = "v24OnboardingPrompt"
+        tutorialLabel.fontSize = 14
+        tutorialLabel.fontColor = UIColor(red: 0.72, green: 0.91, blue: 1.0, alpha: 0.96)
+        tutorialLabel.horizontalAlignmentMode = .center
+        tutorialLabel.verticalAlignmentMode = .center
+        tutorialLabel.zPosition = 1300
+        tutorialLabel.isHidden = true
+
         leftButton.addChild(leftArrow)
         rightButton.addChild(rightArrow)
         upButton.addChild(upArrow)
@@ -620,6 +629,7 @@ final class GameScene: SKScene {
         hud.addChild(attackButton)
         hud.addChild(jumpButton)
         hud.addChild(dashButton)
+        hud.addChild(tutorialLabel)
     }
 
     private func configureButton(_ button: SKShapeNode) {
@@ -666,6 +676,12 @@ final class GameScene: SKScene {
         position(attackButton, as: .attack)
         position(jumpButton, as: .jump)
         position(dashButton, as: .dash)
+
+        let safeTop = view?.safeAreaInsets.top ?? 0
+        tutorialLabel.position = CGPoint(
+            x: 0,
+            y: halfH - safeTop - 88
+        )
     }
 
     // MARK: - Touch input
@@ -949,6 +965,7 @@ final class GameScene: SKScene {
         }
 
         resolveAttackHitOnEnemy()
+        updateOnboardingTutorial()
         updateEnemyPresentation(CGFloat(dt))
         updateAnimationState(CGFloat(dt))
         updatePlayerVisuals(CGFloat(dt))
@@ -971,6 +988,7 @@ final class GameScene: SKScene {
 
         if context.focus.consumeCompletedHeal() {
             _ = context.vitals.heal(1)
+            context.onboarding.recordSuccessfulHeal()
             focusStartDamageSequence = nil
         }
     }
@@ -1010,6 +1028,10 @@ final class GameScene: SKScene {
         guard jumpBufferRemaining > 0, coyoteRemaining > 0 else { return }
 
         velocity.dy = bufferedJumpWasReleased ? jumpReleaseVelocity : jumpVelocity
+        if let context = V21RuntimeBootstrap.context(from: self),
+           context.activeRoomID == .approach {
+            context.onboarding.recordJumpStarted()
+        }
         isGrounded = false
         coyoteRemaining = 0
         jumpBufferRemaining = 0
@@ -1156,6 +1178,78 @@ final class GameScene: SKScene {
             velocity.dy = max(velocity.dy, CGFloat(wallTraversalController.slideSpeed))
         }
         currentWallClingSide = side
+    }
+
+    private func updateOnboardingTutorial() {
+        guard let context = V21RuntimeBootstrap.context(from: self) else {
+            tutorialLabel.isHidden = true
+            applyTutorialHighlight(nil)
+            return
+        }
+
+        guard context.activeRoomID == .approach else {
+            tutorialLabel.isHidden = true
+            applyTutorialHighlight(nil)
+            return
+        }
+
+        context.onboarding.recordPlayerX(Double(player.position.x))
+        if landedThisFrame {
+            context.onboarding.recordLanding()
+        }
+        context.onboarding.recordAcceptedMeleeHitSequence(
+            context.focus.acceptedMeleeHitSequence
+        )
+        context.onboarding.updateFocusEligibility(
+            missingHP: context.vitals.health.hp < context.vitals.health.maxHP,
+            canAffordFocus: context.focus.essence >= context.focus.healCost
+        )
+
+        guard let prompt = context.onboarding.visiblePrompt else {
+            tutorialLabel.isHidden = true
+            applyTutorialHighlight(nil)
+            return
+        }
+
+        tutorialLabel.isHidden = false
+        switch prompt {
+        case .move:
+            tutorialLabel.text = "MOVE   ←   →"
+        case .jump:
+            tutorialLabel.text = "JUMP"
+        case .attack:
+            tutorialLabel.text = "ATTACK"
+        case .focus:
+            tutorialLabel.text = "HOLD FOCUS TO HEAL"
+        }
+        applyTutorialHighlight(prompt)
+    }
+
+    private func applyTutorialHighlight(_ prompt: OnboardingPrompt?) {
+        let buttons = [leftButton, rightButton, upButton, downButton, focusButton, attackButton, jumpButton, dashButton]
+        for button in buttons {
+            button.strokeColor = UIColor(white: 1, alpha: 0.14)
+            button.lineWidth = 2
+        }
+
+        let highlighted: [SKShapeNode]
+        switch prompt {
+        case .move:
+            highlighted = [leftButton, rightButton]
+        case .jump:
+            highlighted = [jumpButton]
+        case .attack:
+            highlighted = [attackButton]
+        case .focus:
+            highlighted = [focusButton]
+        case .none:
+            highlighted = []
+        }
+
+        for button in highlighted {
+            button.strokeColor = UIColor(red: 0.48, green: 0.88, blue: 1.0, alpha: 0.96)
+            button.lineWidth = 4
+        }
     }
 
     // MARK: - Presentation

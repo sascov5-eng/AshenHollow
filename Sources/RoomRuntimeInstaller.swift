@@ -349,6 +349,9 @@ enum RoomRuntimeInstaller {
 
             state.activeRoomID = roomID
             context.activeRoomID = roomID
+            if roomID != .approach {
+                context.onboarding.leaveOnboardingArea()
+            }
             context.levelComplete = false
             state.transitionCooldown = 0.24
 
