@@ -599,13 +599,34 @@ final class GameScene: SKScene {
         for touch in touches {
             let id = ObjectIdentifier(touch)
             let oldControl = activeControls[id]
-            let newControl = classifyControl(at: touch.location(in: skView), in: skView)
+            let point = touch.location(in: skView)
+
+            if oldControl == .focus {
+                let focusCenter = CGPoint(
+                    x: skView.bounds.width * 0.62,
+                    y: skView.bounds.height * 0.80
+                )
+                let distance = hypot(
+                    point.x - focusCenter.x,
+                    point.y - focusCenter.y
+                )
+                if TouchRetentionPolicy.shouldRetain(
+                    distanceFromCenter: Double(distance),
+                    baseRadius: 56
+                ) {
+                    activeControls[id] = .focus
+                    continue
+                }
+
+                cancelFocus()
+                activeControls.removeValue(forKey: id)
+                continue
+            }
+
+            let newControl = classifyControl(at: point, in: skView)
 
             if oldControl == .jump && newControl != .jump {
                 releaseJump()
-            }
-            if oldControl == .focus && newControl != .focus {
-                cancelFocus()
             }
 
             if let newControl {
