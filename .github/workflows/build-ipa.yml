@@ -6,20 +6,12 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   build:
     runs-on: macos-15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Apply contextual onboarding runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 scripts/patch_v24_onboarding_runtime.py
       - name: Prepare app bundle
         shell: bash
         run: |
@@ -235,19 +227,6 @@ jobs:
           cp Info.plist "$APP/Info.plist"
           test -f "$APP/AshenHollow"
           test -f "$APP/Info.plist"
-      - name: Commit contextual onboarding runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- Sources/GameScene.swift Sources/RoomRuntimeInstaller.swift; then
-            echo "Onboarding runtime already integrated."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add Sources/GameScene.swift Sources/RoomRuntimeInstaller.swift
-            git commit -m "feat: integrate contextual onboarding runtime"
-            git push origin HEAD:main
-          fi
       - name: Package unsigned IPA
         shell: bash
         run: |
