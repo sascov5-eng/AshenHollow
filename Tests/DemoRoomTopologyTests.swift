@@ -29,6 +29,16 @@ private func minY(_ platform: RoomPlatform) -> Double {
     platform.center.y - platform.size.height * 0.5
 }
 
+private func horizontalGap(_ first: RoomPlatform, _ second: RoomPlatform) -> Double {
+    if maxX(first) < minX(second) {
+        return minX(second) - maxX(first)
+    }
+    if maxX(second) < minX(first) {
+        return minX(first) - maxX(second)
+    }
+    return 0
+}
+
 @main
 struct DemoRoomTopologyTestsMain {
     static func main() {
@@ -106,6 +116,20 @@ struct DemoRoomTopologyTestsMain {
             let gap = minX(dashFloors[1]) - maxX(dashFloors[0])
             expectTopology(gap >= 250, "first Dash teaching gap is wider than ordinary running jump range")
             expectTopology(gap <= 290, "first Dash teaching gap keeps recovery margin for Dash")
+        }
+
+        let dashAscent = dashRoom.platforms
+            .filter { $0.center.y > 100 }
+            .sorted { $0.center.y < $1.center.y }
+        expectTopology(dashAscent.count == 4, "Dash Shrine has four ascent platforms after the teaching gap")
+        if dashAscent.count == 4 {
+            for index in 0..<(dashAscent.count - 1) {
+                let current = dashAscent[index]
+                let next = dashAscent[index + 1]
+                let rise = next.center.y - current.center.y
+                expectTopology(rise <= 100, "Dash Shrine ascent vertical steps stay forgiving")
+                expectTopology(horizontalGap(current, next) <= 35, "Dash Shrine ascent horizontal steps stay reachable")
+            }
         }
 
         let hollowShaft = level.room(.hollowShaft)!
