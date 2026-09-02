@@ -4,12 +4,12 @@
 <dict>
     <key>CFBundleDisplayName</key><string>Ashen Hollow</string>
     <key>CFBundleExecutable</key><string>AshenHollow</string>
-    <key>CFBundleIdentifier</key><string>app.ashenhollow.prototype</string>
+    <key>CFBundleIdentifier</key><string>app.bronze6658.lychee6856</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
     <key>CFBundleName</key><string>AshenHollow</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>0.1</string>
-    <key>CFBundleVersion</key><string>2</string>
+    <key>CFBundleVersion</key><string>3</string>
     <key>LSRequiresIPhoneOS</key><true/>
     <key>UILaunchScreen</key><dict/>
     <key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
