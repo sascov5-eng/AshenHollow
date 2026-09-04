@@ -8,19 +8,29 @@ func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
 }
 
 let fileManager = FileManager.default
-let spritePath = "Resources/Player/player_run.png"
-let scenePath = "Sources/GameScene.swift"
-let workflowPath = ".github/workflows/build-ipa.yml"
+let spriteDirectory = "Resources/Player"
+let animatorPath = "Sources/PlayerSpriteAnimator.swift"
+let runtimePath = "Sources/V21RuntimeContext.swift"
+let workflowPath = ".github/workflows/build-ipa-v24-sprite.yml"
 
-expect(fileManager.fileExists(atPath: spritePath), "player sprite must exist at \(spritePath)")
+let parts = (try fileManager.contentsOfDirectory(atPath: spriteDirectory))
+    .filter { $0.hasPrefix("player_run.part") && $0.hasSuffix(".b64") }
+    .sorted()
+expect(parts.count == 7, "player sprite must be stored in exactly seven ordered data parts")
 
-let scene = try String(contentsOfFile: scenePath, encoding: .utf8)
-expect(scene.contains("SKSpriteNode"), "GameScene must use SKSpriteNode for the player visual")
-expect(scene.contains("player_run"), "GameScene must load the player_run sprite sheet")
-expect(scene.contains("PlayerSpriteAnimator"), "GameScene must drive the sprite through PlayerSpriteAnimator")
+let animator = try String(contentsOfFile: animatorPath, encoding: .utf8)
+expect(animator.contains("final class PlayerSpriteAnimator"), "player sprite animator must exist")
+expect(animator.contains("SKSpriteNode"), "player visual must use SKSpriteNode")
+expect(animator.contains("player_run"), "animator must load the player_run sprite sheet")
+expect(animator.contains("let columns = 4"), "sprite sheet must use four columns")
+expect(animator.contains("let rows = 2"), "sprite sheet must use two rows")
+
+let runtime = try String(contentsOfFile: runtimePath, encoding: .utf8)
+expect(runtime.contains("PlayerSpriteRuntimeInstaller.install(on: scene)"), "V24 runtime must install the player sprite")
 
 let workflow = try String(contentsOfFile: workflowPath, encoding: .utf8)
-expect(workflow.contains("Resources/Player"), "build workflow must copy player sprite resources into the app bundle")
-expect(workflow.contains("player_run.png"), "build workflow must verify player_run.png is bundled")
+expect(workflow.contains("Resources/Player/player_run.part*.b64"), "sprite build must reconstruct the PNG from source data")
+expect(workflow.contains("Resources/Player/player_run.png"), "sprite build must bundle player_run.png")
+expect(workflow.contains("AshenHollow-V24-Sprite-unsigned.ipa"), "sprite build must package the V24 sprite IPA")
 
 print("PASS: player sprite integration contract")
