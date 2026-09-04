@@ -1,0 +1,84 @@
+name: Build Ashen Hollow V24 Sprite IPA
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare app bundle and player sprite
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build
+          APP="build/Payload/AshenHollow.app"
+          mkdir -p "$APP/Resources/Maps" "$APP/Resources/Player"
+          cp Resources/Maps/*.tmx "$APP/Resources/Maps/"
+
+          python3 - <<'PY'
+          import base64
+          import glob
+          from pathlib import Path
+
+          parts = sorted(glob.glob('Resources/Player/player_run.part*.b64'))
+          if not parts:
+              raise SystemExit('player sprite data parts are missing')
+          encoded = ''.join(Path(path).read_text().strip() for path in parts)
+          data = base64.b64decode(encoded, validate=True)
+          target = Path('build/Payload/AshenHollow.app/Resources/Player/player_run.png')
+          target.write_bytes(data)
+          if not data.startswith(b'\x89PNG\r\n\x1a\n'):
+              raise SystemExit('decoded player sprite is not PNG')
+          print(f'decoded {target}: {len(data)} bytes from {len(parts)} parts')
+          PY
+
+          test -s "$APP/Resources/Player/player_run.png"
+
+      - name: Typecheck all sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          xcrun swiftc -parse-as-library -typecheck -target arm64-apple-ios15.0 -sdk "$SDK" -framework Foundation -framework SwiftUI -framework UIKit -framework SpriteKit Sources/*.swift
+
+      - name: Compile Ashen Hollow
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          APP="build/Payload/AshenHollow.app"
+          xcrun swiftc -parse-as-library -target arm64-apple-ios15.0 -sdk "$SDK" -O -framework Foundation -framework SwiftUI -framework UIKit -framework SpriteKit Sources/*.swift -o "$APP/AshenHollow"
+          chmod +x "$APP/AshenHollow"
+          cp Info.plist "$APP/Info.plist"
+          test -f "$APP/AshenHollow"
+          test -f "$APP/Info.plist"
+          test -f "$APP/Resources/Maps/approach.tmx"
+          test -s "$APP/Resources/Player/player_run.png"
+
+      - name: Package unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd build
+          zip -qry AshenHollow-V24-Sprite-unsigned.ipa Payload
+          test -f AshenHollow-V24-Sprite-unsigned.ipa
+          unzip -l AshenHollow-V24-Sprite-unsigned.ipa | grep -q 'Payload/AshenHollow.app/Resources/Player/player_run.png'
+          unzip -l AshenHollow-V24-Sprite-unsigned.ipa | grep -q 'Payload/AshenHollow.app/Resources/Maps/approach.tmx'
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AshenHollow-V24-Sprite-unsigned-ipa
+          path: build/AshenHollow-V24-Sprite-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30
