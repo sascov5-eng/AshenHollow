@@ -70,6 +70,7 @@ enum V21RuntimeBootstrap {
 
         PlayerDamageInstaller.install(on: scene, context: context)
         RoomRuntimeInstaller.install(on: scene, context: context)
+        PlayerSpriteRuntimeInstaller.install(on: scene)
         ApproachAtmosphereInstaller.install(on: scene, context: context)
         ApproachAtmosphereWorldHostInstaller.install(on: scene, context: context)
     }
