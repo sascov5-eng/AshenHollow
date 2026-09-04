@@ -1,0 +1,21 @@
+name: Player Sprite Integration
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  contract:
+    runs-on: macos-15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run player sprite integration contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Tests/PlayerSpriteIntegrationTests.swift -o /tmp/PlayerSpriteIntegrationTests
+          /tmp/PlayerSpriteIntegrationTests
