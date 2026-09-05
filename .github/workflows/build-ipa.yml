@@ -12,6 +12,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Validate player animation assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash Scripts/validate-player-animation-assets.sh
       - name: Prepare app bundle
         shell: bash
         run: |
