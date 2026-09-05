@@ -14,7 +14,7 @@ struct GameView: View {
                 .ignoresSafeArea()
                 .background(Color.black)
 
-            Text("v1.1 • PLAYER SCALE • 480PX VISUAL")
+            Text("v1.2 • LARGE WORLD • CINEMATIC CAMERA")
                 .font(.system(size: 15, weight: .heavy, design: .monospaced))
                 .foregroundColor(.yellow)
                 .padding(.horizontal, 10)

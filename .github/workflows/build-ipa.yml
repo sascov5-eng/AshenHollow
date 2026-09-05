@@ -30,12 +30,27 @@ jobs:
         run: |
           set -euo pipefail
           bash Tests/run-blockout-tests.sh
+      - name: Apply v1.2 large world integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Scripts/apply-large-world-v1.2.py
+          grep -q 'LargeWorldLayout.blockout' Sources/GameScene.swift
+          grep -q 'cameraController.update' Sources/GameScene.swift
       - name: Apply v1.1 player visual scale
         shell: bash
         run: |
           set -euo pipefail
           python3 Scripts/apply-player-scale-v1.1.py
           grep -q 'sprite.size = CGSize(width: 480, height: 480)' Sources/GameScene.swift
+      - name: Validate v1.2 release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q '<key>CFBundleShortVersionString</key><string>1.2</string>' Info.plist
+          grep -q 'v1.2 • LARGE WORLD • CINEMATIC CAMERA' Sources/GameView.swift
+          grep -q '<key>CFBundleIdentifier</key><string>app.ashenhollow.prototype</string>' Info.plist
+          grep -q '<key>CFBundleVersion</key><string>2</string>' Info.plist
       - name: Prepare app bundle
         shell: bash
         run: |
