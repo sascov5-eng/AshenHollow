@@ -43,6 +43,11 @@ jobs:
           set -euo pipefail
           python3 Scripts/apply-player-scale-v1.1.py
           grep -q 'sprite.size = CGSize(width: 480, height: 480)' Sources/GameScene.swift
+      - name: Run v1.3 integration contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Tests/test-v13-integration.py
       - name: Validate v1.2 release metadata
         shell: bash
         run: |
