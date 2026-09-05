@@ -4,11 +4,11 @@ import UIKit
 @MainActor
 enum PlayerSpriteInstaller {
     private static let spriteName = "player_run"
-    private static let markerName = "playerSpriteV03"
+    private static let markerName = "playerSpriteV04"
 
     static func installWhenReady(in scene: SKScene, attempt: Int = 0) {
         if install(in: scene) { return }
-        guard attempt < 20 else { return }
+        guard attempt < 40 else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             installWhenReady(in: scene, attempt: attempt + 1)
         }
@@ -58,7 +58,6 @@ enum PlayerSpriteInstaller {
         sprite.run(
             SKAction.customAction(withDuration: 60 * 60 * 24) { node, elapsed in
                 guard let sprite = node as? SKSpriteNode else { return }
-
                 let dx = player.position.x - lastX
                 lastX = player.position.x
 
@@ -75,7 +74,7 @@ enum PlayerSpriteInstaller {
                     sprite.texture = frames[0]
                 }
             },
-            withKey: "playerSpriteAnimationV03"
+            withKey: "playerSpriteAnimationV04"
         )
 
         return true
@@ -85,12 +84,8 @@ enum PlayerSpriteInstaller {
         var stack = scene.children
         while let node = stack.popLast() {
             if let shape = node as? SKShapeNode,
-               shape.zPosition >= 49,
-               shape.zPosition <= 51,
-               shape.frame.width >= 35,
-               shape.frame.width <= 55,
-               shape.frame.height >= 55,
-               shape.frame.height <= 75 {
+               shape.zPosition == 50,
+               shape.childNode(withName: "//face") != nil {
                 return shape
             }
             stack.append(contentsOf: node.children)
