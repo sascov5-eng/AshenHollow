@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+      - feature/v1.4-implementation
+      - feature/v1.5-feedback
+      - feature/v1.6-trials
   workflow_dispatch:
 
 jobs:
@@ -12,6 +15,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Restore player animation assets
         shell: bash
         run: |
@@ -20,84 +24,89 @@ jobs:
           mkdir -p Resources
           cat AssetData/player_animations.b64.0 AssetData/player_animations.b64.1 AssetData/player_animations.b64.2 AssetData/player_animations.b64.3 | base64 -D -o /tmp/player_animations.zip
           unzip -qo /tmp/player_animations.zip -d Resources
+
       - name: Validate player animation assets
+        run: bash Scripts/validate-player-animation-assets.sh
+
+      - name: Restore Pixel Cave art
         shell: bash
         run: |
           set -euo pipefail
-          bash Scripts/validate-player-animation-assets.sh
-      - name: Run blockout logic tests
+          rm -rf Resources/PixelCave; mkdir -p Resources/PixelCave
+          cat AssetData/pixel_cave_v15.b64.00 AssetData/pixel_cave_v15.b64.01 AssetData/pixel_cave_v15.b64.02 AssetData/pixel_cave_v15.b64.03 AssetData/pixel_cave_v15.b64.04a AssetData/pixel_cave_v15.b64.04b AssetData/pixel_cave_v15.b64.05a AssetData/pixel_cave_v15.b64.05b AssetData/pixel_cave_v15.b64.06 AssetData/pixel_cave_v15.b64.07 AssetData/pixel_cave_v15.b64.08 AssetData/pixel_cave_v15.b64.11 > /tmp/pixel_cave_tileset.b64
+          test "$(wc -c < /tmp/pixel_cave_tileset.b64 | tr -d ' ')" = "94468"
+          base64 -D -i /tmp/pixel_cave_tileset.b64 -o /tmp/pixel_cave_tileset.zip
+          test "$(shasum -a 256 /tmp/pixel_cave_tileset.zip | awk '{print $1}')" = "4cad97e4de2cd8d59269fc20a0b0ad11b1ae29278f646f6b85be0c07cf7afdee"
+          unzip -qo /tmp/pixel_cave_tileset.zip -d Resources/PixelCave
+
+      - name: Run legacy blockout logic tests
+        run: bash Tests/run-blockout-tests.sh
+      - name: Apply legacy integrations
         shell: bash
         run: |
-          set -euo pipefail
-          bash Tests/run-blockout-tests.sh
-      - name: Apply v1.2 large world integration
-        shell: bash
-        run: |
-          set -euo pipefail
           python3 Scripts/apply-large-world-v1.2.py
-          grep -q 'LargeWorldLayout.blockout' Sources/GameScene.swift
-          grep -q 'cameraController.update' Sources/GameScene.swift
-      - name: Apply v1.1 player visual scale
-        shell: bash
-        run: |
-          set -euo pipefail
           python3 Scripts/apply-player-scale-v1.1.py
-          grep -q 'sprite.size = CGSize(width: 480, height: 480)' Sources/GameScene.swift
-      - name: Apply v1.3 feedback fixes
-        shell: bash
-        run: |
-          set -euo pipefail
           python3 Scripts/apply-v1.3-feedback-fixes.py
-      - name: Run v1.3 integration contract tests
-        shell: bash
-        run: |
-          set -euo pipefail
           python3 Tests/test-v13-integration.py
-      - name: Validate v1.3 release metadata
+      - name: Run v1.4 contracts
         shell: bash
         run: |
-          set -euo pipefail
-          grep -q '<key>CFBundleShortVersionString</key><string>1.3</string>' Info.plist
-          grep -q 'v1.3 • CAMERA • GROUND • ATTACK • CONTROLS' Sources/GameView.swift
+          bash Tests/run-v14-logic-tests.sh
+          python3 Tests/test-v14-integration.py
+          grep -q '<key>CFBundleShortVersionString</key><string>1.4</string>' Info.plist
+      - name: Apply and test v1.5
+        shell: bash
+        run: |
+          python3 Scripts/apply-v1.5-feedback.py
+          python3 Scripts/apply-v1.5-final-fixes.py
+          python3 Tests/test-v15-integration.py
+      - name: Apply and test v1.6
+        shell: bash
+        run: |
+          python3 Scripts/apply-v1.6-trials.py
+          python3 Tests/test-v16-integration.py
+      - name: Apply and test v1.7 device bugfixes
+        shell: bash
+        run: |
+          python3 Scripts/apply-v1.7-device-bugfix.py
+          python3 Tests/test-v17-bugfix.py
+          grep -q '<key>CFBundleShortVersionString</key><string>1.7</string>' Info.plist
+          grep -q 'v1.7 • DEVICE BUGFIX • SAFE TRIALS' Sources/GameView.swift
           grep -q '<key>CFBundleIdentifier</key><string>app.ashenhollow.prototype</string>' Info.plist
           grep -q '<key>CFBundleVersion</key><string>2</string>' Info.plist
+      - name: Apply action SFX
+        shell: bash
+        run: |
+          python3 Scripts/apply-sfx.py
+          python3 Tests/test-sfx.py
+          grep -q 'audio.play(.jump)' Sources/GameSceneV14.swift
+          grep -q 'audio.play(.footstep)' Sources/GameSceneV14.swift
+          grep -q 'audio.play(.dash)' Sources/GameSceneV14.swift
+      - name: Replace placeholder lever with cave sprite
+        shell: bash
+        run: |
+          python3 Scripts/apply-lever-sprite.py
+          grep -F 'LeverArt.node()' Sources/V15RuntimeSupport.swift
+          grep -F 'leverHandle' Sources/LeverArt.swift
+          if grep -F 'systemYellow' Sources/V15RuntimeSupport.swift; then exit 1; fi
+
       - name: Prepare app bundle
         shell: bash
         run: |
-          set -euo pipefail
-          rm -rf build
-          mkdir -p build/Payload/AshenHollow.app
+          rm -rf build; mkdir -p build/Payload/AshenHollow.app
       - name: Compile Ashen Hollow
         shell: bash
         run: |
           set -euo pipefail
-          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
-          APP="build/Payload/AshenHollow.app"
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"; APP="build/Payload/AshenHollow.app"
           xcrun swiftc -parse-as-library -target arm64-apple-ios15.0 -sdk "$SDK" -O -framework Foundation -framework SwiftUI -framework UIKit -framework SpriteKit -framework AVFoundation Sources/*.swift -o "$APP/AshenHollow"
-          chmod +x "$APP/AshenHollow"
-          cp Info.plist "$APP/Info.plist"
-          if [ -d Resources ]; then
-            cp -R Resources/. "$APP/"
-          fi
+          chmod +x "$APP/AshenHollow"; cp Info.plist "$APP/Info.plist"; cp -R Resources/. "$APP/"
           cat SpriteData/player_run.b64.0 SpriteData/player_run.b64.1 SpriteData/player_run.b64.2 SpriteData/player_run.b64.3 | base64 -D > "$APP/player_run.png"
-          test -f "$APP/AshenHollow"
-          test -f "$APP/Info.plist"
-          test -f "$APP/PlayerAnimations/Idle.png"
-          test -f "$APP/PlayerAnimations/Run.png"
-          test -f "$APP/PlayerAnimations/Jump.png"
-          test -f "$APP/PlayerAnimations/Fall.png"
-          test -f "$APP/PlayerAnimations/Dash.png"
-          test -f "$APP/PlayerAnimations/Attack1.png"
-          test -f "$APP/PlayerAnimations/Attack2.png"
-          test -f "$APP/PlayerAnimations/Hurt.png"
-          test -f "$APP/PlayerAnimations/Death.png"
+          test -f "$APP/PlayerAnimations/Idle.png"; test -f "$APP/PlayerAnimations/Run.png"; test -f "$APP/PlayerAnimations/Jump.png"; test -f "$APP/PlayerAnimations/Fall.png"; test -f "$APP/PlayerAnimations/Dash.png"; test -f "$APP/PlayerAnimations/Attack1.png"; test -f "$APP/PlayerAnimations/Attack2.png"; test -f "$APP/PlayerAnimations/Hurt.png"; test -f "$APP/PlayerAnimations/Death.png"
+          test -d "$APP/PixelCave"
       - name: Package unsigned IPA
         shell: bash
-        run: |
-          set -euo pipefail
-          cd build
-          zip -qry AshenHollow-unsigned.ipa Payload
-          test -f AshenHollow-unsigned.ipa
+        run: cd build && zip -qry AshenHollow-unsigned.ipa Payload && test -f AshenHollow-unsigned.ipa
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
