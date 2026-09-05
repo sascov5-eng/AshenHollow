@@ -74,6 +74,14 @@ jobs:
           grep -q 'v1.7 • DEVICE BUGFIX • SAFE TRIALS' Sources/GameView.swift
           grep -q '<key>CFBundleIdentifier</key><string>app.ashenhollow.prototype</string>' Info.plist
           grep -q '<key>CFBundleVersion</key><string>2</string>' Info.plist
+      - name: Apply action SFX
+        shell: bash
+        run: |
+          python3 Scripts/apply-sfx.py
+          python3 Tests/test-sfx.py
+          grep -q 'audio.play(.jump)' Sources/GameSceneV14.swift
+          grep -q 'audio.play(.footstep)' Sources/GameSceneV14.swift
+          grep -q 'audio.play(.dash)' Sources/GameSceneV14.swift
       - name: Replace placeholder lever with cave sprite
         shell: bash
         run: |
@@ -91,7 +99,7 @@ jobs:
         run: |
           set -euo pipefail
           SDK="$(xcrun --sdk iphoneos --show-sdk-path)"; APP="build/Payload/AshenHollow.app"
-          xcrun swiftc -parse-as-library -target arm64-apple-ios15.0 -sdk "$SDK" -O -framework Foundation -framework SwiftUI -framework UIKit -framework SpriteKit Sources/*.swift -o "$APP/AshenHollow"
+          xcrun swiftc -parse-as-library -target arm64-apple-ios15.0 -sdk "$SDK" -O -framework Foundation -framework SwiftUI -framework UIKit -framework SpriteKit -framework AVFoundation Sources/*.swift -o "$APP/AshenHollow"
           chmod +x "$APP/AshenHollow"; cp Info.plist "$APP/Info.plist"; cp -R Resources/. "$APP/"
           cat SpriteData/player_run.b64.0 SpriteData/player_run.b64.1 SpriteData/player_run.b64.2 SpriteData/player_run.b64.3 | base64 -D > "$APP/player_run.png"
           test -f "$APP/PlayerAnimations/Idle.png"; test -f "$APP/PlayerAnimations/Run.png"; test -f "$APP/PlayerAnimations/Jump.png"; test -f "$APP/PlayerAnimations/Fall.png"; test -f "$APP/PlayerAnimations/Dash.png"; test -f "$APP/PlayerAnimations/Attack1.png"; test -f "$APP/PlayerAnimations/Attack2.png"; test -f "$APP/PlayerAnimations/Hurt.png"; test -f "$APP/PlayerAnimations/Death.png"
