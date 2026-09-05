@@ -24,6 +24,7 @@ for text in ["ДВИЖЕНИЕ", "КОНТРОЛЬНАЯ ТОЧКА", "ШИПЫ"
 assert 'kind: .aggressive' in layout and 'maxHP: 5' in layout
 assert 'EnemyHealthBarNode' in scene
 assert 'updateHealthBar' in scene
+assert 'hitEnemiesThisAttack' in scene
 
 # Universal action button for checkpoints/levers; secret wall remains attack-driven.
 assert 'actionButton' in scene
