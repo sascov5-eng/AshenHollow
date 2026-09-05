@@ -140,11 +140,19 @@ jobs:
           grep -q '<key>CFBundleVersion</key><string>2</string>' Info.plist
           test -d Resources/PixelCave
 
+      - name: Apply v1.6 trials integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Scripts/apply-v1.6-trials.py
+
       - name: Run v1.6 integration contract
         shell: bash
         run: |
           set -euo pipefail
           python3 Tests/test-v16-integration.py
+          grep -q '<key>CFBundleShortVersionString</key><string>1.6</string>' Info.plist
+          grep -q 'v1.6 • ИСПЫТАНИЯ • БОЙ + UI' Sources/GameView.swift
 
       - name: Prepare app bundle
         shell: bash
