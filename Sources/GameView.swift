@@ -14,7 +14,7 @@ struct GameView: View {
                 .ignoresSafeArea()
                 .background(Color.black)
 
-            Text("v0.7 • ATTACK • HEAL • DASH • WALL SLIDE")
+            Text("v0.8 • LITTLE AXION • 9 PLAYER ANIMATIONS")
                 .font(.system(size: 15, weight: .heavy, design: .monospaced))
                 .foregroundColor(.yellow)
                 .padding(.horizontal, 10)
