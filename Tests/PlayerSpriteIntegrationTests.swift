@@ -12,7 +12,6 @@ let spriteDirectory = "Resources/Player"
 let animatorPath = "Sources/PlayerSpriteAnimator.swift"
 let runtimePath = "Sources/V21RuntimeContext.swift"
 let gameViewPath = "Sources/GameView.swift"
-let gameScenePath = "Sources/GameScene.swift"
 let workflowPath = ".github/workflows/build-ipa-v24-sprite.yml"
 
 let parts = (try fileManager.contentsOfDirectory(atPath: spriteDirectory))
@@ -34,11 +33,9 @@ let gameView = try String(contentsOfFile: gameViewPath, encoding: .utf8)
 expect(gameView.contains("import SpriteKit"), "GameView must import SpriteKit")
 expect(gameView.contains("SpriteView("), "GameView must present the SpriteKit scene")
 expect(gameView.contains("GameScene("), "GameView must create GameScene")
+expect(gameView.contains("V21RuntimeBootstrap.install(on: scene, launchMode: launchMode)"), "GameView must install the V24 runtime after the scene is attached")
+expect(gameView.contains("V24 BUILD TEST"), "diagnostic V24 marker must identify the exact installed build")
 expect(!gameView.contains("iOS launch test"), "temporary launch-test screen must not replace gameplay")
-
-let gameScene = try String(contentsOfFile: gameScenePath, encoding: .utf8)
-expect(gameScene.contains("V21RuntimeBootstrap.install(on: self)"), "GameScene must install V24 runtime directly after scene setup")
-expect(gameScene.contains("V24 BUILD TEST"), "diagnostic V24 build marker must be visible in the scene")
 
 let workflow = try String(contentsOfFile: workflowPath, encoding: .utf8)
 expect(workflow.contains("Resources/Player/player_run.part*.b64"), "sprite build must reconstruct the PNG from source data")
