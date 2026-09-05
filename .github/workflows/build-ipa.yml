@@ -41,8 +41,10 @@ jobs:
               AssetData/pixel_cave_v15.b64.01 \
               AssetData/pixel_cave_v15.b64.02 \
               AssetData/pixel_cave_v15.b64.03 \
-              AssetData/pixel_cave_v15.b64.04 \
-              AssetData/pixel_cave_v15.b64.05 \
+              AssetData/pixel_cave_v15.b64.04a \
+              AssetData/pixel_cave_v15.b64.04b \
+              AssetData/pixel_cave_v15.b64.05a \
+              AssetData/pixel_cave_v15.b64.05b \
               AssetData/pixel_cave_v15.b64.06 \
               AssetData/pixel_cave_v15.b64.07 \
               AssetData/pixel_cave_v15.b64.08 \
