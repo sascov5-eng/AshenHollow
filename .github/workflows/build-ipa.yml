@@ -6,6 +6,7 @@ on:
       - main
       - feature/v1.4-implementation
       - feature/v1.5-feedback
+      - feature/v1.6-trials
   workflow_dispatch:
 
 jobs:
@@ -138,6 +139,12 @@ jobs:
           grep -q '<key>CFBundleIdentifier</key><string>app.ashenhollow.prototype</string>' Info.plist
           grep -q '<key>CFBundleVersion</key><string>2</string>' Info.plist
           test -d Resources/PixelCave
+
+      - name: Run v1.6 integration contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Tests/test-v16-integration.py
 
       - name: Prepare app bundle
         shell: bash
