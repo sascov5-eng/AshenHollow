@@ -9,19 +9,11 @@ struct GameView: View {
     }()
 
     var body: some View {
-        ZStack(alignment: .top) {
-            SpriteView(scene: scene, options: [.ignoresSiblingOrder])
-                .ignoresSafeArea()
-                .background(Color.black)
-
-            Text("INSTALL TEST V5.1")
-                .font(.system(size: 18, weight: .heavy, design: .monospaced))
-                .foregroundColor(.yellow)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.black.opacity(0.85))
-                .padding(.top, 8)
-                .allowsHitTesting(false)
-        }
+        SpriteView(scene: scene, options: [.ignoresSiblingOrder])
+            .ignoresSafeArea()
+            .background(Color.black)
+            .onAppear {
+                PlayerSpriteInstaller.installWhenReady(in: scene)
+            }
     }
 }

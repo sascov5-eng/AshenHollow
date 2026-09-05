@@ -27,8 +27,12 @@ jobs:
           xcrun swiftc -parse-as-library -target arm64-apple-ios15.0 -sdk "$SDK" -O -framework Foundation -framework SwiftUI -framework UIKit -framework SpriteKit Sources/*.swift -o "$APP/AshenHollow"
           chmod +x "$APP/AshenHollow"
           cp Info.plist "$APP/Info.plist"
+          if [ -d Resources ]; then
+            cp -R Resources/. "$APP/"
+          fi
           test -f "$APP/AshenHollow"
           test -f "$APP/Info.plist"
+          test -f "$APP/player_run.png"
       - name: Package unsigned IPA
         shell: bash
         run: |
