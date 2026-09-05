@@ -30,6 +30,7 @@ jobs:
           if [ -d Resources ]; then
             cp -R Resources/. "$APP/"
           fi
+          cat SpriteData/player_run.b64.0 SpriteData/player_run.b64.1 SpriteData/player_run.b64.2 SpriteData/player_run.b64.3 | base64 -D > "$APP/player_run.png"
           test -f "$APP/AshenHollow"
           test -f "$APP/Info.plist"
           test -f "$APP/player_run.png"
