@@ -6,20 +6,16 @@ enum TestLocationLayout {
         let bounds = CGRect(x: 0, y: 0, width: 9000, height: 2200)
 
         let solids: [CGRect] = [
-            // Start / movement / checkpoint 1
             CGRect(x: 0, y: 0, width: 1450, height: 90),
             CGRect(x: 520, y: 170, width: 190, height: 24),
             CGRect(x: 820, y: 245, width: 210, height: 24),
-            // Spike + moving platform approach / checkpoint 2
             CGRect(x: 1450, y: 0, width: 1750, height: 90),
             CGRect(x: 2050, y: 215, width: 220, height: 24),
             CGRect(x: 2630, y: 340, width: 220, height: 24),
-            // Combat and interactions
             CGRect(x: 3200, y: 0, width: 1900, height: 90),
             CGRect(x: 3550, y: 190, width: 260, height: 24),
             CGRect(x: 3970, y: 285, width: 260, height: 24),
             CGRect(x: 4460, y: 190, width: 260, height: 24),
-            // Vertical shaft walls and ledges
             CGRect(x: 5050, y: 0, width: 280, height: 90),
             CGRect(x: 5320, y: 90, width: 56, height: 1180),
             CGRect(x: 5780, y: 90, width: 56, height: 1180),
@@ -29,19 +25,17 @@ enum TestLocationLayout {
             CGRect(x: 5630, y: 815, width: 150, height: 22),
             CGRect(x: 5376, y: 995, width: 150, height: 22),
             CGRect(x: 5320, y: 1260, width: 516, height: 34),
-            // Upper dash/long-jump route
             CGRect(x: 5836, y: 1260, width: 720, height: 34),
-            CGRect(x: 6760, y: 1260, width: 520, height: 34),
-            // Drop / checkpoint 3 and later route
+            // 304-point physical gap: too wide for running jump, reachable with jump+dash.
+            CGRect(x: 6860, y: 1260, width: 420, height: 34),
             CGRect(x: 6200, y: 0, width: 520, height: 90),
             CGRect(x: 7040, y: 0, width: 1960, height: 90),
-            CGRect(x: 7170, y: 180, width: 180, height: 24),
+            // Lowered 10 points so the first late-game platform is reachable with current jump physics.
+            CGRect(x: 7170, y: 170, width: 180, height: 24),
             CGRect(x: 7440, y: 285, width: 180, height: 24),
             CGRect(x: 7720, y: 395, width: 180, height: 24),
             CGRect(x: 8020, y: 265, width: 220, height: 24),
-            // Narrow tunnel ceiling, leaves playable 130-high gap
             CGRect(x: 8280, y: 220, width: 430, height: 90),
-            // Outer walls/ceiling guards
             CGRect(x: -50, y: 0, width: 50, height: 2200),
             CGRect(x: 9000, y: 0, width: 50, height: 2200),
             CGRect(x: 0, y: 2100, width: 9000, height: 100)
@@ -113,12 +107,12 @@ enum TestLocationLayout {
 
         let traversals = [
             TraversalSpec(id: "jump-1", kind: .ordinaryJump, from: CGPoint(x: 480, y: 90), to: CGPoint(x: 615, y: 194), landingWidth: 190, headClearance: 250),
-            TraversalSpec(id: "jump-2", kind: .runningJump, from: CGPoint(x: 700, y: 194), to: CGPoint(x: 925, y: 269), landingWidth: 210, headClearance: 260),
+            TraversalSpec(id: "jump-2", kind: .runningJump, from: CGPoint(x: 700, y: 194), to: CGPoint(x: 920, y: 269), landingWidth: 210, headClearance: 260),
             TraversalSpec(id: "moving-h-transfer", kind: .movingPlatformTransfer, from: CGPoint(x: 1760, y: 90), to: CGPoint(x: 1840, y: 202), landingWidth: 150, headClearance: 260),
             TraversalSpec(id: "moving-v-transfer", kind: .movingPlatformTransfer, from: CGPoint(x: 2270, y: 239), to: CGPoint(x: 2460, y: 162), landingWidth: 150, headClearance: 300),
             TraversalSpec(id: "shaft", kind: .wallJump, from: CGPoint(x: 5270, y: 90), to: CGPoint(x: 5580, y: 1294), landingWidth: 516, headClearance: 500),
-            TraversalSpec(id: "dash-gap", kind: .jumpDash, from: CGPoint(x: 6500, y: 1294), to: CGPoint(x: 7020, y: 1294), landingWidth: 520, headClearance: 500),
-            TraversalSpec(id: "late-jump", kind: .runningJump, from: CGPoint(x: 7080, y: 90), to: CGPoint(x: 7260, y: 204), landingWidth: 180, headClearance: 280)
+            TraversalSpec(id: "dash-gap", kind: .jumpDash, from: CGPoint(x: 6550, y: 1294), to: CGPoint(x: 6890, y: 1294), landingWidth: 420, headClearance: 500),
+            TraversalSpec(id: "late-jump", kind: .runningJump, from: CGPoint(x: 7080, y: 90), to: CGPoint(x: 7260, y: 194), landingWidth: 180, headClearance: 280)
         ]
 
         return TestLocationSpec(
