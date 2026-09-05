@@ -11,6 +11,7 @@ let fileManager = FileManager.default
 let spriteDirectory = "Resources/Player"
 let animatorPath = "Sources/PlayerSpriteAnimator.swift"
 let runtimePath = "Sources/V21RuntimeContext.swift"
+let gameViewPath = "Sources/GameView.swift"
 let workflowPath = ".github/workflows/build-ipa-v24-sprite.yml"
 
 let parts = (try fileManager.contentsOfDirectory(atPath: spriteDirectory))
@@ -27,6 +28,12 @@ expect(animator.contains("let rows = 2"), "sprite sheet must use two rows")
 
 let runtime = try String(contentsOfFile: runtimePath, encoding: .utf8)
 expect(runtime.contains("PlayerSpriteRuntimeInstaller.install(on: scene)"), "V24 runtime must install the player sprite")
+
+let gameView = try String(contentsOfFile: gameViewPath, encoding: .utf8)
+expect(gameView.contains("import SpriteKit"), "GameView must import SpriteKit")
+expect(gameView.contains("SpriteView("), "GameView must present the SpriteKit scene")
+expect(gameView.contains("GameScene("), "GameView must create GameScene")
+expect(!gameView.contains("iOS launch test"), "temporary launch-test screen must not replace gameplay")
 
 let workflow = try String(contentsOfFile: workflowPath, encoding: .utf8)
 expect(workflow.contains("Resources/Player/player_run.part*.b64"), "sprite build must reconstruct the PNG from source data")
