@@ -26,11 +26,9 @@ enum TestLocationLayout {
             CGRect(x: 5376, y: 995, width: 150, height: 22),
             CGRect(x: 5320, y: 1260, width: 516, height: 34),
             CGRect(x: 5836, y: 1260, width: 720, height: 34),
-            // 304-point physical gap: too wide for running jump, reachable with jump+dash.
             CGRect(x: 6860, y: 1260, width: 420, height: 34),
             CGRect(x: 6200, y: 0, width: 520, height: 90),
             CGRect(x: 7040, y: 0, width: 1960, height: 90),
-            // Kept below the conservative running-jump ceiling with a small safety margin.
             CGRect(x: 7170, y: 168, width: 180, height: 24),
             CGRect(x: 7440, y: 285, width: 180, height: 24),
             CGRect(x: 7720, y: 395, width: 180, height: 24),
@@ -61,7 +59,7 @@ enum TestLocationLayout {
         let enemies = [
             EnemyTestSpec(id: "enemy-ground", kind: .groundPatrol, spawn: CGPoint(x: 3420, y: 130), patrolRange: 3330...3650, maxHP: 3),
             EnemyTestSpec(id: "enemy-flying", kind: .flying, spawn: CGPoint(x: 3860, y: 285), patrolRange: 3760...4140, maxHP: 3),
-            EnemyTestSpec(id: "enemy-aggressive", kind: .aggressive, spawn: CGPoint(x: 4330, y: 130), patrolRange: 4220...4620, maxHP: 4),
+            EnemyTestSpec(id: "enemy-aggressive", kind: .aggressive, spawn: CGPoint(x: 4330, y: 130), patrolRange: 4220...4620, maxHP: 5),
             EnemyTestSpec(id: "enemy-mixed-ground", kind: .groundPatrol, spawn: CGPoint(x: 7480, y: 130), patrolRange: 7380...7660, maxHP: 3),
             EnemyTestSpec(id: "enemy-mixed-flying", kind: .flying, spawn: CGPoint(x: 7850, y: 320), patrolRange: 7750...8040, maxHP: 3)
         ]
@@ -80,29 +78,29 @@ enum TestLocationLayout {
         }
 
         let tutorials: [TutorialSpec] = [
-            tutorial(.move, "MOVE", 80, 90, target: .hud("MOVE")),
-            tutorial(.jump, "JUMP", 430, 90, target: .hud("JUMP")),
-            tutorial(.checkpoint, "CHECKPOINT — ACTIVATE", 1080, 90, target: .world("cp1")),
-            tutorial(.spikes, "SPIKES", 1450, 90, target: .world("spikes-1")),
-            tutorial(.movingPlatformHorizontal, "MOVING PLATFORM", 1700, 90, target: .world("moving-h")),
-            tutorial(.movingPlatformVertical, "MOVING PLATFORM", 2290, 90, target: .world("moving-v")),
-            tutorial(.groundEnemy, "GROUND ENEMY", 3240, 90, target: .world("enemy-ground")),
-            tutorial(.attack, "ATTACK", 3260, 90, target: .hud("ATK")),
-            tutorial(.flyingEnemy, "FLYING ENEMY", 3700, 90, target: .world("enemy-flying")),
-            tutorial(.aggressiveEnemy, "AGGRESSIVE ENEMY", 4180, 90, target: .world("enemy-aggressive")),
-            tutorial(.heal, "HEAL", 4380, 90, target: .hud("HEAL")),
-            tutorial(.lever, "LEVER", 4580, 90, target: .world("lever-door")),
-            tutorial(.door, "DOOR", 4800, 90, target: .world("door-main")),
-            tutorial(.secretWall, "SECRET WALL • ATTACK", 4480, 90, target: .world("secret-wall")),
-            tutorial(.hiddenPath, "HIDDEN PATH", 4690, 90, target: .world("hidden-path")),
-            tutorial(.shortcut, "SHORTCUT", 5040, 90, target: .world("shortcut-door")),
-            tutorial(.wallJump, "WALL JUMP", 5250, 120, 620, 1250, target: .hud("JUMP")),
-            tutorial(.dash, "DASH", 5860, 1210, target: .hud("DASH")),
-            tutorial(.longJump, "LONG JUMP", 6320, 1210, target: .hud("JUMP")),
-            tutorial(.pit, "PIT / DEATH ZONE", 6610, 1120, 650, 600, target: .world("pit-local")),
-            tutorial(.mixedCombat, "MIXED COMBAT", 7300, 90, target: .world("enemy-mixed-ground")),
-            tutorial(.narrowTunnel, "NARROW TUNNEL", 8200, 90, target: .world("narrow")),
-            tutorial(.testComplete, "TEST AREA COMPLETE", 8620, 90, 300, 300, target: .world("exit"))
+            tutorial(.move, "ДВИЖЕНИЕ — ИСПОЛЬЗУЙ СТРЕЛКИ", 80, 90, target: .hud("MOVE")),
+            tutorial(.jump, "ПРЫЖОК — НАЖМИ ПРЫЖОК", 430, 90, target: .hud("JUMP")),
+            tutorial(.checkpoint, "КОНТРОЛЬНАЯ ТОЧКА — НАЖМИ ДЕЙСТВИЕ", 1080, 90, target: .hud("ACTION")),
+            tutorial(.spikes, "ШИПЫ — НАНОСЯТ 1 УРОН", 1450, 90, target: .world("spikes-1")),
+            tutorial(.movingPlatformHorizontal, "ДВИЖУЩАЯСЯ ПЛАТФОРМА ↔", 1700, 90, target: .world("moving-h")),
+            tutorial(.movingPlatformVertical, "ДВИЖУЩАЯСЯ ПЛАТФОРМА ↕", 2290, 90, target: .world("moving-v")),
+            tutorial(.groundEnemy, "ПАТРУЛЬНЫЙ — 3 ЗДОРОВЬЯ", 3240, 90, target: .world("enemy-ground")),
+            tutorial(.attack, "АТАКУЙ ВРАГА — 1 УРОН И +34 СВЕТА", 3260, 90, target: .hud("ATK")),
+            tutorial(.flyingEnemy, "ЛЕТАЮЩИЙ — 3 ЗДОРОВЬЯ", 3700, 90, target: .world("enemy-flying")),
+            tutorial(.aggressiveEnemy, "АГРЕССИВНЫЙ — 5 ЗДОРОВЬЯ", 4180, 90, target: .world("enemy-aggressive")),
+            tutorial(.heal, "ЛЕЧЕНИЕ — НУЖНО 100 СВЕТА", 4380, 90, target: .hud("HEAL")),
+            tutorial(.lever, "РЫЧАГ — НАЖМИ ДЕЙСТВИЕ", 4580, 90, target: .hud("ACTION")),
+            tutorial(.door, "ДВЕРЬ — НУЖЕН РЫЧАГ", 4800, 90, target: .world("door-main")),
+            tutorial(.secretWall, "СЕКРЕТНАЯ СТЕНА — АТАКУЙ", 4480, 90, target: .hud("ATK")),
+            tutorial(.hiddenPath, "СКРЫТЫЙ ПРОХОД", 4690, 90, target: .world("hidden-path")),
+            tutorial(.shortcut, "КОРОТКИЙ ПУТЬ — НАЖМИ ДЕЙСТВИЕ", 5040, 90, target: .hud("ACTION")),
+            tutorial(.wallJump, "ПРЫЖОК ОТ СТЕНЫ", 5250, 120, 620, 1250, target: .hud("JUMP")),
+            tutorial(.dash, "РЫВОК — НАЖМИ РЫВОК", 5860, 1210, target: .hud("DASH")),
+            tutorial(.longJump, "ДЛИННЫЙ ПРЫЖОК — РАЗБЕГ + ПРЫЖОК", 6320, 1210, target: .hud("JUMP")),
+            tutorial(.pit, "ЯМА — СМЕРТЬ И ВОЗВРАТ К ТОЧКЕ", 6610, 1120, 650, 600, target: .world("pit-local")),
+            tutorial(.mixedCombat, "СМЕШАННЫЙ БОЙ", 7300, 90, target: .world("enemy-mixed-ground")),
+            tutorial(.narrowTunnel, "УЗКИЙ ТУННЕЛЬ", 8200, 90, target: .world("narrow")),
+            tutorial(.testComplete, "ТЕСТОВАЯ ЗОНА ПРОЙДЕНА", 8620, 90, 300, 300, target: .world("exit"))
         ]
 
         let traversals = [
