@@ -162,7 +162,7 @@ enum PixelCaveArt {
         body.position = .zero
         root.addChild(body)
         let arrow = SKLabelNode(fontNamed: "AvenirNext-Bold")
-        arrow.text = horizontal ? "↔" : "↕"
+        arrow.text = horizontal ? "\u2194" : "\u2195"
         arrow.fontSize = 22
         arrow.fontColor = .white
         arrow.position = CGPoint(x: 0, y: 18)
@@ -175,14 +175,7 @@ enum PixelCaveArt {
         let root = SKNode()
         switch kind {
         case .lever, .shortcutLever:
-            if let sprite = sprite("Individual PNG files/Tileset/object_misc/objects_misc_13.png", size: CGSize(width: 58, height: 82), z: 2) { root.addChild(sprite) }
-            let handle = SKShapeNode(rectOf: CGSize(width: 10, height: 50), cornerRadius: 4)
-            handle.fillColor = .systemYellow
-            handle.strokeColor = .white
-            handle.zRotation = -0.55
-            handle.position = CGPoint(x: 8, y: 28)
-            handle.zPosition = 4
-            root.addChild(handle)
+            root.addChild(LeverArt.node())
         case .door, .shortcutDoor:
             if let texture = texture("Individual PNG files/Tileset/object_misc/objects_misc_0.png") {
                 let rows = Swift.max(2, Int(ceil(rect.height / 48)))
@@ -215,9 +208,9 @@ enum PixelCaveArt {
         let color: String
         let title: String
         switch kind {
-        case .groundPatrol: color = "brown"; title = "ПАТРУЛЬНЫЙ"
-        case .flying: color = "violet"; title = "ЛЕТАЮЩИЙ"
-        case .aggressive: color = "red"; title = "АГРЕССИВНЫЙ"
+        case .groundPatrol: color = "brown"; title = "\u041f\u0410\u0422\u0420\u0423\u041b\u042c\u041d\u042b\u0419"
+        case .flying: color = "violet"; title = "\u041b\u0415\u0422\u0410\u042e\u0429\u0418\u0419"
+        case .aggressive: color = "red"; title = "\u0410\u0413\u0420\u0415\u0421\u0421\u0418\u0412\u041d\u042b\u0419"
         }
         var frames: [SKTexture] = []
         for i in 0..<5 {
