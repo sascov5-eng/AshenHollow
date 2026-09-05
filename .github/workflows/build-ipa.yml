@@ -25,6 +25,12 @@ jobs:
         run: |
           set -euo pipefail
           bash Scripts/validate-player-animation-assets.sh
+      - name: Apply v1.1 player visual scale
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Scripts/apply-player-scale-v1.1.py
+          grep -q 'sprite.size = CGSize(width: 480, height: 480)' Sources/GameScene.swift
       - name: Prepare app bundle
         shell: bash
         run: |
