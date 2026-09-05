@@ -14,8 +14,8 @@ struct GameView: View {
                 .ignoresSafeArea()
                 .background(Color.black)
 
-            Text("v0.6 • VALID PLAYER SPRITE")
-                .font(.system(size: 16, weight: .heavy, design: .monospaced))
+            Text("v0.7 • ATTACK • HEAL • DASH • WALL SLIDE")
+                .font(.system(size: 15, weight: .heavy, design: .monospaced))
                 .foregroundColor(.yellow)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
