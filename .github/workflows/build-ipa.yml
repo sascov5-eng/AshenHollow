@@ -38,7 +38,7 @@ jobs:
           mkdir -p Resources/PixelCave
           rm -f /tmp/pixel_cave_tileset.zip
           for chunk in AssetData/pixel_cave_tileset.b64.0 AssetData/pixel_cave_tileset.b64.1 AssetData/pixel_cave_tileset.b64.2 AssetData/pixel_cave_tileset.b64.3 AssetData/pixel_cave_tileset.b64.4; do
-            base64 -D "$chunk" >> /tmp/pixel_cave_tileset.zip
+            base64 -D -i "$chunk" >> /tmp/pixel_cave_tileset.zip
           done
           unzip -tq /tmp/pixel_cave_tileset.zip
           unzip -qo /tmp/pixel_cave_tileset.zip -d Resources/PixelCave
