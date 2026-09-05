@@ -30,8 +30,8 @@ enum TestLocationLayout {
             CGRect(x: 6860, y: 1260, width: 420, height: 34),
             CGRect(x: 6200, y: 0, width: 520, height: 90),
             CGRect(x: 7040, y: 0, width: 1960, height: 90),
-            // Lowered 10 points so the first late-game platform is reachable with current jump physics.
-            CGRect(x: 7170, y: 170, width: 180, height: 24),
+            // Kept below the conservative running-jump ceiling with a small safety margin.
+            CGRect(x: 7170, y: 168, width: 180, height: 24),
             CGRect(x: 7440, y: 285, width: 180, height: 24),
             CGRect(x: 7720, y: 395, width: 180, height: 24),
             CGRect(x: 8020, y: 265, width: 220, height: 24),
@@ -112,7 +112,7 @@ enum TestLocationLayout {
             TraversalSpec(id: "moving-v-transfer", kind: .movingPlatformTransfer, from: CGPoint(x: 2270, y: 239), to: CGPoint(x: 2460, y: 162), landingWidth: 150, headClearance: 300),
             TraversalSpec(id: "shaft", kind: .wallJump, from: CGPoint(x: 5270, y: 90), to: CGPoint(x: 5580, y: 1294), landingWidth: 516, headClearance: 500),
             TraversalSpec(id: "dash-gap", kind: .jumpDash, from: CGPoint(x: 6550, y: 1294), to: CGPoint(x: 6890, y: 1294), landingWidth: 420, headClearance: 500),
-            TraversalSpec(id: "late-jump", kind: .runningJump, from: CGPoint(x: 7080, y: 90), to: CGPoint(x: 7260, y: 194), landingWidth: 180, headClearance: 280)
+            TraversalSpec(id: "late-jump", kind: .runningJump, from: CGPoint(x: 7080, y: 90), to: CGPoint(x: 7260, y: 192), landingWidth: 180, headClearance: 280)
         ]
 
         return TestLocationSpec(
