@@ -4,6 +4,11 @@ import UIKit
 final class GameScene: SKScene {
     private let player = SKShapeNode(rectOf: CGSize(width: 42, height: 64), cornerRadius: 10)
     private let playerVisual = SKNode()
+    private var playerSprite: SKSpriteNode?
+    private var playerFrames: [SKTexture] = []
+    private var walkFrameIndex = 0
+    private var walkFrameTimer: CGFloat = 0
+
     private let gameCamera = SKCameraNode()
     private let hud = SKNode()
 
@@ -116,7 +121,6 @@ final class GameScene: SKScene {
         platform.zPosition = 1
         addChild(platform)
         platforms.append(platform)
-
         platformRects.append(
             CGRect(
                 x: center.x - size.width * 0.5,
@@ -131,30 +135,63 @@ final class GameScene: SKScene {
         player.removeFromParent()
         player.removeAllChildren()
         playerVisual.removeAllChildren()
+        playerSprite = nil
+        playerFrames.removeAll()
+        walkFrameIndex = 0
+        walkFrameTimer = 0
 
-        player.fillColor = UIColor(red: 0.78, green: 0.82, blue: 0.9, alpha: 1)
-        player.strokeColor = UIColor(white: 1, alpha: 0.22)
-        player.lineWidth = 2
+        player.fillColor = .clear
+        player.strokeColor = .clear
+        player.lineWidth = 0
         player.zPosition = 50
         player.position = CGPoint(x: 230, y: 130)
 
-        let face = SKShapeNode(rectOf: CGSize(width: 20, height: 6), cornerRadius: 3)
-        face.fillColor = UIColor(red: 0.48, green: 0.82, blue: 1, alpha: 1)
-        face.strokeColor = .clear
-        face.position = CGPoint(x: 5, y: 10)
-        face.name = "face"
-        playerVisual.addChild(face)
+        let imageURL = Bundle.main.bundleURL.appendingPathComponent("player_run.png")
+        if let data = try? Data(contentsOf: imageURL),
+           let image = UIImage(data: data),
+           let cgImage = image.cgImage {
+            let sheet = SKTexture(cgImage: cgImage)
+            sheet.filteringMode = .linear
+            playerFrames = makePlayerFrames(from: sheet)
 
-        let glow = SKShapeNode(ellipseOf: CGSize(width: 54, height: 14))
-        glow.fillColor = UIColor(red: 0.35, green: 0.7, blue: 1, alpha: 0.1)
-        glow.strokeColor = .clear
-        glow.position = CGPoint(x: 0, y: -35)
-        glow.zPosition = -1
-        playerVisual.addChild(glow)
+            if let firstFrame = playerFrames.first {
+                let sprite = SKSpriteNode(texture: firstFrame)
+                sprite.name = "playerSpriteV04"
+                sprite.size = CGSize(width: 92, height: 92)
+                sprite.position = CGPoint(x: 0, y: 10)
+                sprite.zPosition = 10
+                playerVisual.addChild(sprite)
+                playerSprite = sprite
+            }
+        }
+
+        if playerSprite == nil {
+            player.fillColor = UIColor(red: 0.85, green: 0.12, blue: 0.12, alpha: 1)
+            player.strokeColor = .white
+            player.lineWidth = 2
+        }
 
         player.addChild(playerVisual)
         addChild(player)
         velocity = .zero
+    }
+
+    private func makePlayerFrames(from sheet: SKTexture) -> [SKTexture] {
+        var frames: [SKTexture] = []
+        for row in 0..<2 {
+            for column in 0..<4 {
+                let rect = CGRect(
+                    x: CGFloat(column) * 0.25,
+                    y: row == 0 ? 0.5 : 0,
+                    width: 0.25,
+                    height: 0.5
+                )
+                let texture = SKTexture(rect: rect, in: sheet)
+                texture.filteringMode = .linear
+                frames.append(texture)
+            }
+        }
+        return frames
     }
 
     private func buildCamera() {
@@ -195,9 +232,9 @@ final class GameScene: SKScene {
         jumpLabel.verticalAlignmentMode = .center
         jumpLabel.horizontalAlignmentMode = .center
 
-        buildLabel.text = "KINEMATIC JUMP V5.2"
-        buildLabel.fontSize = 12
-        buildLabel.fontColor = UIColor(white: 1, alpha: 0.72)
+        buildLabel.text = playerSprite == nil ? "ASHEN HOLLOW v0.4 TEST — SPRITE FAIL" : "ASHEN HOLLOW v0.4 TEST"
+        buildLabel.fontSize = 14
+        buildLabel.fontColor = playerSprite == nil ? .red : UIColor(white: 1, alpha: 0.9)
         buildLabel.horizontalAlignmentMode = .center
         buildLabel.verticalAlignmentMode = .center
 
@@ -468,9 +505,21 @@ final class GameScene: SKScene {
 
         playerVisual.xScale += (targetScaleX - playerVisual.xScale) * min(1, dt * 12)
         playerVisual.yScale += (targetScaleY - playerVisual.yScale) * min(1, dt * 12)
-        if let face = playerVisual.childNode(withName: "face") {
-            let targetX = facing * 5
-            face.position.x += (targetX - face.position.x) * min(1, dt * 16)
+
+        if let sprite = playerSprite {
+            sprite.xScale = facing >= 0 ? 1 : -1
+            if isGrounded && abs(velocity.dx) > 20 && !playerFrames.isEmpty {
+                walkFrameTimer += dt
+                if walkFrameTimer >= 0.085 {
+                    walkFrameTimer = 0
+                    walkFrameIndex = (walkFrameIndex + 1) % playerFrames.count
+                    sprite.texture = playerFrames[walkFrameIndex]
+                }
+            } else if !playerFrames.isEmpty {
+                walkFrameTimer = 0
+                walkFrameIndex = 0
+                sprite.texture = playerFrames[0]
+            }
         }
     }
 
