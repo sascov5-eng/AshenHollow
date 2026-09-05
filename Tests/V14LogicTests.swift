@@ -67,6 +67,13 @@ struct V14LogicTests {
         let enemy = TestEnemyController(spec: enemySpec)
         expect(enemy.receiveMeleeHit(), "melee hit should be accepted")
         expect(enemy.hp == enemySpec.maxHP - 1, "enemy hp did not decrease")
+        let beforeKnockback = enemy.position
+        enemy.applyMeleeKnockback(fromX: beforeKnockback.x - 50, force: 200, stun: 0.12)
+        let knockbackStep = enemy.update(dt: 0.05, playerPosition: CGPoint(x: beforeKnockback.x - 50, y: beforeKnockback.y))
+        expect(knockbackStep.position.x > beforeKnockback.x, "melee knockback should push enemy away from attacker")
+        let duringStun = knockbackStep.position.x
+        let secondKnockbackStep = enemy.update(dt: 0.05, playerPosition: CGPoint(x: beforeKnockback.x - 50, y: beforeKnockback.y))
+        expect(secondKnockbackStep.position.x > duringStun, "knockback momentum should continue during hit stun")
 
         var damage = PlayerDamageController()
         let firstHit = damage.takeHit(from: 0, playerX: 100)
@@ -89,6 +96,6 @@ struct V14LogicTests {
         life.respawn()
         expect(life.state == .normal, "respawn should restore normal life state")
 
-        print("PASS: v1.4 logic tests")
+        print("PASS: v1.4 logic tests + v1.6 enemy feedback")
     }
 }
