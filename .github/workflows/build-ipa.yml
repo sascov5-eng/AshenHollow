@@ -18,7 +18,7 @@ jobs:
           set -euo pipefail
           rm -rf Resources/PlayerAnimations
           mkdir -p Resources
-          base64 -D -i AssetData/player_animations.zip.b64 -o /tmp/player_animations.zip
+          cat AssetData/player_animations.b64.0 AssetData/player_animations.b64.1 AssetData/player_animations.b64.2 AssetData/player_animations.b64.3 | base64 -D -o /tmp/player_animations.zip
           unzip -qo /tmp/player_animations.zip -d Resources
       - name: Validate player animation assets
         shell: bash
