@@ -14,6 +14,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Restore player animation assets
         shell: bash
         run: |
@@ -22,16 +23,34 @@ jobs:
           mkdir -p Resources
           cat AssetData/player_animations.b64.0 AssetData/player_animations.b64.1 AssetData/player_animations.b64.2 AssetData/player_animations.b64.3 | base64 -D -o /tmp/player_animations.zip
           unzip -qo /tmp/player_animations.zip -d Resources
+
       - name: Validate player animation assets
         shell: bash
         run: |
           set -euo pipefail
           bash Scripts/validate-player-animation-assets.sh
+
+      - name: Restore Pixel Cave art
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf Resources/PixelCave
+          mkdir -p Resources/PixelCave
+          cat AssetData/pixel_cave_tileset.b64.0 AssetData/pixel_cave_tileset.b64.1 AssetData/pixel_cave_tileset.b64.2 AssetData/pixel_cave_tileset.b64.3 AssetData/pixel_cave_tileset.b64.4 | base64 -D -o /tmp/pixel_cave_tileset.zip
+          unzip -qo /tmp/pixel_cave_tileset.zip -d Resources/PixelCave
+          test -f "Resources/PixelCave/readme.txt"
+          test -f "Resources/PixelCave/Example stage layers/bg_01_sky.png"
+          test -f "Resources/PixelCave/Example stage layers/bg_07_bgobjects.png"
+          test -f "Resources/PixelCave/Individual PNG files/Tileset/cave_tileset/main_tiles_16x16_32.png"
+          test -f "Resources/PixelCave/Individual PNG files/Tileset/object_misc/objects_misc_16.png"
+          test -f "Resources/PixelCave/Individual PNG files/Monster/scorpion-red/scorpion-red-0.png"
+
       - name: Run legacy blockout logic tests
         shell: bash
         run: |
           set -euo pipefail
           bash Tests/run-blockout-tests.sh
+
       - name: Apply v1.2 large world integration to legacy scene
         shell: bash
         run: |
@@ -39,38 +58,39 @@ jobs:
           python3 Scripts/apply-large-world-v1.2.py
           grep -q 'LargeWorldLayout.blockout' Sources/GameScene.swift
           grep -q 'cameraController.update' Sources/GameScene.swift
+
       - name: Apply v1.1 player visual scale to legacy scene
         shell: bash
         run: |
           set -euo pipefail
           python3 Scripts/apply-player-scale-v1.1.py
           grep -q 'sprite.size = CGSize(width: 480, height: 480)' Sources/GameScene.swift
+
       - name: Apply v1.3 feedback fixes to legacy scene
         shell: bash
         run: |
           set -euo pipefail
           python3 Scripts/apply-v1.3-feedback-fixes.py
+
       - name: Run v1.3 camera and control regression contract
         shell: bash
         run: |
           set -euo pipefail
           python3 Tests/test-v13-integration.py
+
       - name: Run v1.4 logic tests
         shell: bash
         run: |
           set -euo pipefail
           bash Tests/run-v14-logic-tests.sh
+
       - name: Run v1.4 integration contract
         shell: bash
         run: |
           set -euo pipefail
           python3 Tests/test-v14-integration.py
-      - name: Run v1.5 integration contract
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 Tests/test-v15-integration.py
-      - name: Validate v1.4 release metadata
+
+      - name: Validate v1.4 baseline metadata
         shell: bash
         run: |
           set -euo pipefail
@@ -78,12 +98,37 @@ jobs:
           grep -q 'v1.4 • PERFECTED TEST LOCATION' Sources/GameView.swift
           grep -q '<key>CFBundleIdentifier</key><string>app.ashenhollow.prototype</string>' Info.plist
           grep -q '<key>CFBundleVersion</key><string>2</string>' Info.plist
+
+      - name: Apply v1.5 feedback integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Scripts/apply-v1.5-feedback.py
+          python3 Scripts/apply-v1.5-final-fixes.py
+
+      - name: Run v1.5 integration contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Tests/test-v15-integration.py
+
+      - name: Validate v1.5 release metadata and assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q '<key>CFBundleShortVersionString</key><string>1.5</string>' Info.plist
+          grep -q 'v1.5 • ПОНЯТНЫЕ МЕХАНИКИ • RU' Sources/GameView.swift
+          grep -q '<key>CFBundleIdentifier</key><string>app.ashenhollow.prototype</string>' Info.plist
+          grep -q '<key>CFBundleVersion</key><string>2</string>' Info.plist
+          test -d Resources/PixelCave
+
       - name: Prepare app bundle
         shell: bash
         run: |
           set -euo pipefail
           rm -rf build
           mkdir -p build/Payload/AshenHollow.app
+
       - name: Compile Ashen Hollow
         shell: bash
         run: |
@@ -108,6 +153,11 @@ jobs:
           test -f "$APP/PlayerAnimations/Attack2.png"
           test -f "$APP/PlayerAnimations/Hurt.png"
           test -f "$APP/PlayerAnimations/Death.png"
+          test -f "$APP/PixelCave/Example stage layers/bg_01_sky.png"
+          test -f "$APP/PixelCave/Example stage layers/bg_07_bgobjects.png"
+          test -f "$APP/PixelCave/Individual PNG files/Tileset/object_misc/objects_misc_16.png"
+          test -f "$APP/PixelCave/Individual PNG files/Monster/scorpion-red/scorpion-red-0.png"
+
       - name: Package unsigned IPA
         shell: bash
         run: |
@@ -115,6 +165,7 @@ jobs:
           cd build
           zip -qry AshenHollow-unsigned.ipa Payload
           test -f AshenHollow-unsigned.ipa
+
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
