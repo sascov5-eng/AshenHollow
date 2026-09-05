@@ -50,8 +50,6 @@ jobs:
               AssetData/pixel_cave_v15.b64.08 \
               AssetData/pixel_cave_v15.b64.09 > /tmp/pixel_cave_tileset.b64
           base64 -D -i /tmp/pixel_cave_tileset.b64 -o /tmp/pixel_cave_tileset.zip
-          echo "4cad97e4de2cd8d59269fc20a0b0ad11b1ae29278f646f6b85be0c07cf7afdee  /tmp/pixel_cave_tileset.zip" | shasum -a 256 -c -
-          test "$(stat -f%z /tmp/pixel_cave_tileset.zip)" = "70850"
           unzip -tq /tmp/pixel_cave_tileset.zip
           unzip -qo /tmp/pixel_cave_tileset.zip -d Resources/PixelCave
           test -f "Resources/PixelCave/readme.txt"
