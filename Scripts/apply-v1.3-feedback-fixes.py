@@ -15,7 +15,7 @@ for old, new in replacements:
 
 start = text.index("    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {")
 end = text.index("    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {")
-new_touches = '''    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+new_touches = """    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             let id = ObjectIdentifier(touch)
             let point = touch.location(in: hud)
@@ -47,20 +47,21 @@ new_touches = '''    override func touchesBegan(_ touches: Set<UITouch>, with ev
         updateInputTarget()
     }
 
-'''
+"""
 text = text[:start] + new_touches + text[end:]
 
 attack_start = text.index("    private func startAttack() {")
 attack_end = text.index("    private func startHeal() {")
-new_attack = '''    private func startAttack() {
+new_attack = """    private func startAttack() {
         essenceController.cancelFocus()
         guard attackController.tryStart(direction: .horizontal) else { return }
 
         activeAttackAnimation = .attack1
         setAnimation(.attack1, force: true)
+        audio.play(.attack)
     }
 
-'''
+"""
 text = text[:attack_start] + new_attack + text[attack_end:]
 
 path.write_text(text)

@@ -73,7 +73,7 @@ jobs:
           set -euo pipefail
           SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
           APP="build/Payload/AshenHollow.app"
-          xcrun swiftc -parse-as-library -target arm64-apple-ios15.0 -sdk "$SDK" -O -framework Foundation -framework SwiftUI -framework UIKit -framework SpriteKit Sources/*.swift -o "$APP/AshenHollow"
+          xcrun swiftc -parse-as-library -target arm64-apple-ios15.0 -sdk "$SDK" -O -framework Foundation -framework SwiftUI -framework UIKit -framework SpriteKit -framework AVFoundation Sources/*.swift -o "$APP/AshenHollow"
           chmod +x "$APP/AshenHollow"
           cp Info.plist "$APP/Info.plist"
           if [ -d Resources ]; then
