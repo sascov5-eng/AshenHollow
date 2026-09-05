@@ -82,6 +82,15 @@ jobs:
           grep -q 'audio.play(.jump)' Sources/GameSceneV14.swift
           grep -q 'audio.play(.footstep)' Sources/GameSceneV14.swift
           grep -q 'audio.play(.dash)' Sources/GameSceneV14.swift
+      - name: Verify Hallownest env art
+        shell: bash
+        run: |
+          python3 Tests/test-env-art.py
+          test -f Resources/EnvArt/floor.png
+          test -f Resources/EnvArt/fill.png
+          test -f Resources/EnvArt/wall.png
+          test -f Resources/EnvArt/ceiling.png
+          test -f Resources/EnvArt/background.jpg
       - name: Replace placeholder lever with cave sprite
         shell: bash
         run: |
@@ -104,6 +113,11 @@ jobs:
           cat SpriteData/player_run.b64.0 SpriteData/player_run.b64.1 SpriteData/player_run.b64.2 SpriteData/player_run.b64.3 | base64 -D > "$APP/player_run.png"
           test -f "$APP/PlayerAnimations/Idle.png"; test -f "$APP/PlayerAnimations/Run.png"; test -f "$APP/PlayerAnimations/Jump.png"; test -f "$APP/PlayerAnimations/Fall.png"; test -f "$APP/PlayerAnimations/Dash.png"; test -f "$APP/PlayerAnimations/Attack1.png"; test -f "$APP/PlayerAnimations/Attack2.png"; test -f "$APP/PlayerAnimations/Hurt.png"; test -f "$APP/PlayerAnimations/Death.png"
           test -d "$APP/PixelCave"
+          test -f "$APP/EnvArt/floor.png"
+          test -f "$APP/EnvArt/fill.png"
+          test -f "$APP/EnvArt/wall.png"
+          test -f "$APP/EnvArt/ceiling.png"
+          test -f "$APP/EnvArt/background.jpg"
       - name: Package unsigned IPA
         shell: bash
         run: cd build && zip -qry AshenHollow-unsigned.ipa Payload && test -f AshenHollow-unsigned.ipa

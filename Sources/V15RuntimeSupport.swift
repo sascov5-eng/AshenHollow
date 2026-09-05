@@ -42,6 +42,95 @@ enum MovingPlatformRideSupport {
     }
 }
 
+enum EnvArt {
+    private static var cache: [String: SKTexture] = [:]
+
+    static func texture(_ name: String) -> SKTexture? {
+        if let cached = cache[name] { return cached }
+        let url = Bundle.main.bundleURL.appendingPathComponent("EnvArt").appendingPathComponent(name)
+        guard let image = UIImage(contentsOfFile: url.path) else { return nil }
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .linear
+        cache[name] = texture
+        return texture
+    }
+
+    static func fill(_ parent: SKNode, texture: SKTexture, size: CGSize, tile: CGFloat, z: CGFloat) {
+        let cols = max(1, Int(ceil(size.width / max(28, tile))))
+        let rows = max(1, Int(ceil(size.height / max(28, tile))))
+        let tw = size.width / CGFloat(cols)
+        let th = size.height / CGFloat(rows)
+        let originX = -size.width * 0.5 + tw * 0.5
+        let originY = -size.height * 0.5 + th * 0.5
+        for r in 0..<rows {
+            for c in 0..<cols {
+                let node = SKSpriteNode(texture: texture)
+                node.size = CGSize(width: tw + 1.4, height: th + 1.4)
+                node.position = CGPoint(x: originX + CGFloat(c) * tw, y: originY + CGFloat(r) * th)
+                node.zPosition = z
+                parent.addChild(node)
+            }
+        }
+    }
+
+    static func terrainNode(rect: CGRect) -> SKNode {
+        let root = SKNode()
+        root.position = CGPoint(x: rect.midX, y: rect.midY)
+        let isWall = rect.height >= max(160, rect.width * 1.8)
+        let isCeiling = rect.minY >= 1800 || (rect.width >= 2000 && rect.minY >= 1000)
+
+        if isWall, let wall = texture("wall.png") {
+            fill(root, texture: wall, size: rect.size, tile: 170, z: 1)
+            return root
+        }
+        if isCeiling, let ceiling = texture("ceiling.png") {
+            fill(root, texture: ceiling, size: rect.size, tile: 210, z: 1)
+            return root
+        }
+
+        if let body = texture("fill.png") {
+            fill(root, texture: body, size: rect.size, tile: 150, z: 0)
+        } else {
+            let fillNode = SKShapeNode(rectOf: rect.size)
+            fillNode.fillColor = UIColor(red: 0.075, green: 0.065, blue: 0.085, alpha: 1)
+            fillNode.strokeColor = .clear
+            root.addChild(fillNode)
+        }
+
+        if let floor = texture("floor.png") {
+            let capH = min(max(22, rect.height * (rect.height <= 40 ? 1 : 0.44)), rect.height)
+            let cap = SKNode()
+            cap.position = CGPoint(x: 0, y: rect.height * 0.5 - capH * 0.5)
+            fill(cap, texture: floor, size: CGSize(width: rect.width, height: capH), tile: 118, z: 3)
+            root.addChild(cap)
+        }
+
+        if rect.height > 80, let ceiling = texture("ceiling.png") {
+            let capH = min(38, rect.height * 0.3)
+            let cap = SKNode()
+            cap.position = CGPoint(x: 0, y: -rect.height * 0.5 + capH * 0.5)
+            fill(cap, texture: ceiling, size: CGSize(width: rect.width, height: capH), tile: 140, z: 2)
+            root.addChild(cap)
+        }
+        return root
+    }
+
+    static func addBackground(to scene: SKScene, worldBounds: CGRect) {
+        guard let texture = texture("background.jpg") else { return }
+        let height = max(worldBounds.height, 1600)
+        let width = height * 16.0 / 9.0
+        var x = worldBounds.minX + width * 0.5
+        while x < worldBounds.maxX + width * 0.5 {
+            let node = SKSpriteNode(texture: texture)
+            node.size = CGSize(width: width + 6, height: height)
+            node.position = CGPoint(x: x, y: worldBounds.midY)
+            node.zPosition = -116
+            scene.addChild(node)
+            x += width
+        }
+    }
+}
+
 enum PixelCaveArt {
     private static let root = "PixelCave"
 
@@ -62,13 +151,14 @@ enum PixelCaveArt {
     }
 
     static func addParallax(to scene: SKScene, worldBounds: CGRect) {
+        EnvArt.addBackground(to: scene, worldBounds: worldBounds)
         let layers: [(String, CGFloat, CGFloat)] = [
-            ("Example stage layers/bg_01_sky.png", -118, 1.0),
-            ("Example stage layers/bg_02_mountains.png", -112, 0.95),
-            ("Example stage layers/bg_04_dungeon_b.png", -105, 0.9),
-            ("Example stage layers/bg_05_cave_b.png", -98, 0.82),
-            ("Example stage layers/bg_06_caveinside_b.png", -90, 0.76),
-            ("Example stage layers/bg_07_bgobjects.png", -82, 0.68)
+            ("Example stage layers/bg_01_sky.png", -118, 0.55),
+            ("Example stage layers/bg_02_mountains.png", -112, 0.42),
+            ("Example stage layers/bg_04_dungeon_b.png", -105, 0.38),
+            ("Example stage layers/bg_05_cave_b.png", -98, 0.32),
+            ("Example stage layers/bg_06_caveinside_b.png", -90, 0.28),
+            ("Example stage layers/bg_07_bgobjects.png", -82, 0.22)
         ]
         let tileHeight: CGFloat = 1550
         let tileWidth = tileHeight * 704.0 / 544.0
@@ -88,40 +178,9 @@ enum PixelCaveArt {
     }
 
     static func terrainNode(rect: CGRect) -> SKNode {
-        let root = SKNode()
-        root.position = CGPoint(x: rect.midX, y: rect.midY)
-        let fill = SKShapeNode(rectOf: rect.size)
-        fill.fillColor = UIColor(red: 0.075, green: 0.065, blue: 0.085, alpha: 1)
-        fill.strokeColor = .clear
-        root.addChild(fill)
-
-        let topPath = "Individual PNG files/Tileset/cave_tileset/main_tiles_16x16_32.png"
-        let sidePath = "Individual PNG files/Tileset/cave_tileset/main_tiles_16x16_38.png"
-        let unit: CGFloat = 48
-        if let topTexture = texture(topPath) {
-            let count = Swift.max(1, Int(ceil(rect.width / unit)))
-            for i in 0..<count {
-                let node = SKSpriteNode(texture: topTexture)
-                node.size = CGSize(width: unit, height: unit)
-                node.position = CGPoint(x: -rect.width * 0.5 + unit * (CGFloat(i) + 0.5), y: rect.height * 0.5 - unit * 0.5)
-                node.zPosition = 2
-                root.addChild(node)
-            }
-        }
-        if rect.height > 100, let sideTexture = texture(sidePath) {
-            let count = Swift.max(1, Int(ceil(rect.height / unit)))
-            for i in 0..<count {
-                for x in [-rect.width * 0.5 + unit * 0.5, rect.width * 0.5 - unit * 0.5] {
-                    let node = SKSpriteNode(texture: sideTexture)
-                    node.size = CGSize(width: unit, height: unit)
-                    node.position = CGPoint(x: x, y: -rect.height * 0.5 + unit * (CGFloat(i) + 0.5))
-                    node.zPosition = 1
-                    root.addChild(node)
-                }
-            }
-        }
-        return root
+        EnvArt.terrainNode(rect: rect)
     }
+
 
     static func spikeNode(rect: CGRect) -> SKNode {
         let root = SKNode()
