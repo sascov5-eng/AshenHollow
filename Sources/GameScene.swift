@@ -7,9 +7,10 @@ final class GameScene: SKScene {
     private let player = SKShapeNode(rectOf: CGSize(width: 42, height: 64), cornerRadius: 10)
     private let playerVisual = SKNode()
     private var playerSprite: SKSpriteNode?
-    private var playerFrames: [SKTexture] = []
-    private var walkFrameIndex = 0
-    private var walkFrameTimer: CGFloat = 0
+    private var animationLibrary = PlayerAnimationLibrary()
+    private var currentAnimation: PlayerAnimationKey?
+    private var activeAttackAnimation: PlayerAnimationKey = .attack1
+    private var useSecondAttack = false
 
     private let gameCamera = SKCameraNode()
     private let hud = SKNode()
@@ -67,11 +68,13 @@ final class GameScene: SKScene {
         view.ignoresSiblingOrder = true
         view.shouldCullNonVisibleNodes = false
         view.isMultipleTouchEnabled = true
+
         buildWorld()
         buildPlayer()
         buildCamera()
         buildHUD()
         layoutHUD()
+
         isGrounded = isStandingOnSurface()
         coyoteTimer = isGrounded ? tuning.coyoteDuration : 0
     }
@@ -93,7 +96,13 @@ final class GameScene: SKScene {
         addChild(backdrop)
 
         for index in 0..<12 {
-            let pillar = SKShapeNode(rectOf: CGSize(width: 62 + CGFloat(index % 3) * 18, height: 170 + CGFloat(index % 4) * 45), cornerRadius: 16)
+            let pillar = SKShapeNode(
+                rectOf: CGSize(
+                    width: 62 + CGFloat(index % 3) * 18,
+                    height: 170 + CGFloat(index % 4) * 45
+                ),
+                cornerRadius: 16
+            )
             pillar.fillColor = UIColor(red: 0.07, green: 0.08, blue: 0.11, alpha: 0.72)
             pillar.strokeColor = .clear
             pillar.position = CGPoint(x: 120 + CGFloat(index) * 175, y: 115 + pillar.frame.height * 0.5)
@@ -118,7 +127,14 @@ final class GameScene: SKScene {
         node.position = center
         node.zPosition = 1
         addChild(node)
-        platformRects.append(CGRect(x: center.x - size.width * 0.5, y: center.y - size.height * 0.5, width: size.width, height: size.height))
+        platformRects.append(
+            CGRect(
+                x: center.x - size.width * 0.5,
+                y: center.y - size.height * 0.5,
+                width: size.width,
+                height: size.height
+            )
+        )
     }
 
     private func buildPlayer() {
@@ -126,28 +142,23 @@ final class GameScene: SKScene {
         player.removeAllChildren()
         playerVisual.removeAllChildren()
         playerSprite = nil
-        playerFrames.removeAll()
-        walkFrameIndex = 0
-        walkFrameTimer = 0
+        currentAnimation = nil
 
         player.fillColor = .clear
         player.strokeColor = .clear
+        player.lineWidth = 0
         player.zPosition = 50
         player.position = CGPoint(x: 230, y: 130)
 
-        let imageURL = Bundle.main.bundleURL.appendingPathComponent("player_run.png")
-        if let data = try? Data(contentsOf: imageURL), let image = UIImage(data: data), let cgImage = image.cgImage {
-            let sheet = SKTexture(cgImage: cgImage)
-            sheet.filteringMode = .linear
-            playerFrames = makePlayerFrames(from: sheet)
-            if let first = playerFrames.first {
-                let sprite = SKSpriteNode(texture: first)
-                sprite.size = CGSize(width: 92, height: 92)
-                sprite.position = CGPoint(x: 0, y: 10)
-                sprite.zPosition = 10
-                playerVisual.addChild(sprite)
-                playerSprite = sprite
-            }
+        animationLibrary = PlayerAnimationLibrary()
+        if let first = animationLibrary.frames(for: .idle).first {
+            let sprite = SKSpriteNode(texture: first)
+            sprite.size = CGSize(width: 112, height: 112)
+            sprite.position = CGPoint(x: 0, y: 12)
+            sprite.zPosition = 10
+            playerVisual.addChild(sprite)
+            playerSprite = sprite
+            setAnimation(.idle, force: true)
         }
 
         if playerSprite == nil {
@@ -161,26 +172,16 @@ final class GameScene: SKScene {
         velocity = .zero
     }
 
-    private func makePlayerFrames(from sheet: SKTexture) -> [SKTexture] {
-        var frames: [SKTexture] = []
-        for row in 0..<2 {
-            for column in 0..<4 {
-                let rect = CGRect(x: CGFloat(column) * 0.25, y: row == 0 ? 0.5 : 0, width: 0.25, height: 0.5)
-                let texture = SKTexture(rect: rect, in: sheet)
-                texture.filteringMode = .linear
-                frames.append(texture)
-            }
-        }
-        return frames
-    }
-
     private func buildCamera() {
         gameCamera.removeFromParent()
         addChild(gameCamera)
         camera = gameCamera
         gameCamera.setScale(cameraZoom)
         let halfVisibleWidth = size.width * 0.5 * cameraZoom
-        gameCamera.position = CGPoint(x: max(halfVisibleWidth, player.position.x + 120), y: size.height * 0.5 + cameraVerticalOffset)
+        gameCamera.position = CGPoint(
+            x: max(halfVisibleWidth, player.position.x + 120),
+            y: size.height * 0.5 + cameraVerticalOffset
+        )
     }
 
     private func buildHUD() {
@@ -204,7 +205,9 @@ final class GameScene: SKScene {
         attackButton.addChild(attackLabel)
         dashButton.addChild(dashLabel)
         healButton.addChild(healLabel)
-        [leftButton, rightButton, jumpButton, attackButton, dashButton, healButton, statusLabel].forEach { hud.addChild($0) }
+        [leftButton, rightButton, jumpButton, attackButton, dashButton, healButton, statusLabel].forEach {
+            hud.addChild($0)
+        }
         updateHUDStatus()
     }
 
@@ -227,6 +230,7 @@ final class GameScene: SKScene {
         let halfW = size.width * 0.5
         let halfH = size.height * 0.5
         let bottom = max(72, size.height * 0.14)
+
         leftButton.position = CGPoint(x: -halfW + 82, y: -halfH + bottom)
         rightButton.position = CGPoint(x: -halfW + 182, y: -halfH + bottom)
         jumpButton.position = CGPoint(x: halfW - 88, y: -halfH + bottom + 4)
@@ -240,6 +244,7 @@ final class GameScene: SKScene {
         for touch in touches {
             let id = ObjectIdentifier(touch)
             let point = touch.location(in: hud)
+
             if isInside(point, button: leftButton, radius: 60) {
                 leftTouches.insert(id)
                 animateButton(leftButton, pressed: true)
@@ -263,6 +268,7 @@ final class GameScene: SKScene {
                 pulse(healButton)
             }
         }
+
         updateInputTarget()
     }
 
@@ -272,26 +278,40 @@ final class GameScene: SKScene {
             let point = touch.location(in: hud)
             leftTouches.remove(id)
             rightTouches.remove(id)
-            if isInside(point, button: leftButton, radius: 60) { leftTouches.insert(id) }
-            else if isInside(point, button: rightButton, radius: 60) { rightTouches.insert(id) }
+
+            if isInside(point, button: leftButton, radius: 60) {
+                leftTouches.insert(id)
+            } else if isInside(point, button: rightButton, radius: 60) {
+                rightTouches.insert(id)
+            }
         }
+
         updateInputTarget()
         refreshButtonVisuals()
     }
 
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) { releaseTouches(touches) }
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) { releaseTouches(touches) }
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        releaseTouches(touches)
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        releaseTouches(touches)
+    }
 
     private func releaseTouches(_ touches: Set<UITouch>) {
         for touch in touches {
             let id = ObjectIdentifier(touch)
             leftTouches.remove(id)
             rightTouches.remove(id)
+
             if jumpTouches.remove(id) != nil && jumpTouches.isEmpty {
                 jumpHeld = false
-                if velocity.dy > CGFloat(tuning.jumpReleaseVelocity) { velocity.dy = CGFloat(tuning.jumpReleaseVelocity) }
+                if velocity.dy > CGFloat(tuning.jumpReleaseVelocity) {
+                    velocity.dy = CGFloat(tuning.jumpReleaseVelocity)
+                }
             }
         }
+
         updateInputTarget()
         refreshButtonVisuals()
     }
@@ -305,7 +325,9 @@ final class GameScene: SKScene {
     }
 
     override func update(_ currentTime: TimeInterval) {
-        let dt = lastUpdateTime == 0 ? 1.0 / 60.0 : min(currentTime - lastUpdateTime, 1.0 / 20.0)
+        let dt = lastUpdateTime == 0
+            ? 1.0 / 60.0
+            : min(currentTime - lastUpdateTime, 1.0 / 20.0)
         lastUpdateTime = currentTime
 
         updateTimers(dt)
@@ -326,12 +348,16 @@ final class GameScene: SKScene {
         } else {
             coyoteTimer = max(0, coyoteTimer - dt)
         }
+
         jumpBufferTimer = max(0, jumpBufferTimer - dt)
         dashController.update(dt: dt)
         wallController.update(dt: dt)
         attackController.update(dt)
         essenceController.updateFocus(dt: dt)
-        if essenceController.consumeCompletedHeal() { currentHP = min(maxHP, currentHP + 1) }
+
+        if essenceController.consumeCompletedHeal() {
+            currentHP = min(maxHP, currentHP + 1)
+        }
     }
 
     private func updateWallState() {
@@ -356,9 +382,14 @@ final class GameScene: SKScene {
         let acceleration = accelerating
             ? CGFloat(isGrounded ? tuning.groundAcceleration : tuning.airAcceleration)
             : CGFloat(isGrounded ? tuning.groundDeceleration : tuning.airAcceleration * 0.5)
+
         velocity.dx = moveToward(velocity.dx, targetVX, maxDelta: acceleration * dt)
-        if !accelerating && abs(velocity.dx) < 2 { velocity.dx = 0 }
-        if abs(targetMoveInput) > 0.01 { facing = targetMoveInput > 0 ? 1 : -1 }
+        if !accelerating && abs(velocity.dx) < 2 {
+            velocity.dx = 0
+        }
+        if abs(targetMoveInput) > 0.01 {
+            facing = targetMoveInput > 0 ? 1 : -1
+        }
     }
 
     private func updateVertical(_ dt: CGFloat) {
@@ -366,10 +397,16 @@ final class GameScene: SKScene {
             velocity.dy = 0
             return
         }
-        velocity.dy = max(-CGFloat(tuning.maxFallSpeed), velocity.dy - CGFloat(tuning.gravity) * dt)
+
+        velocity.dy = max(
+            -CGFloat(tuning.maxFallSpeed),
+            velocity.dy - CGFloat(tuning.gravity) * dt
+        )
+
         if currentWallCling != nil && velocity.dy < CGFloat(tuning.wallSlideSpeed) {
             velocity.dy = CGFloat(tuning.wallSlideSpeed)
         }
+
         if !jumpHeld && velocity.dy > CGFloat(tuning.jumpReleaseVelocity) {
             velocity.dy = CGFloat(tuning.jumpReleaseVelocity)
         }
@@ -388,34 +425,45 @@ final class GameScene: SKScene {
             jumpBufferTimer = 0
             coyoteTimer = 0
             dashController.restoreAirDash()
-            playJumpAnimation()
+            setAnimation(.jump, force: true)
             return
         }
 
         let canJump = isGrounded || coyoteTimer > 0 || isStandingOnSurface()
         guard canJump else { return }
+
         velocity.dy = CGFloat(tuning.jumpVelocity)
         isGrounded = false
         coyoteTimer = 0
         jumpBufferTimer = 0
-        playJumpAnimation()
+        setAnimation(.jump, force: true)
     }
 
     private func startDash() {
-        if let direction = dashController.tryStart(unlocked: true, isGrounded: isGrounded, inputX: Double(targetMoveInput), facing: Double(facing)) {
-            essenceController.cancelFocus()
-            facing = direction >= 0 ? 1 : -1
-            velocity.dx = CGFloat(direction * tuning.dashSpeed)
-            velocity.dy = 0
-            let squash = SKAction.scaleX(to: 1.18, y: 0.84, duration: 0.05)
-            let settle = SKAction.scale(to: 1, duration: 0.12)
-            playerVisual.run(SKAction.sequence([squash, settle]), withKey: "dash")
+        guard let direction = dashController.tryStart(
+            unlocked: true,
+            isGrounded: isGrounded,
+            inputX: Double(targetMoveInput),
+            facing: Double(facing)
+        ) else {
+            return
         }
+
+        essenceController.cancelFocus()
+        facing = direction >= 0 ? 1 : -1
+        velocity.dx = CGFloat(direction * tuning.dashSpeed)
+        velocity.dy = 0
+        setAnimation(.dash, force: true)
     }
 
     private func startAttack() {
         essenceController.cancelFocus()
         guard attackController.tryStart(direction: .horizontal) else { return }
+
+        useSecondAttack.toggle()
+        activeAttackAnimation = useSecondAttack ? .attack1 : .attack2
+        setAnimation(activeAttackAnimation, force: true)
+
         let slash = SKShapeNode()
         let path = CGMutablePath()
         path.addArc(center: .zero, radius: 46, startAngle: -0.65, endAngle: 0.65, clockwise: false)
@@ -427,15 +475,17 @@ final class GameScene: SKScene {
         slash.position = CGPoint(x: player.position.x + facing * 36, y: player.position.y + 3)
         slash.xScale = facing
         addChild(slash)
-        slash.run(SKAction.sequence([SKAction.fadeOut(withDuration: 0.16), .removeFromParent()]))
-        playerVisual.run(SKAction.sequence([
-            SKAction.rotate(toAngle: -facing * 0.16, duration: 0.05, shortestUnitArc: true),
-            SKAction.rotate(toAngle: 0, duration: 0.12, shortestUnitArc: true)
-        ]), withKey: "attack")
+        slash.run(
+            SKAction.sequence([
+                SKAction.fadeOut(withDuration: 0.16),
+                .removeFromParent()
+            ])
+        )
     }
 
     private func startHeal() {
         guard essenceController.beginFocus(currentHP: currentHP, maxHP: maxHP) else { return }
+
         velocity.dx = 0
         let glow = SKAction.sequence([
             SKAction.fadeAlpha(to: 0.45, duration: 0.15),
@@ -455,7 +505,9 @@ final class GameScene: SKScene {
         var groundedDuringMove = false
         for _ in 0..<steps {
             moveHorizontally(stepDX)
-            if moveVertically(stepDY) { groundedDuringMove = true }
+            if moveVertically(stepDY) {
+                groundedDuringMove = true
+            }
         }
 
         if groundedDuringMove || isStandingOnSurface() {
@@ -469,11 +521,16 @@ final class GameScene: SKScene {
 
     private func moveHorizontally(_ dx: CGFloat) {
         guard dx != 0 else { return }
+
         player.position.x += dx
         var frame = playerColliderFrame()
+
         for rect in platformRects where frame.intersects(rect) {
-            if dx > 0 { player.position.x = rect.minX - colliderSize.width * 0.5 }
-            else { player.position.x = rect.maxX + colliderSize.width * 0.5 }
+            if dx > 0 {
+                player.position.x = rect.minX - colliderSize.width * 0.5
+            } else {
+                player.position.x = rect.maxX + colliderSize.width * 0.5
+            }
             velocity.dx = 0
             dashController.cancelActiveDash()
             frame = playerColliderFrame()
@@ -483,6 +540,7 @@ final class GameScene: SKScene {
     @discardableResult
     private func moveVertically(_ dy: CGFloat) -> Bool {
         guard dy != 0 else { return false }
+
         let oldFrame = playerColliderFrame()
         player.position.y += dy
         var frame = playerColliderFrame()
@@ -501,13 +559,17 @@ final class GameScene: SKScene {
             }
         }
 
-        if landed { playLandingAnimation() }
         return landed
     }
 
     private func playerColliderFrame(at position: CGPoint? = nil) -> CGRect {
         let p = position ?? player.position
-        return CGRect(x: p.x - colliderSize.width * 0.5, y: p.y - colliderSize.height * 0.5, width: colliderSize.width, height: colliderSize.height)
+        return CGRect(
+            x: p.x - colliderSize.width * 0.5,
+            y: p.y - colliderSize.height * 0.5,
+            width: colliderSize.width,
+            height: colliderSize.height
+        )
     }
 
     private func isStandingOnSurface() -> Bool {
@@ -519,59 +581,93 @@ final class GameScene: SKScene {
     private func wallContactSide() -> WallSide? {
         let frame = playerColliderFrame()
         let inset: CGFloat = 7
-        let leftProbe = CGRect(x: frame.minX - 3, y: frame.minY + inset, width: 4, height: max(1, frame.height - inset * 2))
-        let rightProbe = CGRect(x: frame.maxX - 1, y: frame.minY + inset, width: 4, height: max(1, frame.height - inset * 2))
-        if platformRects.contains(where: { leftProbe.intersects($0) }) { return .left }
-        if platformRects.contains(where: { rightProbe.intersects($0) }) { return .right }
+        let leftProbe = CGRect(
+            x: frame.minX - 3,
+            y: frame.minY + inset,
+            width: 4,
+            height: max(1, frame.height - inset * 2)
+        )
+        let rightProbe = CGRect(
+            x: frame.maxX - 1,
+            y: frame.minY + inset,
+            width: 4,
+            height: max(1, frame.height - inset * 2)
+        )
+
+        if platformRects.contains(where: { leftProbe.intersects($0) }) {
+            return .left
+        }
+        if platformRects.contains(where: { rightProbe.intersects($0) }) {
+            return .right
+        }
         return nil
     }
 
     private func updatePlayerVisuals(_ dt: CGFloat) {
-        let speedRatio = min(abs(velocity.dx) / CGFloat(tuning.runSpeed), 1)
-        if currentWallCling != nil {
-            playerVisual.zRotation += ((facing * 0.08) - playerVisual.zRotation) * min(1, dt * 12)
+        guard let sprite = playerSprite else { return }
+        sprite.xScale = facing >= 0 ? 1 : -1
+
+        let nextAnimation: PlayerAnimationKey
+        if attackController.isAttacking {
+            nextAnimation = activeAttackAnimation
+        } else if dashController.isDashing {
+            nextAnimation = .dash
+        } else if currentWallCling != nil {
+            nextAnimation = .fall
+        } else if !isGrounded {
+            nextAnimation = velocity.dy > 35 ? .jump : .fall
+        } else if abs(velocity.dx) > 20 {
+            nextAnimation = .run
         } else {
-            let targetRotation = -facing * speedRatio * 0.055
-            playerVisual.zRotation += (targetRotation - playerVisual.zRotation) * min(1, dt * 11)
+            nextAnimation = .idle
         }
 
-        if let sprite = playerSprite {
-            sprite.xScale = facing >= 0 ? 1 : -1
-            if isGrounded && abs(velocity.dx) > 20 && !playerFrames.isEmpty {
-                walkFrameTimer += dt
-                if walkFrameTimer >= 0.085 {
-                    walkFrameTimer = 0
-                    walkFrameIndex = (walkFrameIndex + 1) % playerFrames.count
-                    sprite.texture = playerFrames[walkFrameIndex]
-                }
-            } else if !playerFrames.isEmpty {
-                walkFrameTimer = 0
-                walkFrameIndex = 0
-                sprite.texture = playerFrames[0]
-            }
+        setAnimation(nextAnimation)
+
+        let speedRatio = min(abs(velocity.dx) / CGFloat(tuning.runSpeed), 1)
+        let targetRotation: CGFloat = currentWallCling != nil
+            ? facing * 0.06
+            : -facing * speedRatio * 0.025
+        playerVisual.zRotation += (targetRotation - playerVisual.zRotation) * min(1, dt * 10)
+    }
+
+    private func setAnimation(_ key: PlayerAnimationKey, force: Bool = false) {
+        guard let sprite = playerSprite else { return }
+        guard force || currentAnimation != key else { return }
+        let frames = animationLibrary.frames(for: key)
+        guard let first = frames.first else { return }
+
+        currentAnimation = key
+        sprite.removeAction(forKey: "playerAnimation")
+        sprite.texture = first
+
+        guard frames.count > 1 else { return }
+
+        let animate = SKAction.animate(
+            with: frames,
+            timePerFrame: animationLibrary.frameDuration(for: key),
+            resize: false,
+            restore: false
+        )
+
+        if animationLibrary.loops(key) {
+            sprite.run(SKAction.repeatForever(animate), withKey: "playerAnimation")
+        } else {
+            sprite.run(animate, withKey: "playerAnimation")
         }
-    }
-
-    private func playJumpAnimation() {
-        let stretch = SKAction.scaleX(to: 0.93, y: 1.08, duration: 0.06)
-        let settle = SKAction.scale(to: 1, duration: 0.11)
-        playerVisual.run(SKAction.sequence([stretch, settle]), withKey: "jump")
-    }
-
-    private func playLandingAnimation() {
-        let squash = SKAction.scaleX(to: 1.06, y: 0.93, duration: 0.05)
-        let settle = SKAction.scale(to: 1, duration: 0.10)
-        playerVisual.run(SKAction.sequence([squash, settle]), withKey: "land")
     }
 
     private func updateCamera(_ dt: CGFloat) {
         let visibleHalfWidth = size.width * 0.5 * cameraZoom
         let speedFactor = min(abs(velocity.dx) / CGFloat(tuning.runSpeed), 1)
-        let direction: CGFloat = abs(velocity.dx) > 6 ? (velocity.dx > 0 ? 1 : -1) : facing
+        let direction: CGFloat = abs(velocity.dx) > 6
+            ? (velocity.dx > 0 ? 1 : -1)
+            : facing
         let rawX = player.position.x + direction * cameraLookAhead * speedFactor
         let minX = visibleHalfWidth
         let maxX = max(minX, worldWidth - visibleHalfWidth)
         let targetX = max(minX, min(maxX, rawX))
+
         gameCamera.position.x += (targetX - gameCamera.position.x) * min(1, cameraFollowSpeed * dt)
 
         let baseY = size.height * 0.5 + cameraVerticalOffset
@@ -581,7 +677,7 @@ final class GameScene: SKScene {
 
     private func updateHUDStatus() {
         let wallText = currentWallCling == nil ? "" : " • WALL"
-        let dashText = dashController.isDashing ? " • DASH" : ""
+        let dashText = dashController.isDashing ? "" : ""
         statusLabel.text = "HP \(currentHP)/\(maxHP) • LIGHT \(essenceController.essence)/\(essenceController.maxEssence)\(wallText)\(dashText)"
         healButton.alpha = essenceController.essence >= essenceController.healCost && currentHP < maxHP ? 1 : 0.45
         dashButton.alpha = dashController.cooldownRemaining <= 0 ? 1 : 0.5
@@ -604,14 +700,19 @@ final class GameScene: SKScene {
     }
 
     private func pulse(_ button: SKShapeNode) {
-        button.run(SKAction.sequence([
-            SKAction.scale(to: 0.86, duration: 0.04),
-            SKAction.scale(to: 1, duration: 0.09)
-        ]), withKey: "tap")
+        button.run(
+            SKAction.sequence([
+                SKAction.scale(to: 0.86, duration: 0.04),
+                SKAction.scale(to: 1, duration: 0.09)
+            ]),
+            withKey: "tap"
+        )
     }
 
     private func moveToward(_ current: CGFloat, _ target: CGFloat, maxDelta: CGFloat) -> CGFloat {
-        if abs(target - current) <= maxDelta { return target }
+        if abs(target - current) <= maxDelta {
+            return target
+        }
         return current + (target > current ? maxDelta : -maxDelta)
     }
 }
