@@ -36,7 +36,11 @@ jobs:
           set -euo pipefail
           rm -rf Resources/PixelCave
           mkdir -p Resources/PixelCave
-          cat AssetData/pixel_cave_tileset.b64.0 AssetData/pixel_cave_tileset.b64.1 AssetData/pixel_cave_tileset.b64.2 AssetData/pixel_cave_tileset.b64.3 AssetData/pixel_cave_tileset.b64.4 | base64 -D -o /tmp/pixel_cave_tileset.zip
+          rm -f /tmp/pixel_cave_tileset.zip
+          for chunk in AssetData/pixel_cave_tileset.b64.0 AssetData/pixel_cave_tileset.b64.1 AssetData/pixel_cave_tileset.b64.2 AssetData/pixel_cave_tileset.b64.3 AssetData/pixel_cave_tileset.b64.4; do
+            base64 -D "$chunk" >> /tmp/pixel_cave_tileset.zip
+          done
+          unzip -tq /tmp/pixel_cave_tileset.zip
           unzip -qo /tmp/pixel_cave_tileset.zip -d Resources/PixelCave
           test -f "Resources/PixelCave/readme.txt"
           test -f "Resources/PixelCave/Example stage layers/bg_01_sky.png"
