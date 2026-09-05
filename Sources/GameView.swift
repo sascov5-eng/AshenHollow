@@ -14,7 +14,7 @@ struct GameView: View {
                 .ignoresSafeArea()
                 .background(Color.black)
 
-            Text("v1.3 • CAMERA • GROUND • ATTACK • CONTROLS")
+            Text("v1.3 • CAMERA • GROUND • ATTACK • CONTROLS • SFX")
                 .font(.system(size: 15, weight: .heavy, design: .monospaced))
                 .foregroundColor(.yellow)
                 .padding(.horizontal, 10)

@@ -23,6 +23,7 @@ final class GameScene: SKScene {
     private var coyoteTimer: TimeInterval = 0
     private var jumpBufferTimer: TimeInterval = 0
     private var lastUpdateTime: TimeInterval = 0
+    private var footstepTimer: TimeInterval = 0
     private let audio = GameAudio()
     private var dashController = DashController()
     private var wallController = WallTraversalController()
@@ -200,13 +201,13 @@ final class GameScene: SKScene {
         let dt = lastUpdateTime == 0 ? 1.0 / 60.0 : min(currentTime - lastUpdateTime, 1.0 / 20.0)
         lastUpdateTime = currentTime
         updateTimers(dt); updateWallState(); updateHorizontal(CGFloat(dt)); tryConsumeJump(); updateVertical(CGFloat(dt))
-        movePlayer(CGFloat(dt)); updatePlayerVisuals(CGFloat(dt)); updateCamera(CGFloat(dt)); updateHUDStatus()
+        movePlayer(CGFloat(dt)); updateFootsteps(dt); updatePlayerVisuals(CGFloat(dt)); updateCamera(CGFloat(dt)); updateHUDStatus()
     }
     private func updateTimers(_ dt: TimeInterval) {
         if isGrounded { coyoteTimer = tuning.coyoteDuration; dashController.restoreAirDash() } else { coyoteTimer = max(0, coyoteTimer - dt) }
         jumpBufferTimer = max(0, jumpBufferTimer - dt)
         dashController.update(dt: dt); wallController.update(dt: dt); attackController.update(dt); essenceController.updateFocus(dt: dt)
-        if essenceController.consumeCompletedHeal() { currentHP = min(maxHP, currentHP + 1); audio.play(.healComplete) }
+        if essenceController.consumeCompletedHeal() { currentHP = min(maxHP, currentHP + 1); audio.stop(.heal); audio.play(.healComplete) }
     }
     private func updateWallState() {
         currentWallCling = wallController.clingSide(unlocked: true, isGrounded: isGrounded, heldDirectionX: Double(targetMoveInput), contactSide: wallContactSide())
@@ -228,6 +229,16 @@ final class GameScene: SKScene {
         if currentWallCling != nil && velocity.dy < CGFloat(tuning.wallSlideSpeed) { velocity.dy = CGFloat(tuning.wallSlideSpeed) }
         if !jumpHeld && velocity.dy > CGFloat(tuning.jumpReleaseVelocity) { velocity.dy = CGFloat(tuning.jumpReleaseVelocity) }
     }
+    private func updateFootsteps(_ dt: TimeInterval) {
+        let running = isGrounded && abs(velocity.dx) > 55 && !dashController.isDashing && !essenceController.isFocusing && currentWallCling == nil
+        guard running else { footstepTimer = 0; return }
+        footstepTimer -= dt
+        if footstepTimer <= 0 {
+            audio.play(.footstep)
+            let speed = min(1, Double(abs(velocity.dx)) / tuning.runSpeed)
+            footstepTimer = 0.30 - 0.08 * speed
+        }
+    }
     private func tryConsumeJump() {
         guard jumpBufferTimer > 0 else { return }
         if let side = currentWallCling {
@@ -244,12 +255,13 @@ final class GameScene: SKScene {
     }
     private func startDash() {
         guard let direction = dashController.tryStart(unlocked: true, isGrounded: isGrounded, inputX: Double(targetMoveInput), facing: Double(facing)) else { return }
-        essenceController.cancelFocus(); facing = direction >= 0 ? 1 : -1
+        essenceController.cancelFocus(); audio.stop(.heal); facing = direction >= 0 ? 1 : -1
         velocity.dx = CGFloat(direction * tuning.dashSpeed); velocity.dy = 0
         setAnimation(.dash, force: true); audio.play(.dash)
     }
     private func startAttack() {
         essenceController.cancelFocus()
+        audio.stop(.heal)
         guard attackController.tryStart(direction: .horizontal) else { return }
         useSecondAttack.toggle(); activeAttackAnimation = useSecondAttack ? .attack1 : .attack2
         setAnimation(activeAttackAnimation, force: true)

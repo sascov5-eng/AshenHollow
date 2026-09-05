@@ -5,6 +5,7 @@ enum GameSound: String, CaseIterable {
     case jump
     case wallJump
     case land
+    case footstep
     case attack
     case dash
     case heal
@@ -19,13 +20,14 @@ final class GameAudio {
     func prepare() {
         guard !prepared else { return }
         prepared = true
-        try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
         try? AVAudioSession.sharedInstance().setActive(true)
 
         for sound in GameSound.allCases {
-            let data = Self.wavData(for: sound)
             var pool: [AVAudioPlayer] = []
-            for _ in 0..<3 {
+            let copies = sound == .footstep ? 4 : 3
+            for slot in 0..<copies {
+                let data = Self.wavData(for: sound, variant: slot)
                 if let player = try? AVAudioPlayer(data: data) {
                     player.prepareToPlay()
                     player.volume = Self.volume(for: sound)
@@ -47,59 +49,94 @@ final class GameAudio {
         player.play()
     }
 
+    func stop(_ sound: GameSound) {
+        players[sound]?.forEach { $0.stop() }
+    }
+
     private static func volume(for sound: GameSound) -> Float {
         switch sound {
-        case .jump: return 0.55
-        case .wallJump: return 0.62
-        case .land: return 0.48
-        case .attack: return 0.7
-        case .dash: return 0.52
-        case .heal: return 0.4
-        case .healComplete: return 0.5
+        case .jump: return 0.72
+        case .wallJump: return 0.78
+        case .land: return 0.64
+        case .footstep: return 0.42
+        case .attack: return 0.86
+        case .dash: return 0.74
+        case .heal: return 0.48
+        case .healComplete: return 0.62
         }
     }
 
-    private static func wavData(for sound: GameSound) -> Data {
+    private static func wavData(for sound: GameSound, variant: Int) -> Data {
         let sampleRate = 22050
         let duration: Double
         switch sound {
-        case .jump: duration = 0.14
-        case .wallJump: duration = 0.16
-        case .land: duration = 0.12
-        case .attack: duration = 0.18
-        case .dash: duration = 0.2
-        case .heal: duration = 0.35
-        case .healComplete: duration = 0.28
+        case .jump: duration = 0.13
+        case .wallJump: duration = 0.15
+        case .land: duration = 0.14
+        case .footstep: duration = 0.09
+        case .attack: duration = 0.17
+        case .dash: duration = 0.22
+        case .heal: duration = 1.02
+        case .healComplete: duration = 0.34
         }
 
         let count = Int(Double(sampleRate) * duration)
         var samples = [Int16](repeating: 0, count: count)
+        let seed = sound.hashValue &* 17 &+ variant &* 131
 
         for i in 0..<count {
             let t = Double(i) / Double(sampleRate)
-            let env = envelope(t, duration: duration, attack: 0.008, release: duration * 0.45)
+            let n = noise(i, seed: seed)
+            let env = envelope(t, duration: duration, attack: 0.006, release: duration * 0.42)
             let value: Double
             switch sound {
             case .jump:
-                let freq = lerp(240, 520, t / duration)
-                value = square(t, freq: freq) * 0.22 + sine(t, freq: freq * 2) * 0.08
+                let hop = sine(t, freq: lerp(280, 640, t / duration)) * exp(-t * 10)
+                let body = square(t, freq: lerp(170, 90, t / duration)) * exp(-t * 22) * 0.22
+                let click = n * exp(-t * 70) * 0.18
+                value = hop * 0.34 + body + click
             case .wallJump:
-                let freq = lerp(320, 680, t / duration)
-                value = square(t, freq: freq) * 0.2 + sine(t, freq: freq * 1.5) * 0.1
+                let hop = sine(t, freq: lerp(360, 820, t / duration)) * exp(-t * 9)
+                let kick = square(t, freq: lerp(220, 110, t / duration)) * exp(-t * 18) * 0.2
+                let grit = n * exp(-t * 40) * 0.16
+                value = hop * 0.32 + kick + grit
             case .land:
-                value = sine(t, freq: 90) * 0.28 * exp(-t * 18) + noise() * 0.12 * exp(-t * 22)
+                let thud = sine(t, freq: 72) * exp(-t * 16) * 0.42
+                let boot = sine(t, freq: 140) * exp(-t * 22) * 0.16
+                let grit = n * exp(-t * 28) * 0.22
+                value = thud + boot + grit
+            case .footstep:
+                let pitch = 96 + Double(variant % 4) * 12
+                let tap = sine(t, freq: pitch) * exp(-t * 38) * 0.34
+                let leather = n * exp(-t * 48) * 0.2
+                let stone = sine(t, freq: pitch * 2.4) * exp(-t * 55) * 0.08
+                value = tap + leather + stone
             case .attack:
-                let whoosh = noise() * (1 - t / duration)
-                let blade = sine(t, freq: lerp(880, 220, t / duration)) * exp(-t * 14)
-                value = whoosh * 0.18 + blade * 0.22 + square(t, freq: 140) * 0.05 * exp(-t * 20)
+                let swipe = n * (1 - t / duration) * exp(-t * 8) * 0.34
+                let blade = sine(t, freq: lerp(1480, 280, pow(t / duration, 0.65))) * exp(-t * 11) * 0.28
+                let metal = square(t, freq: lerp(620, 180, t / duration)) * exp(-t * 24) * 0.08
+                let tick = n * exp(-t * 90) * 0.22
+                value = swipe + blade + metal + tick
             case .dash:
-                value = noise() * 0.2 * (1 - t / duration) + sine(t, freq: lerp(420, 140, t / duration)) * 0.12
+                let whoosh = n * pow(1 - t / duration, 1.35) * 0.36
+                let dive = sine(t, freq: lerp(540, 90, t / duration)) * exp(-t * 7) * 0.18
+                let boom = sine(t, freq: 68) * exp(-t * 14) * 0.22
+                value = whoosh + dive + boom
             case .heal:
-                value = sine(t, freq: 392) * 0.12 + sine(t, freq: 494) * 0.1 + sine(t, freq: 587) * 0.08
+                let swell = envelope(t, duration: duration, attack: 0.12, release: 0.22)
+                let a = sine(t, freq: 329.63) * 0.12
+                let b = sine(t, freq: 392.00) * 0.11
+                let c = sine(t, freq: 493.88) * 0.09
+                let shimmer = sine(t, freq: 783.99 + sin(t * 6) * 8) * 0.04
+                value = (a + b + c + shimmer) * swell
             case .healComplete:
-                value = sine(t, freq: 523) * 0.14 + sine(t, freq: 659) * 0.11 + sine(t, freq: 784) * 0.08
+                let chime = sine(t, freq: 523.25) * exp(-t * 5) * 0.18
+                    + sine(t, freq: 659.25) * exp(-t * 6) * 0.14
+                    + sine(t, freq: 783.99) * exp(-t * 7) * 0.1
+                let sparkle = n * exp(-t * 30) * 0.04
+                value = chime + sparkle
             }
-            let clipped = max(-1, min(1, value * env))
+            let clipped = max(-1, min(1, value * (sound == .heal ? 1 : env)))
             samples[i] = Int16(clipped * Double(Int16.max - 1))
         }
 
@@ -121,8 +158,11 @@ final class GameAudio {
         sine(t, freq: freq) >= 0 ? 1 : -1
     }
 
-    private static func noise() -> Double {
-        Double.random(in: -1...1)
+    private static func noise(_ i: Int, seed: Int) -> Double {
+        var x = UInt32(truncatingIfNeeded: i &* 374761393 &+ seed &* 668265263)
+        x = (x ^ (x >> 13)) &* 1274126177
+        let u = Double(x & 0x7fffffff) / Double(0x7fffffff)
+        return u * 2 - 1
     }
 
     private static func lerp(_ a: Double, _ b: Double, _ x: Double) -> Double {

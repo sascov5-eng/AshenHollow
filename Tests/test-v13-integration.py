@@ -15,6 +15,12 @@ checks = {
     "legacy slash removed": "let slash = SKShapeNode()" not in scene,
     "v1.3 label": "v1.3 • CAMERA • GROUND • ATTACK • CONTROLS" in view,
     "v1.3 plist": "<key>CFBundleShortVersionString</key><string>1.3</string>" in plist,
+    "jump sfx": "audio.play(.jump)" in scene,
+    "attack sfx": "audio.play(.attack)" in scene,
+    "dash sfx": "audio.play(.dash)" in scene,
+    "heal sfx": "audio.play(.heal)" in scene,
+    "footstep sfx": "audio.play(.footstep)" in scene,
+    "heal cancel stop": "audio.stop(.heal)" in scene,
 }
 
 failed = [name for name, ok in checks.items() if not ok]

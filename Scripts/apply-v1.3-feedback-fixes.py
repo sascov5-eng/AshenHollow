@@ -54,6 +54,7 @@ attack_start = text.index("    private func startAttack() {")
 attack_end = text.index("    private func startHeal() {")
 new_attack = """    private func startAttack() {
         essenceController.cancelFocus()
+        audio.stop(.heal)
         guard attackController.tryStart(direction: .horizontal) else { return }
 
         activeAttackAnimation = .attack1
