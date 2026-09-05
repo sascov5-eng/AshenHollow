@@ -12,6 +12,8 @@ final class TestEnemyController {
     private(set) var isAlive: Bool = true
     private(set) var position: CGPoint
     private var direction: CGFloat = 1
+    private var hitStunRemaining: TimeInterval = 0
+    private var knockbackVelocityX: CGFloat = 0
 
     init(spec: EnemyTestSpec, snapshot: EnemyRuntimeSnapshot? = nil) {
         self.spec = spec
@@ -28,6 +30,16 @@ final class TestEnemyController {
     func update(dt: TimeInterval, playerPosition: CGPoint) -> EnemyUpdateResult {
         guard isAlive else { return EnemyUpdateResult(position: position, velocity: .zero) }
         let old = position
+
+        if hitStunRemaining > 0 {
+            let step = min(dt, hitStunRemaining)
+            position.x += knockbackVelocityX * CGFloat(step)
+            hitStunRemaining = max(0, hitStunRemaining - dt)
+            knockbackVelocityX *= 0.78
+            if hitStunRemaining == 0 { knockbackVelocityX = 0 }
+            return EnemyUpdateResult(position: position, velocity: CGVector(dx: position.x - old.x, dy: position.y - old.y))
+        }
+
         switch spec.kind {
         case .groundPatrol:
             position.x += direction * 70 * CGFloat(dt)
@@ -58,6 +70,14 @@ final class TestEnemyController {
         return true
     }
 
+    func applyMeleeKnockback(fromX attackerX: CGFloat, force: CGFloat = 185, stun: TimeInterval = 0.12) {
+        guard isAlive else { return }
+        let away: CGFloat = position.x >= attackerX ? 1 : -1
+        knockbackVelocityX = away * max(0, force)
+        hitStunRemaining = max(hitStunRemaining, max(0, stun))
+        direction = away
+    }
+
     func snapshot() -> EnemyRuntimeSnapshot {
         EnemyRuntimeSnapshot(hp: hp, isAlive: isAlive, position: position)
     }
@@ -67,5 +87,7 @@ final class TestEnemyController {
         isAlive = true
         position = spec.spawn
         direction = 1
+        hitStunRemaining = 0
+        knockbackVelocityX = 0
     }
 }
