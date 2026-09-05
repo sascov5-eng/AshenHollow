@@ -162,7 +162,7 @@ enum PixelCaveArt {
         body.position = .zero
         root.addChild(body)
         let arrow = SKLabelNode(fontNamed: "AvenirNext-Bold")
-        arrow.text = horizontal ? "\u2194" : "\u2195"
+        arrow.text = horizontal ? String(utf16CodeUnits: [0x2194], count: 1) : String(utf16CodeUnits: [0x2195], count: 1)
         arrow.fontSize = 22
         arrow.fontColor = .white
         arrow.position = CGPoint(x: 0, y: 18)
@@ -208,13 +208,13 @@ enum PixelCaveArt {
         let color: String
         let title: String
         switch kind {
-        case .groundPatrol: color = "brown"; title = "\u041f\u0410\u0422\u0420\u0423\u041b\u042c\u041d\u042b\u0419"
-        case .flying: color = "violet"; title = "\u041b\u0415\u0422\u0410\u042e\u0429\u0418\u0419"
-        case .aggressive: color = "red"; title = "\u0410\u0413\u0420\u0415\u0421\u0421\u0418\u0412\u041d\u042b\u0419"
+        case .groundPatrol: color = "brown"; title = String(utf16CodeUnits: [0x041F, 0x0410, 0x0422, 0x0420, 0x0423, 0x041B, 0x042C, 0x041D, 0x042B, 0x0419], count: 10)
+        case .flying: color = "violet"; title = String(utf16CodeUnits: [0x041B, 0x0415, 0x0422, 0x0410, 0x042E, 0x0429, 0x0418, 0x0419], count: 8)
+        case .aggressive: color = "red"; title = String(utf16CodeUnits: [0x0410, 0x0413, 0x0420, 0x0415, 0x0421, 0x0421, 0x0418, 0x0412, 0x041D, 0x042B, 0x0419], count: 11)
         }
         var frames: [SKTexture] = []
         for i in 0..<5 {
-            if let t = texture("Individual PNG files/Monster/scorpion-\(color)/scorpion-\(color)-\(i).png") { frames.append(t) }
+            if let t = texture("Individual PNG files/Monster/scorpion-" + color + "/scorpion-" + color + "-" + String(i) + ".png") { frames.append(t) }
         }
         if let first = frames.first {
             let sprite = SKSpriteNode(texture: first)
