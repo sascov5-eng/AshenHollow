@@ -81,7 +81,7 @@ enum TestLocationLayout {
             InteractionSpec(id: "shortcut-door", kind: .shortcutDoor, rect: CGRect(x: 5140, y: 90, width: 54, height: 250), linkedID: nil)
         ]
 
-        func tutorial(_ mechanic: TestMechanicID, _ text: String, _ x: CGFloat, _ y: CGFloat, _ w: CGFloat = 260, _ h: CGFloat = 260, _ target: TutorialTarget = .none) -> TutorialSpec {
+        func tutorial(_ mechanic: TestMechanicID, _ text: String, _ x: CGFloat, _ y: CGFloat, _ w: CGFloat = 260, _ h: CGFloat = 260, target: TutorialTarget = .none) -> TutorialSpec {
             TutorialSpec(mechanic: mechanic, text: text, trigger: CGRect(x: x, y: y, width: w, height: h), target: target)
         }
 
@@ -102,13 +102,13 @@ enum TestLocationLayout {
             tutorial(.secretWall, "SECRET WALL • ATTACK", 4480, 90, target: .world("secret-wall")),
             tutorial(.hiddenPath, "HIDDEN PATH", 4690, 90, target: .world("hidden-path")),
             tutorial(.shortcut, "SHORTCUT", 5040, 90, target: .world("shortcut-door")),
-            tutorial(.wallJump, "WALL JUMP", 5250, 120, 620, 1250, .hud("JUMP")),
+            tutorial(.wallJump, "WALL JUMP", 5250, 120, 620, 1250, target: .hud("JUMP")),
             tutorial(.dash, "DASH", 5860, 1210, target: .hud("DASH")),
             tutorial(.longJump, "LONG JUMP", 6320, 1210, target: .hud("JUMP")),
-            tutorial(.pit, "PIT / DEATH ZONE", 6610, 1120, 650, 600, .world("pit-local")),
+            tutorial(.pit, "PIT / DEATH ZONE", 6610, 1120, 650, 600, target: .world("pit-local")),
             tutorial(.mixedCombat, "MIXED COMBAT", 7300, 90, target: .world("enemy-mixed-ground")),
             tutorial(.narrowTunnel, "NARROW TUNNEL", 8200, 90, target: .world("narrow")),
-            tutorial(.testComplete, "TEST AREA COMPLETE", 8620, 90, 300, 300, .world("exit"))
+            tutorial(.testComplete, "TEST AREA COMPLETE", 8620, 90, 300, 300, target: .world("exit"))
         ]
 
         let traversals = [
