@@ -2,8 +2,8 @@ import SwiftUI
 import SpriteKit
 
 struct GameView: View {
-    @State private var scene: GameScene = {
-        let scene = GameScene(size: CGSize(width: 844, height: 390))
+    @State private var scene: GameSceneV14 = {
+        let scene = GameSceneV14(size: CGSize(width: 844, height: 390))
         scene.scaleMode = .resizeFill
         return scene
     }()
@@ -14,7 +14,7 @@ struct GameView: View {
                 .ignoresSafeArea()
                 .background(Color.black)
 
-            Text("v1.3 • CAMERA • GROUND • ATTACK • CONTROLS")
+            Text("v1.4 • PERFECTED TEST LOCATION")
                 .font(.system(size: 15, weight: .heavy, design: .monospaced))
                 .foregroundColor(.yellow)
                 .padding(.horizontal, 10)
