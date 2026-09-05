@@ -4,7 +4,7 @@ import UIKit
 @MainActor
 enum PlayerSpriteInstaller {
     private static let spriteName = "player_run"
-    private static let markerName = "playerSpriteV02"
+    private static let markerName = "playerSpriteV03"
 
     static func installWhenReady(in scene: SKScene, attempt: Int = 0) {
         if install(in: scene) { return }
@@ -18,7 +18,12 @@ enum PlayerSpriteInstaller {
     static func install(in scene: SKScene) -> Bool {
         if scene.childNode(withName: "//\(markerName)") != nil { return true }
         guard let player = findPlayerNode(in: scene) else { return false }
-        guard let image = UIImage(named: spriteName), let cgImage = image.cgImage else { return false }
+
+        guard let imageURL = Bundle.main.url(forResource: spriteName, withExtension: "png"),
+              let image = UIImage(contentsOfFile: imageURL.path),
+              let cgImage = image.cgImage else {
+            return false
+        }
 
         let sheet = SKTexture(cgImage: cgImage)
         sheet.filteringMode = .linear
@@ -43,6 +48,7 @@ enum PlayerSpriteInstaller {
         sprite.size = CGSize(width: 92, height: 92)
         sprite.position = CGPoint(x: 0, y: 10)
         sprite.zPosition = 10
+        sprite.isHidden = false
         visualHost.addChild(sprite)
 
         var lastX = player.position.x
@@ -51,8 +57,7 @@ enum PlayerSpriteInstaller {
 
         sprite.run(
             SKAction.customAction(withDuration: 60 * 60 * 24) { node, elapsed in
-                guard let sprite = node as? SKSpriteNode, let parent = player.parent else { return }
-                _ = parent
+                guard let sprite = node as? SKSpriteNode else { return }
 
                 let dx = player.position.x - lastX
                 lastX = player.position.x
@@ -70,7 +75,7 @@ enum PlayerSpriteInstaller {
                     sprite.texture = frames[0]
                 }
             },
-            withKey: "playerSpriteAnimationV02"
+            withKey: "playerSpriteAnimationV03"
         )
 
         return true
