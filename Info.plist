@@ -4,7 +4,7 @@
 <dict>
     <key>CFBundleDisplayName</key><string>Ashen Hollow</string>
     <key>CFBundleExecutable</key><string>AshenHollow</string>
-    <key>CFBundleIdentifier</key><string>app.bronze6658.lychee6856</string>
+    <key>CFBundleIdentifier</key><string>app.ashenhollow.prototype</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
     <key>CFBundleName</key><string>AshenHollow</string>
     <key>CFBundlePackageType</key><string>APPL</string>
