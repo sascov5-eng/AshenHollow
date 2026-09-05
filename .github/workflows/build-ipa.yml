@@ -48,8 +48,10 @@ jobs:
               AssetData/pixel_cave_v15.b64.06 \
               AssetData/pixel_cave_v15.b64.07 \
               AssetData/pixel_cave_v15.b64.08 \
-              AssetData/pixel_cave_v15.b64.09 > /tmp/pixel_cave_tileset.b64
+              AssetData/pixel_cave_v15.b64.11 > /tmp/pixel_cave_tileset.b64
+          test "$(wc -c < /tmp/pixel_cave_tileset.b64 | tr -d ' ')" = "94468"
           base64 -D -i /tmp/pixel_cave_tileset.b64 -o /tmp/pixel_cave_tileset.zip
+          test "$(shasum -a 256 /tmp/pixel_cave_tileset.zip | awk '{print $1}')" = "4cad97e4de2cd8d59269fc20a0b0ad11b1ae29278f646f6b85be0c07cf7afdee"
           unzip -tq /tmp/pixel_cave_tileset.zip
           unzip -qo /tmp/pixel_cave_tileset.zip -d Resources/PixelCave
           test -f "Resources/PixelCave/readme.txt"
