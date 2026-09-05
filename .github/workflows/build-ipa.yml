@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/v1.4-implementation
+      - feature/v1.5-feedback
   workflow_dispatch:
 
 jobs:
@@ -64,6 +65,11 @@ jobs:
         run: |
           set -euo pipefail
           python3 Tests/test-v14-integration.py
+      - name: Run v1.5 integration contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Tests/test-v15-integration.py
       - name: Validate v1.4 release metadata
         shell: bash
         run: |
