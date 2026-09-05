@@ -43,17 +43,22 @@ jobs:
           set -euo pipefail
           python3 Scripts/apply-player-scale-v1.1.py
           grep -q 'sprite.size = CGSize(width: 480, height: 480)' Sources/GameScene.swift
+      - name: Apply v1.3 feedback fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Scripts/apply-v1.3-feedback-fixes.py
       - name: Run v1.3 integration contract tests
         shell: bash
         run: |
           set -euo pipefail
           python3 Tests/test-v13-integration.py
-      - name: Validate v1.2 release metadata
+      - name: Validate v1.3 release metadata
         shell: bash
         run: |
           set -euo pipefail
-          grep -q '<key>CFBundleShortVersionString</key><string>1.2</string>' Info.plist
-          grep -q 'v1.2 • LARGE WORLD • CINEMATIC CAMERA' Sources/GameView.swift
+          grep -q '<key>CFBundleShortVersionString</key><string>1.3</string>' Info.plist
+          grep -q 'v1.3 • CAMERA • GROUND • ATTACK • CONTROLS' Sources/GameView.swift
           grep -q '<key>CFBundleIdentifier</key><string>app.ashenhollow.prototype</string>' Info.plist
           grep -q '<key>CFBundleVersion</key><string>2</string>' Info.plist
       - name: Prepare app bundle
