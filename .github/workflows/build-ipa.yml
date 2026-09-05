@@ -25,6 +25,11 @@ jobs:
         run: |
           set -euo pipefail
           bash Scripts/validate-player-animation-assets.sh
+      - name: Run blockout logic tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash Tests/run-blockout-tests.sh
       - name: Apply v1.1 player visual scale
         shell: bash
         run: |
