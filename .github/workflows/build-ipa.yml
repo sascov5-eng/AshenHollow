@@ -12,6 +12,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Restore player animation assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf Resources/PlayerAnimations
+          mkdir -p Resources
+          base64 -D AssetData/player_animations.zip.b64 > /tmp/player_animations.zip
+          unzip -qo /tmp/player_animations.zip -d Resources
       - name: Validate player animation assets
         shell: bash
         run: |
@@ -38,7 +46,15 @@ jobs:
           cat SpriteData/player_run.b64.0 SpriteData/player_run.b64.1 SpriteData/player_run.b64.2 SpriteData/player_run.b64.3 | base64 -D > "$APP/player_run.png"
           test -f "$APP/AshenHollow"
           test -f "$APP/Info.plist"
-          test -f "$APP/player_run.png"
+          test -f "$APP/PlayerAnimations/Idle.png"
+          test -f "$APP/PlayerAnimations/Run.png"
+          test -f "$APP/PlayerAnimations/Jump.png"
+          test -f "$APP/PlayerAnimations/Fall.png"
+          test -f "$APP/PlayerAnimations/Dash.png"
+          test -f "$APP/PlayerAnimations/Attack1.png"
+          test -f "$APP/PlayerAnimations/Attack2.png"
+          test -f "$APP/PlayerAnimations/Hurt.png"
+          test -f "$APP/PlayerAnimations/Death.png"
       - name: Package unsigned IPA
         shell: bash
         run: |
