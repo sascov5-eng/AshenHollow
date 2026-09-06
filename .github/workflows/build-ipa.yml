@@ -88,6 +88,8 @@ jobs:
           python3 Scripts/apply-atmosphere.py
           grep -q 'EnvArt.attachPlayerLight' Sources/GameSceneV14.swift
           grep -q 'EnvArt.installAtmosphere' Sources/GameSceneV14.swift
+          grep -q 'EnvArt.addForeground' Sources/GameSceneV14.swift
+          grep -q 'audio.startAmbience' Sources/GameSceneV14.swift
       - name: Verify Hallownest env art
         shell: bash
         run: |
@@ -129,6 +131,11 @@ jobs:
           test -f "$APP/EnvArt/wall.jpg"
           test -f "$APP/EnvArt/darkness.png"
           test -f "$APP/EnvArt/shadow.png"
+          test -f "$APP/EnvArt/cross_far.jpg"
+          test -f "$APP/EnvArt/cross_mid.jpg"
+          test -f "$APP/EnvArt/platform.png"
+          test -f "$APP/EnvArt/fg.png"
+          test -f "$APP/EnvArt/rays.png"
       - name: Package unsigned IPA
         shell: bash
         run: cd build && zip -qry AshenHollow-unsigned.ipa Payload && test -f AshenHollow-unsigned.ipa

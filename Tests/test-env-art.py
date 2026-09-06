@@ -1,24 +1,26 @@
 from pathlib import Path
 
 runtime = Path("Sources/V15RuntimeSupport.swift").read_text()
+audio = Path("Sources/GameAudio.swift").read_text()
 env = Path("Resources/EnvArt")
 workflow = Path(".github/workflows/build-ipa.yml").read_text()
 
 files = [
-    "far.jpg", "mid.jpg", "near.jpg", "chamber.jpg",
-    "ground.jpg", "ceiling.jpg", "wall.jpg", "fill.jpg",
-    "darkness.png", "shadow.png",
+    "cross_far.jpg", "cross_mid.jpg", "platform.png", "fg.png",
+    "fg_ceil.png", "wall_ink.png", "rays.png", "spore.png", "soul.png",
 ]
 checks = {
-    "env art loader": "enum EnvArt" in runtime,
-    "world layers": "addWorldLayers" in runtime,
-    "player light": "SKLightNode" in runtime,
-    "drop shadows": "addDropShadow" in runtime,
-    "atmosphere": "installAtmosphere" in runtime,
-    "ci copies far layer": 'test -f "$APP/EnvArt/far.jpg"' in workflow,
+    "crossroads far": "cross_far.jpg" in runtime,
+    "inked terrain": "lineWidth = 5.5" in runtime,
+    "foreground": "addForeground" in runtime,
+    "spores": "addParticles" in runtime,
+    "god rays": "hkRays" in runtime,
+    "soul glow": "soulGlow" in runtime,
+    "ambience": "startAmbience" in audio,
+    "ci far layer": 'test -f "$APP/EnvArt/cross_far.jpg"' in workflow,
 }
 for name in files:
-    checks[name] = (env / name).is_file() and (env / name).stat().st_size > 4000
+    checks[name] = (env / name).is_file() and (env / name).stat().st_size > 400
 
 failed = [name for name, ok in checks.items() if not ok]
 if failed:

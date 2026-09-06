@@ -53,6 +53,20 @@ final class GameAudio {
         players[sound]?.forEach { $0.stop() }
     }
 
+    private var ambiencePlayer: AVAudioPlayer?
+
+    func startAmbience() {
+        if !prepared { prepare() }
+        guard ambiencePlayer == nil else { return }
+        if let player = try? AVAudioPlayer(data: Self.ambienceWav()) {
+            player.numberOfLoops = -1
+            player.volume = 0.20
+            player.prepareToPlay()
+            player.play()
+            ambiencePlayer = player
+        }
+    }
+
     private static func volume(for sound: GameSound) -> Float {
         switch sound {
         case .jump: return 0.72
@@ -200,5 +214,24 @@ final class GameAudio {
             withUnsafeBytes(of: &le) { data.append(contentsOf: $0) }
         }
         return data
+    }
+
+    private static func ambienceWav() -> Data {
+        let sampleRate = 22050
+        let duration = 4.0
+        let count = Int(Double(sampleRate) * duration)
+        var samples = [Int16](repeating: 0, count: count)
+        for i in 0..<count {
+            let t = Double(i) / Double(sampleRate)
+            let drone = sine(t, freq: 46) * 0.11 + sine(t, freq: 69) * 0.07 + sine(t, freq: 92.5) * 0.04
+            let air = noise(i, seed: 901) * 0.03 * (0.5 + 0.5 * sine(t, freq: 0.18))
+            var drip = 0.0
+            let dripT = t.truncatingRemainder(dividingBy: 1.65)
+            if dripT < 0.09 { drip = sine(dripT, freq: 1760) * exp(-dripT * 38) * 0.09 }
+            let value = (drone + air + drip) * 0.9
+            let clipped = max(-1, min(1, value))
+            samples[i] = Int16(clipped * 24000)
+        }
+        return makeWav(samples: samples, sampleRate: sampleRate)
     }
 }
