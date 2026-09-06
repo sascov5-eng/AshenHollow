@@ -3,15 +3,17 @@ set -euo pipefail
 
 ROOT="Resources/PlayerAnimations"
 required=(
-  "Idle.png:1008:144"
-  "Run.png:1152:144"
-  "Jump.png:576:144"
-  "Fall.png:576:144"
-  "Dash.png:1728:144"
-  "Attack1.png:1440:144"
-  "Attack2.png:2160:144"
-  "Hurt.png:432:144"
-  "Death.png:2592:144"
+  "Idle.png:768:192"
+  "Run.png:768:192"
+  "Jump.png:768:192"
+  "Fall.png:768:192"
+  "Dash.png:768:192"
+  "Attack1.png:768:192"
+  "Attack2.png:768:192"
+  "AttackUp.png:768:192"
+  "AttackDown.png:768:192"
+  "Hurt.png:768:192"
+  "Death.png:768:192"
 )
 
 for entry in "${required[@]}"; do

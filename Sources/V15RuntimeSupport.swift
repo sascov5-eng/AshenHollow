@@ -355,35 +355,42 @@ enum PixelCaveArt {
 
     static func enemyNode(kind: EnemyTestKind) -> SKNode {
         let root = SKNode()
-        let color: String
-        let title: String
+        let sheetName: String
+        let size: CGSize
         switch kind {
-        case .groundPatrol: color = "brown"; title = String(utf16CodeUnits: [0x041F, 0x0410, 0x0422, 0x0420, 0x0423, 0x041B, 0x042C, 0x041D, 0x042B, 0x0419], count: 10)
-        case .flying: color = "violet"; title = String(utf16CodeUnits: [0x041B, 0x0415, 0x0422, 0x0410, 0x042E, 0x0429, 0x0418, 0x0419], count: 8)
-        case .aggressive: color = "red"; title = String(utf16CodeUnits: [0x0410, 0x0413, 0x0420, 0x0415, 0x0421, 0x0421, 0x0418, 0x0412, 0x041D, 0x042B, 0x0419], count: 11)
+        case .groundPatrol:
+            sheetName = "enemy_grub.png"
+            size = CGSize(width: 78, height: 78)
+        case .flying:
+            sheetName = "enemy_fly.png"
+            size = CGSize(width: 86, height: 86)
+        case .aggressive:
+            sheetName = "enemy_husk.png"
+            size = CGSize(width: 92, height: 92)
         }
-        var frames: [SKTexture] = []
-        for i in 0..<5 {
-            if let t = texture("Individual PNG files/Monster/scorpion-" + color + "/scorpion-" + color + "-" + String(i) + ".png") { frames.append(t) }
-        }
-        if let first = frames.first {
-            let sprite = SKSpriteNode(texture: first)
-            sprite.size = CGSize(width: kind == .flying ? 74 : 78, height: kind == .flying ? 74 : 78)
+        if let sheet = EnvArt.texture(sheetName) {
+            let frames: [SKTexture] = (0..<4).map { index in
+                let tex = SKTexture(rect: CGRect(x: CGFloat(index) * 0.25, y: 0, width: 0.25, height: 1), in: sheet)
+                tex.filteringMode = .linear
+                return tex
+            }
+            let sprite = SKSpriteNode(texture: frames.first)
+            sprite.size = size
             sprite.zPosition = 2
+            sprite.name = "enemySprite"
             root.addChild(sprite)
-            if frames.count > 1 { sprite.run(.repeatForever(.animate(with: frames, timePerFrame: 0.12))) }
+            sprite.run(.repeatForever(.animate(with: frames, timePerFrame: 0.12)))
+        } else {
+            let fallback = SKShapeNode(circleOfRadius: 24)
+            fallback.fillColor = .red
+            fallback.strokeColor = .white
+            root.addChild(fallback)
         }
-        let label = SKLabelNode(fontNamed: "AvenirNext-Bold")
-        label.text = title
-        label.fontSize = 11
-        label.fontColor = .white
-        label.position = CGPoint(x: 0, y: 52)
-        label.zPosition = 5
-        root.addChild(label)
         return root
     }
 
     static func exitNode() -> SKNode {
+
         let root = SKNode()
         if let sprite = sprite("Individual PNG files/Tileset/object_misc/objects_misc_7.png", size: CGSize(width: 90, height: 72), z: 2) { root.addChild(sprite) }
         let ring = SKShapeNode(circleOfRadius: 48)

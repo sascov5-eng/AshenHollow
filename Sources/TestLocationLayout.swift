@@ -17,7 +17,8 @@ enum TestLocationLayout {
             CGRect(x: 3970, y: 285, width: 260, height: 24),
             CGRect(x: 4460, y: 190, width: 260, height: 24),
             CGRect(x: 5050, y: 0, width: 280, height: 90),
-            CGRect(x: 5320, y: 90, width: 56, height: 1180),
+            CGRect(x: 5320, y: 0, width: 516, height: 90),
+            CGRect(x: 5320, y: 340, width: 56, height: 930),
             CGRect(x: 5780, y: 90, width: 56, height: 1180),
             CGRect(x: 5376, y: 280, width: 150, height: 22),
             CGRect(x: 5630, y: 455, width: 150, height: 22),
@@ -70,7 +71,7 @@ enum TestLocationLayout {
             InteractionSpec(id: "secret-wall", kind: .breakableWall, rect: CGRect(x: 4580, y: 90, width: 44, height: 160), linkedID: nil),
             InteractionSpec(id: "hidden-path", kind: .hiddenPassage, rect: CGRect(x: 4760, y: 110, width: 150, height: 120), linkedID: nil),
             InteractionSpec(id: "shortcut-lever", kind: .shortcutLever, rect: CGRect(x: 5920, y: 1294, width: 44, height: 70), linkedID: "shortcut-door"),
-            InteractionSpec(id: "shortcut-door", kind: .shortcutDoor, rect: CGRect(x: 5140, y: 90, width: 54, height: 250), linkedID: nil)
+            InteractionSpec(id: "shortcut-door", kind: .shortcutDoor, rect: CGRect(x: 5320, y: 90, width: 56, height: 250), linkedID: nil)
         ]
 
         func tutorial(_ mechanic: TestMechanicID, _ text: String, _ x: CGFloat, _ y: CGFloat, _ w: CGFloat = 260, _ h: CGFloat = 260, target: TutorialTarget = .none) -> TutorialSpec {

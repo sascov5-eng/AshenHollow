@@ -9,6 +9,8 @@ enum PlayerAnimationKey: String, CaseIterable {
     case dash
     case attack1
     case attack2
+    case attackUp
+    case attackDown
     case hurt
     case death
 }
@@ -18,15 +20,17 @@ struct PlayerAnimationLibrary {
 
     init(bundle: Bundle = .main) {
         let specs: [(PlayerAnimationKey, String, Int)] = [
-            (.idle, "Idle.png", 7),
-            (.run, "Run.png", 8),
+            (.idle, "Idle.png", 4),
+            (.run, "Run.png", 4),
             (.jump, "Jump.png", 4),
             (.fall, "Fall.png", 4),
-            (.dash, "Dash.png", 12),
-            (.attack1, "Attack1.png", 10),
-            (.attack2, "Attack2.png", 15),
-            (.hurt, "Hurt.png", 3),
-            (.death, "Death.png", 18)
+            (.dash, "Dash.png", 4),
+            (.attack1, "Attack1.png", 4),
+            (.attack2, "Attack2.png", 4),
+            (.attackUp, "AttackUp.png", 4),
+            (.attackDown, "AttackDown.png", 4),
+            (.hurt, "Hurt.png", 4),
+            (.death, "Death.png", 4)
         ]
 
         for (key, filename, frameCount) in specs {
@@ -43,7 +47,7 @@ struct PlayerAnimationLibrary {
             }
 
             let sheet = SKTexture(cgImage: cgImage)
-            sheet.filteringMode = .nearest
+            sheet.filteringMode = .linear
             storage[key] = Self.frames(from: sheet, count: frameCount)
         }
     }
@@ -54,15 +58,15 @@ struct PlayerAnimationLibrary {
 
     func frameDuration(for key: PlayerAnimationKey) -> TimeInterval {
         switch key {
-        case .idle: return 0.12
-        case .run: return 0.075
+        case .idle: return 0.14
+        case .run: return 0.08
         case .jump: return 0.07
         case .fall: return 0.09
-        case .dash: return 0.013
-        case .attack1: return 0.022
-        case .attack2: return 0.015
+        case .dash: return 0.05
+        case .attack1, .attack2: return 0.055
+        case .attackUp, .attackDown: return 0.055
         case .hurt: return 0.07
-        case .death: return 0.08
+        case .death: return 0.10
         }
     }
 
@@ -70,7 +74,7 @@ struct PlayerAnimationLibrary {
         switch key {
         case .idle, .run, .fall:
             return true
-        case .jump, .dash, .attack1, .attack2, .hurt, .death:
+        default:
             return false
         }
     }
@@ -89,7 +93,7 @@ struct PlayerAnimationLibrary {
                 ),
                 in: sheet
             )
-            texture.filteringMode = .nearest
+            texture.filteringMode = .linear
             return texture
         }
     }

@@ -5,10 +5,10 @@ struct AttackController {
     private(set) var cooldownRemaining: TimeInterval = 0
     private(set) var currentDirection: PlayerAttackDirection = .horizontal
 
-    let attackDuration: TimeInterval = 0.22
-    let cooldownDuration: TimeInterval = 0.32
+    let attackDuration: TimeInterval = 0.26
+    let cooldownDuration: TimeInterval = 0.18
     let hitboxStart: TimeInterval = 0.05
-    let hitboxEnd: TimeInterval = 0.13
+    let hitboxEnd: TimeInterval = 0.18
 
     var isAttacking: Bool { attackRemaining > 0 }
     var isHitboxActive: Bool {

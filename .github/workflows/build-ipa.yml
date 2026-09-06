@@ -24,6 +24,8 @@ jobs:
           mkdir -p Resources
           cat AssetData/player_animations.b64.0 AssetData/player_animations.b64.1 AssetData/player_animations.b64.2 AssetData/player_animations.b64.3 | base64 -D -o /tmp/player_animations.zip
           unzip -qo /tmp/player_animations.zip -d Resources
+          mkdir -p Resources/PlayerAnimations
+          cp -f Resources/KnightArt/*.png Resources/PlayerAnimations/
 
       - name: Validate player animation assets
         run: bash Scripts/validate-player-animation-assets.sh
@@ -108,7 +110,14 @@ jobs:
           grep -F 'LeverArt.node()' Sources/V15RuntimeSupport.swift
           grep -F 'leverHandle' Sources/LeverArt.swift
           if grep -F 'systemYellow' Sources/V15RuntimeSupport.swift; then exit 1; fi
-
+      - name: Apply nail combat and door/lever fixes
+        shell: bash
+        run: |
+          python3 Scripts/apply-combat.py
+          python3 Tests/test-combat.py
+          grep -q 'PlayerAttackDirection' Sources/GameSceneV14.swift
+          grep -q 'strikeNearbyLevers' Sources/GameSceneV14.swift
+          grep -q '.attackDown' Sources/GameSceneV14.swift
       - name: Prepare app bundle
         shell: bash
         run: |
@@ -121,7 +130,10 @@ jobs:
           xcrun swiftc -parse-as-library -target arm64-apple-ios15.0 -sdk "$SDK" -O -framework Foundation -framework SwiftUI -framework UIKit -framework SpriteKit -framework AVFoundation Sources/*.swift -o "$APP/AshenHollow"
           chmod +x "$APP/AshenHollow"; cp Info.plist "$APP/Info.plist"; cp -R Resources/. "$APP/"
           cat SpriteData/player_run.b64.0 SpriteData/player_run.b64.1 SpriteData/player_run.b64.2 SpriteData/player_run.b64.3 | base64 -D > "$APP/player_run.png"
-          test -f "$APP/PlayerAnimations/Idle.png"; test -f "$APP/PlayerAnimations/Run.png"; test -f "$APP/PlayerAnimations/Jump.png"; test -f "$APP/PlayerAnimations/Fall.png"; test -f "$APP/PlayerAnimations/Dash.png"; test -f "$APP/PlayerAnimations/Attack1.png"; test -f "$APP/PlayerAnimations/Attack2.png"; test -f "$APP/PlayerAnimations/Hurt.png"; test -f "$APP/PlayerAnimations/Death.png"
+          test -f "$APP/PlayerAnimations/Idle.png"; test -f "$APP/PlayerAnimations/Run.png"; test -f "$APP/PlayerAnimations/Jump.png"; test -f "$APP/PlayerAnimations/Fall.png"; test -f "$APP/PlayerAnimations/Dash.png"; test -f "$APP/PlayerAnimations/Attack1.png"; test -f "$APP/PlayerAnimations/Attack2.png"; test -f "$APP/PlayerAnimations/AttackUp.png"; test -f "$APP/PlayerAnimations/AttackDown.png"; test -f "$APP/PlayerAnimations/Hurt.png"; test -f "$APP/PlayerAnimations/Death.png"
+          test -f "$APP/EnvArt/enemy_grub.png"
+          test -f "$APP/EnvArt/enemy_fly.png"
+          test -f "$APP/EnvArt/enemy_husk.png"
           test -d "$APP/PixelCave"
           test -f "$APP/EnvArt/far.jpg"
           test -f "$APP/EnvArt/mid.jpg"
