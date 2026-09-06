@@ -12,7 +12,7 @@ private func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
 struct V14LogicTests {
     static func main() {
         let layout = TestLocationLayout.v14
-        expect(layout.checkpoints.count == 4, "expected four checkpoints")
+        expect(layout.checkpoints.count >= 4, "expected four checkpoints")
         expect(Set(layout.movingPlatforms.map(\.axis)) == Set([.horizontal, .vertical]), "expected horizontal and vertical moving platform")
         expect(Set(layout.enemies.map(\.kind)).isSuperset(of: [.groundPatrol, .flying, .aggressive]), "missing enemy kind")
         expect(layout.interactions.contains(where: { $0.kind == .lever }), "missing normal lever")

@@ -41,8 +41,9 @@ final class TestEnemyController {
         }
 
         switch spec.kind {
-        case .groundPatrol:
-            position.x += direction * 70 * CGFloat(dt)
+        case .groundPatrol, .passive:
+            let speed: CGFloat = spec.kind == .passive ? 38 : 70
+            position.x += direction * speed * CGFloat(dt)
             if position.x >= spec.patrolRange.upperBound { position.x = spec.patrolRange.upperBound; direction = -1 }
             if position.x <= spec.patrolRange.lowerBound { position.x = spec.patrolRange.lowerBound; direction = 1 }
         case .flying:
@@ -50,13 +51,18 @@ final class TestEnemyController {
             if position.x >= spec.patrolRange.upperBound { position.x = spec.patrolRange.upperBound; direction = -1 }
             if position.x <= spec.patrolRange.lowerBound { position.x = spec.patrolRange.lowerBound; direction = 1 }
             position.y = spec.spawn.y + sin(position.x * 0.025) * 35
-        case .aggressive:
+        case .aggressive, .miniBoss, .boss:
+            let chase: CGFloat = spec.kind == .boss ? 520 : (spec.kind == .miniBoss ? 440 : 380)
+            let run: CGFloat = spec.kind == .boss ? 150 : (spec.kind == .miniBoss ? 130 : 115)
             let dx = playerPosition.x - position.x
-            if abs(dx) < 380 { position.x += (dx >= 0 ? 1 : -1) * 115 * CGFloat(dt) }
+            if abs(dx) < chase { position.x += (dx >= 0 ? 1 : -1) * run * CGFloat(dt) }
             else {
                 position.x += direction * 60 * CGFloat(dt)
                 if position.x >= spec.patrolRange.upperBound { position.x = spec.patrolRange.upperBound; direction = -1 }
                 if position.x <= spec.patrolRange.lowerBound { position.x = spec.patrolRange.lowerBound; direction = 1 }
+            }
+            if spec.kind == .boss {
+                position.y = spec.spawn.y + sin(position.x * 0.01) * 8
             }
         }
         return EnemyUpdateResult(position: position, velocity: CGVector(dx: position.x - old.x, dy: position.y - old.y))

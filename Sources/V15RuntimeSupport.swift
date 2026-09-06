@@ -114,20 +114,30 @@ enum EnvArt {
 
     static func addWorldLayers(to scene: SKScene, worldBounds: CGRect) {
         scene.backgroundColor = UIColor(red: 0.02, green: 0.04, blue: 0.07, alpha: 1)
-        place(scene, name: "cross_far.jpg", worldBounds: worldBounds, height: worldBounds.height * 1.02, z: -124, alpha: 1)
-        place(scene, name: "cross_mid.jpg", worldBounds: worldBounds, height: worldBounds.height * 0.86, z: -102, alpha: 0.95)
+        placeZone(scene, far: "cross_far.jpg", mid: "cross_mid.jpg", x0: worldBounds.minX, x1: 9000, worldBounds: worldBounds)
+        placeZone(scene, far: "moss_far.jpg", mid: "moss_mid.jpg", x0: 9000, x1: 15000, worldBounds: worldBounds)
+        placeZone(scene, far: "city_far.jpg", mid: "city_mid.jpg", x0: 15000, x1: 20000, worldBounds: worldBounds)
+        placeZone(scene, far: "nest_far.jpg", mid: "nest_mid.jpg", x0: 20000, x1: 24000, worldBounds: worldBounds)
+        placeZone(scene, far: "void_far.jpg", mid: "void_far.jpg", x0: 24000, x1: worldBounds.maxX, worldBounds: worldBounds)
     }
 
-    private static func place(_ scene: SKScene, name: String, worldBounds: CGRect, height: CGFloat, z: CGFloat, alpha: CGFloat) {
-        guard let texture = texture(name) else { return }
+    private static func placeZone(_ scene: SKScene, far: String, mid: String, x0: CGFloat, x1: CGFloat, worldBounds: CGRect) {
+        let slice = CGRect(x: x0, y: worldBounds.minY, width: max(100, x1 - x0), height: worldBounds.height)
+        placeNamed(scene, name: far, in: slice, height: worldBounds.height * 1.02, z: -124, alpha: 1)
+        placeNamed(scene, name: mid, in: slice, height: worldBounds.height * 0.86, z: -102, alpha: 0.94)
+    }
+
+    private static func placeNamed(_ scene: SKScene, name: String, in slice: CGRect, height: CGFloat, z: CGFloat, alpha: CGFloat) {
+        let tex = texture(name) ?? KingdomArt.texture(name)
+        guard let texture = tex else { return }
         let aspect = texture.size().width / max(1, texture.size().height)
         let width = height * aspect
-        var x = worldBounds.minX + width * 0.5
+        var x = slice.minX + width * 0.5
         var flip = false
-        while x < worldBounds.maxX + width * 0.35 {
+        while x < slice.maxX + width * 0.2 {
             let node = SKSpriteNode(texture: texture)
             node.size = CGSize(width: width + 6, height: height)
-            node.position = CGPoint(x: x, y: worldBounds.midY)
+            node.position = CGPoint(x: x, y: slice.midY)
             node.zPosition = z
             node.alpha = alpha
             if flip { node.xScale = -abs(node.xScale) }
@@ -135,6 +145,10 @@ enum EnvArt {
             x += width * 0.94
             flip.toggle()
         }
+    }
+
+    private static func place(_ scene: SKScene, name: String, worldBounds: CGRect, height: CGFloat, z: CGFloat, alpha: CGFloat) {
+        placeNamed(scene, name: name, in: worldBounds, height: height, z: z, alpha: alpha)
     }
 
     static func addForeground(to scene: SKScene, worldBounds: CGRect) {
@@ -367,6 +381,15 @@ enum PixelCaveArt {
         case .aggressive:
             sheetName = "enemy_husk.png"
             size = CGSize(width: 92, height: 92)
+        case .passive:
+            sheetName = "enemy_grub.png"
+            size = CGSize(width: 64, height: 64)
+        case .miniBoss:
+            sheetName = "enemy_husk.png"
+            size = CGSize(width: 128, height: 128)
+        case .boss:
+            sheetName = "enemy_boss.png"
+            size = CGSize(width: 180, height: 180)
         }
         if let sheet = EnvArt.texture(sheetName) {
             let frames: [SKTexture] = (0..<4).map { index in

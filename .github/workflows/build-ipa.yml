@@ -118,6 +118,15 @@ jobs:
           grep -q 'PlayerAttackDirection' Sources/GameSceneV14.swift
           grep -q 'strikeNearbyLevers' Sources/GameSceneV14.swift
           grep -q '.attackDown' Sources/GameSceneV14.swift
+      - name: Apply kingdom expansion
+        shell: bash
+        run: |
+          python3 Scripts/apply-kingdom.py
+          python3 Tests/test-kingdom.py
+          grep -q 'KingdomDirector' Sources/GameSceneV14.swift
+          grep -q 'addWorldCaption' Sources/GameSceneV14.swift
+          test -f Resources/Kingdom/music_void.wav
+          test -f Resources/Kingdom/moss_far.jpg
       - name: Prepare app bundle
         shell: bash
         run: |
@@ -148,9 +157,20 @@ jobs:
           test -f "$APP/EnvArt/platform.png"
           test -f "$APP/EnvArt/fg.png"
           test -f "$APP/EnvArt/rays.png"
+          test -f "$APP/Kingdom/music_crossroads.wav"
+          test -f "$APP/Kingdom/moss_far.jpg"
+          test -f "$APP/Kingdom/npc_cartographer.png"
       - name: Package unsigned IPA
         shell: bash
-        run: cd build && zip -qry AshenHollow-unsigned.ipa Payload && test -f AshenHollow-unsigned.ipa
+        run: |
+          cd build && zip -qry AshenHollow-unsigned.ipa Payload && test -f AshenHollow-unsigned.ipa
+          python3 - << 'PY'
+from pathlib import Path
+p = Path("build/AshenHollow-unsigned.ipa")
+print("ipa bytes", p.stat().st_size)
+if p.stat().st_size < 50_000_000:
+    raise SystemExit("IPA under 50MB")
+PY
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:

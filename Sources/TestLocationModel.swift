@@ -13,7 +13,7 @@ enum TraversalKind: String, Hashable {
 }
 
 enum HazardKind: String, Hashable { case spikes, deathZone }
-enum EnemyTestKind: String, Hashable { case groundPatrol, flying, aggressive }
+enum EnemyTestKind: String, Hashable { case groundPatrol, flying, aggressive, passive, miniBoss, boss }
 enum MovingPlatformAxis: String, Hashable { case horizontal, vertical }
 enum InteractionKind: String, Hashable { case lever, door, shortcutLever, shortcutDoor, breakableWall, hiddenPassage }
 enum TutorialTarget: Hashable { case hud(String), world(String), none }
@@ -44,6 +44,8 @@ struct EnemyTestSpec: Hashable {
     let spawn: CGPoint
     let patrolRange: ClosedRange<CGFloat>
     let maxHP: Int
+    var damagesOnTouch: Bool = true
+    var geoReward: Int = 8
 }
 
 struct InteractionSpec: Hashable {

@@ -268,6 +268,9 @@ final class GameSceneV14: SKScene {
             case .groundPatrol: node.fillColor = .systemOrange
             case .flying: node.fillColor = .systemTeal
             case .aggressive: node.fillColor = .systemPink
+            case .passive: node.fillColor = .systemGreen
+            case .miniBoss: node.fillColor = .systemPurple
+            case .boss: node.fillColor = .systemRed
             }
             node.strokeColor = .white
             node.lineWidth = 2

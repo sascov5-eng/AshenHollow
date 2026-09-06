@@ -3,7 +3,7 @@ import CoreGraphics
 
 enum TestLocationLayout {
     static let v14: TestLocationSpec = {
-        let bounds = CGRect(x: 0, y: 0, width: 9000, height: 2200)
+        let bounds = CGRect(x: 0, y: 0, width: 26500, height: 2300)
 
         let solids: [CGRect] = [
             CGRect(x: 0, y: 0, width: 1450, height: 90),
@@ -36,7 +36,6 @@ enum TestLocationLayout {
             CGRect(x: 8020, y: 265, width: 220, height: 24),
             CGRect(x: 8280, y: 220, width: 430, height: 90),
             CGRect(x: -50, y: 0, width: 50, height: 2200),
-            CGRect(x: 9000, y: 0, width: 50, height: 2200),
             CGRect(x: 0, y: 2100, width: 9000, height: 100)
         ]
 
@@ -117,12 +116,12 @@ enum TestLocationLayout {
         return TestLocationSpec(
             worldBounds: bounds,
             spawnPoint: CGPoint(x: 240, y: 130),
-            collisionRects: solids,
-            checkpoints: checkpoints,
-            hazards: hazards,
+            collisionRects: solids + KingdomMap.extraSolids,
+            checkpoints: checkpoints + KingdomMap.extraCheckpoints,
+            hazards: hazards + KingdomMap.extraHazards,
             movingPlatforms: moving,
-            enemies: enemies,
-            interactions: interactions,
+            enemies: enemies + KingdomMap.extraEnemies,
+            interactions: interactions + KingdomMap.extraInteractions,
             tutorials: tutorials,
             traversals: traversals,
             exitMarker: CGRect(x: 8720, y: 90, width: 120, height: 180)
