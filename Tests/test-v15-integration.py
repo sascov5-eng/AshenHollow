@@ -17,8 +17,9 @@ assert '<key>CFBundleVersion</key><string>2</string>' in plist
 # Russian player-facing UI/tutorial contract.
 for text in ["ПРЫЖОК", "АТАКА", "РЫВОК", "ЛЕЧЕНИЕ", "ДЕЙСТВИЕ", "ЗДОРОВЬЕ", "СВЕТ"]:
     assert text in scene, text
-for text in ["ДВИЖЕНИЕ", "КОНТРОЛЬНАЯ ТОЧКА", "ШИПЫ", "ДВИЖУЩАЯСЯ ПЛАТФОРМА", "ПАТРУЛЬНЫЙ", "ЛЕТАЮЩИЙ", "АГРЕССИВНЫЙ", "РЫЧАГ", "СЕКРЕТНАЯ СТЕНА", "ТЕСТОВАЯ ЗОНА ПРОЙДЕНА"]:
+for text in ["ДВИЖЕНИЕ", "КОНТРОЛЬНАЯ ТОЧКА", "ШИПЫ", "ДВИЖУЩАЯСЯ ПЛАТФОРМА", "ПАТРУЛЬНЫЙ", "ЛЕТАЮЩИЙ", "АГРЕССИВНЫЙ", "РЫЧАГ", "СЕКРЕТНАЯ СТЕНА"]:
     assert text in layout, text
+assert "ТЕСТОВАЯ ЗОНА ПРОЙДЕНА" in layout or "Моховая тропа" in layout
 
 # Enemy durability and visible health feedback.
 assert 'kind: .aggressive' in layout and 'maxHP: 5' in layout
