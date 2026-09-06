@@ -4,6 +4,7 @@ set -euo pipefail
 xcrun swiftc \
   Sources/PlayerMovementTuning.swift \
   Sources/TestLocationModel.swift \
+  Sources/KingdomMap.swift \
   Sources/TestLocationLayout.swift \
   Sources/TraversalReachabilityValidator.swift \
   Sources/TestSessionState.swift \

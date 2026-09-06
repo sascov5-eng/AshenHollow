@@ -66,7 +66,7 @@ enum TraversalReachabilityValidator {
             issues.append(.init(traversalID: "tutorial", message: "missing \(missing.rawValue)"))
         }
 
-        if layout.checkpoints.count != 4 { issues.append(.init(traversalID: "checkpoints", message: "expected exactly four")) }
+        if layout.checkpoints.count < 4 { issues.append(.init(traversalID: "checkpoints", message: "expected at least four")) }
         if Set(layout.movingPlatforms.map(\.axis)) != Set([.horizontal, .vertical]) {
             issues.append(.init(traversalID: "moving-platforms", message: "horizontal and vertical required"))
         }

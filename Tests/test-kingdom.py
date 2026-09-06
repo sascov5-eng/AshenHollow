@@ -13,7 +13,7 @@ checks = {
     "kingdom solids": "KingdomMap.extraSolids" in layout,
     "boss enemy": "miniBoss, boss" in model or ".boss" in model,
     "passive enemy": "passive, miniBoss" in model or ".passive" in model,
-    "charms": "Прочный панцирь" in director,
+    "charms": "Прочный панцирь" in director or "Прочный панцирь" in Path("Sources/TestLocationModel.swift").read_text(),
     "geo": "Гео" in director,
     "open world": 'id: "kingdom"' in apply,
     "russian hud": "ПРЫЖОК" in apply,

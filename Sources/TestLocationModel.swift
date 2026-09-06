@@ -18,6 +18,37 @@ enum MovingPlatformAxis: String, Hashable { case horizontal, vertical }
 enum InteractionKind: String, Hashable { case lever, door, shortcutLever, shortcutDoor, breakableWall, hiddenPassage }
 enum TutorialTarget: Hashable { case hud(String), world(String), none }
 
+enum CharmID: String, CaseIterable, Hashable {
+    case shell, nail, soul, shadow
+
+    var title: String {
+        switch self {
+        case .shell: return "Прочный панцирь"
+        case .nail: return "Острый гвоздь"
+        case .soul: return "Ловец души"
+        case .shadow: return "Теневой шаг"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .shell: return "Ещё одна маска"
+        case .nail: return "Удар наносит 2 урона"
+        case .soul: return "Больше света с удара"
+        case .shadow: return "Рывок дальше"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .shell: return "charm_a.png"
+        case .nail: return "charm_b.png"
+        case .soul: return "charm_c.png"
+        case .shadow: return "charm_d.png"
+        }
+    }
+}
+
 struct TestCheckpointSpec: Hashable {
     let id: String
     let position: CGPoint
