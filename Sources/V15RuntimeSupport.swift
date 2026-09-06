@@ -44,6 +44,7 @@ enum MovingPlatformRideSupport {
 
 enum EnvArt {
     private static var cache: [String: SKTexture] = [:]
+    private static let lightMask: UInt32 = 1
 
     static func texture(_ name: String) -> SKTexture? {
         if let cached = cache[name] { return cached }
@@ -55,21 +56,23 @@ enum EnvArt {
         return texture
     }
 
-    static func fill(_ parent: SKNode, texture: SKTexture, size: CGSize, tile: CGFloat, z: CGFloat) {
-        let cols = max(1, Int(ceil(size.width / max(28, tile))))
-        let rows = max(1, Int(ceil(size.height / max(28, tile))))
-        let tw = size.width / CGFloat(cols)
-        let th = size.height / CGFloat(rows)
-        let originX = -size.width * 0.5 + tw * 0.5
-        let originY = -size.height * 0.5 + th * 0.5
-        for r in 0..<rows {
-            for c in 0..<cols {
-                let node = SKSpriteNode(texture: texture)
-                node.size = CGSize(width: tw + 1.4, height: th + 1.4)
-                node.position = CGPoint(x: originX + CGFloat(c) * tw, y: originY + CGFloat(r) * th)
-                node.zPosition = z
-                parent.addChild(node)
-            }
+    static func lit(_ node: SKSpriteNode, castsShadow: Bool = true) {
+        node.lightingBitMask = lightMask
+        node.shadowedBitMask = lightMask
+        if castsShadow { node.shadowCastBitMask = lightMask }
+    }
+
+    static func span(_ parent: SKNode, texture: SKTexture, size: CGSize, z: CGFloat, maxPiece: CGFloat, castsShadow: Bool) {
+        let pieces = max(1, Int(ceil(size.width / max(120, maxPiece))))
+        let pw = size.width / CGFloat(pieces)
+        let originX = -size.width * 0.5 + pw * 0.5
+        for i in 0..<pieces {
+            let node = SKSpriteNode(texture: texture)
+            node.size = CGSize(width: pw + 2, height: size.height + 1)
+            node.position = CGPoint(x: originX + CGFloat(i) * pw, y: 0)
+            node.zPosition = z
+            lit(node, castsShadow: castsShadow)
+            parent.addChild(node)
         }
     }
 
@@ -79,54 +82,108 @@ enum EnvArt {
         let isWall = rect.height >= max(160, rect.width * 1.8)
         let isCeiling = rect.minY >= 1800 || (rect.width >= 2000 && rect.minY >= 1000)
 
-        if isWall, let wall = texture("wall.png") {
-            fill(root, texture: wall, size: rect.size, tile: 170, z: 1)
+        if isWall, let wall = texture("wall.jpg") ?? texture("wall.png") {
+            span(root, texture: wall, size: rect.size, z: 1, maxPiece: 900, castsShadow: true)
+            addDropShadow(to: root, rect: rect)
             return root
         }
-        if isCeiling, let ceiling = texture("ceiling.png") {
-            fill(root, texture: ceiling, size: rect.size, tile: 210, z: 1)
+        if isCeiling, let ceiling = texture("ceiling.jpg") ?? texture("ceiling.png") {
+            span(root, texture: ceiling, size: rect.size, z: 1, maxPiece: 2200, castsShadow: true)
             return root
         }
 
-        if let body = texture("fill.png") {
-            fill(root, texture: body, size: rect.size, tile: 150, z: 0)
+        if let body = texture("fill.jpg") ?? texture("fill.png") {
+            span(root, texture: body, size: rect.size, z: 0, maxPiece: 1600, castsShadow: false)
         } else {
             let fillNode = SKShapeNode(rectOf: rect.size)
-            fillNode.fillColor = UIColor(red: 0.075, green: 0.065, blue: 0.085, alpha: 1)
+            fillNode.fillColor = UIColor(red: 0.02, green: 0.025, blue: 0.03, alpha: 1)
             fillNode.strokeColor = .clear
             root.addChild(fillNode)
         }
 
-        if let floor = texture("floor.png") {
-            let capH = min(max(22, rect.height * (rect.height <= 40 ? 1 : 0.44)), rect.height)
+        if let ground = texture("ground.jpg") ?? texture("floor.png") {
+            let capH = min(max(24, rect.height * (rect.height <= 40 ? 1 : 0.52)), rect.height)
             let cap = SKNode()
             cap.position = CGPoint(x: 0, y: rect.height * 0.5 - capH * 0.5)
-            fill(cap, texture: floor, size: CGSize(width: rect.width, height: capH), tile: 118, z: 3)
+            span(cap, texture: ground, size: CGSize(width: rect.width, height: capH), z: 3, maxPiece: 2200, castsShadow: true)
             root.addChild(cap)
         }
 
-        if rect.height > 80, let ceiling = texture("ceiling.png") {
-            let capH = min(38, rect.height * 0.3)
+        if rect.height > 80, let ceiling = texture("ceiling.jpg") ?? texture("ceiling.png") {
+            let capH = min(42, rect.height * 0.32)
             let cap = SKNode()
             cap.position = CGPoint(x: 0, y: -rect.height * 0.5 + capH * 0.5)
-            fill(cap, texture: ceiling, size: CGSize(width: rect.width, height: capH), tile: 140, z: 2)
+            span(cap, texture: ceiling, size: CGSize(width: rect.width, height: capH), z: 2, maxPiece: 2200, castsShadow: false)
             root.addChild(cap)
         }
+        addDropShadow(to: root, rect: rect)
         return root
     }
 
-    static func addBackground(to scene: SKScene, worldBounds: CGRect) {
-        guard let texture = texture("background.jpg") else { return }
-        let height = max(worldBounds.height, 1600)
-        let width = height * 16.0 / 9.0
+    static func addDropShadow(to root: SKNode, rect: CGRect) {
+        guard let shadow = texture("shadow.png") else { return }
+        let node = SKSpriteNode(texture: shadow)
+        node.size = CGSize(width: rect.width * 1.08, height: max(22, min(70, rect.height * 0.22)))
+        node.position = CGPoint(x: 0, y: -rect.height * 0.5 - 8)
+        node.zPosition = -2
+        node.alpha = 0.9
+        root.addChild(node)
+    }
+
+    static func addWorldLayers(to scene: SKScene, worldBounds: CGRect) {
+        scene.backgroundColor = UIColor(red: 0.004, green: 0.006, blue: 0.01, alpha: 1)
+        layer(scene, name: "far.jpg", worldBounds: worldBounds, height: worldBounds.height * 1.05, z: -124, alpha: 1)
+        layer(scene, name: "mid.jpg", worldBounds: worldBounds, height: worldBounds.height * 0.92, z: -108, alpha: 0.92)
+        layer(scene, name: "chamber.jpg", worldBounds: worldBounds, height: worldBounds.height * 0.78, z: -96, alpha: 0.55)
+        layer(scene, name: "near.jpg", worldBounds: worldBounds, height: worldBounds.height * 0.70, z: -78, alpha: 0.42)
+    }
+
+    private static func layer(_ scene: SKScene, name: String, worldBounds: CGRect, height: CGFloat, z: CGFloat, alpha: CGFloat) {
+        guard let texture = texture(name) else { return }
+        let aspect = texture.size().width / max(1, texture.size().height)
+        let width = height * aspect
         var x = worldBounds.minX + width * 0.5
-        while x < worldBounds.maxX + width * 0.5 {
+        var flip = false
+        while x < worldBounds.maxX + width * 0.4 {
             let node = SKSpriteNode(texture: texture)
-            node.size = CGSize(width: width + 6, height: height)
-            node.position = CGPoint(x: x, y: worldBounds.midY)
-            node.zPosition = -116
+            node.size = CGSize(width: width + 8, height: height)
+            node.position = CGPoint(x: x, y: worldBounds.midY + (z + 100) * 0.4)
+            node.zPosition = z
+            node.alpha = alpha
+            if flip { node.xScale = -abs(node.xScale) }
+            lit(node, castsShadow: false)
             scene.addChild(node)
-            x += width
+            x += width * 0.92
+            flip.toggle()
+        }
+    }
+
+    static func attachPlayerLight(to player: SKNode) {
+        if player.childNode(withName: "soulLight") != nil { return }
+        let light = SKLightNode()
+        light.name = "soulLight"
+        light.categoryBitMask = lightMask
+        light.falloff = 0.85
+        light.ambientColor = UIColor(red: 0.03, green: 0.04, blue: 0.055, alpha: 1)
+        light.lightColor = UIColor(red: 0.62, green: 0.82, blue: 1.0, alpha: 1)
+        light.shadowColor = UIColor(red: 0, green: 0, blue: 0.02, alpha: 0.88)
+        player.addChild(light)
+    }
+
+    static func installAtmosphere(in scene: SKScene) {
+        guard let camera = scene.camera else { return }
+        if camera.childNode(withName: "hkDark") == nil, let darkTex = texture("darkness.png") {
+            let dark = SKSpriteNode(texture: darkTex)
+            dark.name = "hkDark"
+            dark.size = CGSize(width: 3000, height: 1800)
+            dark.zPosition = 850
+            camera.addChild(dark)
+        }
+        if camera.childNode(withName: "hkGrade") == nil {
+            let grade = SKSpriteNode(color: UIColor(red: 0.02, green: 0.04, blue: 0.07, alpha: 0.32), size: CGSize(width: 3000, height: 1800))
+            grade.name = "hkGrade"
+            grade.zPosition = 840
+            camera.addChild(grade)
         }
     }
 }
@@ -151,38 +208,15 @@ enum PixelCaveArt {
     }
 
     static func addParallax(to scene: SKScene, worldBounds: CGRect) {
-        EnvArt.addBackground(to: scene, worldBounds: worldBounds)
-        let layers: [(String, CGFloat, CGFloat)] = [
-            ("Example stage layers/bg_01_sky.png", -118, 0.55),
-            ("Example stage layers/bg_02_mountains.png", -112, 0.42),
-            ("Example stage layers/bg_04_dungeon_b.png", -105, 0.38),
-            ("Example stage layers/bg_05_cave_b.png", -98, 0.32),
-            ("Example stage layers/bg_06_caveinside_b.png", -90, 0.28),
-            ("Example stage layers/bg_07_bgobjects.png", -82, 0.22)
-        ]
-        let tileHeight: CGFloat = 1550
-        let tileWidth = tileHeight * 704.0 / 544.0
-        for (path, z, alpha) in layers {
-            guard let texture = texture(path) else { continue }
-            var x = worldBounds.minX + tileWidth * 0.5
-            while x < worldBounds.maxX + tileWidth {
-                let node = SKSpriteNode(texture: texture)
-                node.size = CGSize(width: tileWidth, height: tileHeight)
-                node.position = CGPoint(x: x, y: 790)
-                node.zPosition = z
-                node.alpha = alpha
-                scene.addChild(node)
-                x += tileWidth - 2
-            }
-        }
+        EnvArt.addWorldLayers(to: scene, worldBounds: worldBounds)
     }
 
     static func terrainNode(rect: CGRect) -> SKNode {
         EnvArt.terrainNode(rect: rect)
     }
 
-
     static func spikeNode(rect: CGRect) -> SKNode {
+
         let root = SKNode()
         root.position = CGPoint(x: rect.midX, y: rect.midY)
         let unit: CGFloat = 46
