@@ -61,10 +61,12 @@ final class KingdomDirector {
     private var areaLabel: SKLabelNode?
     private var toastLabel: SKLabelNode?
     private var collectedPickups: Set<String> = []
+    private var spokenNPCs: Set<String> = []
 
     var extraMasks: Int { ownedCharms.contains(.shell) ? 1 : 0 }
     var nailDamage: Int { ownedCharms.contains(.nail) ? 2 : 1 }
     var soulBonus: Bool { ownedCharms.contains(.soul) }
+    var dashMultiplier: CGFloat { ownedCharms.contains(.shadow) ? 1.28 : 1 }
 
     func install(on hud: SKNode, camera: SKCameraNode) {
         hudRoot = hud
@@ -73,7 +75,7 @@ final class KingdomDirector {
         root.zPosition = 1200
         hud.addChild(root)
 
-        for i in 0..<6 {
+        for _ in 0..<6 {
             let mask = SKShapeNode(circleOfRadius: 11)
             mask.strokeColor = UIColor(white: 0.85, alpha: 0.9)
             mask.lineWidth = 2
@@ -118,7 +120,7 @@ final class KingdomDirector {
         root.addChild(toast)
         toastLabel = toast
 
-        placeNPC(in: camera.scene)
+        placeNPCs(in: camera.scene)
         placeCharms(in: camera.scene)
         playMusic("music_crossroads.wav")
     }
@@ -136,7 +138,7 @@ final class KingdomDirector {
     }
 
     func refresh(hp: Int, maxHP: Int, soul: Int, soulMax: Int, playerX: CGFloat) {
-        let masks = maxHP + extraMasks
+        let masks = maxHP
         for (i, mask) in maskNodes.enumerated() {
             mask.isHidden = i >= masks
             mask.fillColor = i < hp ? UIColor(white: 0.95, alpha: 1) : UIColor(white: 0.12, alpha: 0.85)
@@ -155,6 +157,7 @@ final class KingdomDirector {
             playMusic(track(for: playerX))
         }
         collectPickups(playerX: playerX)
+        speakNPCs(playerX: playerX)
     }
 
     func addGeo(_ amount: Int) {
@@ -191,7 +194,8 @@ final class KingdomDirector {
         case ..<15000: return "music_moss.wav"
         case ..<20000: return "music_city.wav"
         case ..<24000: return "music_nest.wav"
-        default: return "music_void.wav"
+        case ..<24600: return "music_void.wav"
+        default: return "music_battle.wav"
         }
     }
 
@@ -230,20 +234,37 @@ final class KingdomDirector {
         }
     }
 
-    private func placeNPC(in scene: SKScene?) {
-        guard let scene, let tex = KingdomArt.texture("npc_cartographer.png") else { return }
-        let npc = SKSpriteNode(texture: tex)
-        npc.size = CGSize(width: 90, height: 90)
-        npc.position = CGPoint(x: 1180, y: 148)
-        npc.zPosition = 21
-        npc.name = "npcCartographer"
-        scene.addChild(npc)
-        let line = SKLabelNode(fontNamed: "AvenirNext-Medium")
-        line.text = "Карты врут. Иди глубже."
-        line.fontSize = 12
-        line.fontColor = UIColor(white: 0.88, alpha: 0.9)
-        line.position = CGPoint(x: 1180, y: 210)
-        line.zPosition = 22
-        scene.addChild(line)
+    private func placeNPCs(in scene: SKScene?) {
+        guard let scene else { return }
+        let npcs: [(String, CGFloat, String)] = [
+            ("npcCartographer", 1180, "npc_cartographer.png"),
+            ("npcStag", 15440, "npc_cartographer.png"),
+            ("npcWatcher", 24280, "npc_cartographer.png")
+        ]
+        for (name, x, icon) in npcs {
+            guard let tex = KingdomArt.texture(icon) else { continue }
+            let npc = SKSpriteNode(texture: tex)
+            npc.size = CGSize(width: 88, height: 88)
+            npc.position = CGPoint(x: x, y: 148)
+            npc.zPosition = 21
+            npc.name = name
+            if name == "npcWatcher" { npc.color = UIColor(red: 0.35, green: 0.2, blue: 0.55, alpha: 1); npc.colorBlendFactor = 0.45 }
+            if name == "npcStag" { npc.color = UIColor(red: 0.55, green: 0.42, blue: 0.22, alpha: 1); npc.colorBlendFactor = 0.35 }
+            scene.addChild(npc)
+        }
+    }
+
+    private func speakNPCs(playerX: CGFloat) {
+        let lines: [(String, CGFloat, String)] = [
+            ("npcCartographer", 1180, "Карты врут. Иди глубже."),
+            ("npcStag", 15440, "Дальше — крыши Города пыли."),
+            ("npcWatcher", 24280, "Король ещё не спит.")
+        ]
+        for (id, x, line) in lines where !spokenNPCs.contains(id) {
+            if abs(playerX - x) < 90 {
+                spokenNPCs.insert(id)
+                toast(line)
+            }
+        }
     }
 }

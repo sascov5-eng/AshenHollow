@@ -3,6 +3,7 @@ from pathlib import Path
 layout = Path("Sources/TestLocationLayout.swift").read_text()
 director = Path("Sources/KingdomArt.swift").read_text()
 model = Path("Sources/TestLocationModel.swift").read_text()
+apply = Path("Scripts/apply-kingdom.py").read_text()
 king = Path("Resources/Kingdom")
 wavs = list(king.glob("*.wav"))
 total = sum(p.stat().st_size for p in king.iterdir())
@@ -14,6 +15,8 @@ checks = {
     "passive enemy": "passive, miniBoss" in model or ".passive" in model,
     "charms": "Прочный панцирь" in director,
     "geo": "Гео" in director,
+    "open world": 'id: "kingdom"' in apply,
+    "russian hud": "ПРЫЖОК" in apply,
     "music files": len(wavs) >= 8,
     "payload size": total >= 50_000_000,
 }

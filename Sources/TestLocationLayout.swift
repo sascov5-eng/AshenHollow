@@ -100,7 +100,7 @@ enum TestLocationLayout {
             tutorial(.pit, "ЯМА — СМЕРТЬ И ВОЗВРАТ К ТОЧКЕ", 6610, 1120, 650, 600, target: .world("pit-local")),
             tutorial(.mixedCombat, "СМЕШАННЫЙ БОЙ", 7300, 90, target: .world("enemy-mixed-ground")),
             tutorial(.narrowTunnel, "УЗКИЙ ТУННЕЛЬ", 8200, 90, target: .world("narrow")),
-            tutorial(.testComplete, "ТЕСТОВАЯ ЗОНА ПРОЙДЕНА", 8620, 90, 300, 300, target: .world("exit"))
+            tutorial(.testComplete, "Дальше — Моховая тропа", 8620, 90, 300, 300, target: .world("exit"))
         ]
 
         let traversals = [

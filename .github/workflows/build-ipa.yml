@@ -125,6 +125,8 @@ jobs:
           python3 Tests/test-kingdom.py
           grep -q 'KingdomDirector' Sources/GameSceneV14.swift
           grep -q 'addWorldCaption' Sources/GameSceneV14.swift
+          grep -q 'id: "kingdom"' Sources/TrialModeSupport.swift
+          grep -q 'dashMultiplier' Sources/GameSceneV14.swift
           test -f Resources/Kingdom/music_void.wav
           test -f Resources/Kingdom/moss_far.jpg
       - name: Prepare app bundle
@@ -163,14 +165,13 @@ jobs:
       - name: Package unsigned IPA
         shell: bash
         run: |
-          cd build && zip -qry AshenHollow-unsigned.ipa Payload && test -f AshenHollow-unsigned.ipa
-          python3 - << 'PY'
-from pathlib import Path
-p = Path("build/AshenHollow-unsigned.ipa")
-print("ipa bytes", p.stat().st_size)
-if p.stat().st_size < 50_000_000:
-    raise SystemExit("IPA under 50MB")
-PY
+          set -euo pipefail
+          cd build
+          zip -qry AshenHollow-unsigned.ipa Payload
+          test -f AshenHollow-unsigned.ipa
+          SIZE="$(stat -f%z AshenHollow-unsigned.ipa)"
+          echo "ipa_bytes=$SIZE"
+          test "$SIZE" -ge 50000000
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
