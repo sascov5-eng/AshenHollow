@@ -106,22 +106,67 @@ lever = '''    private func setLeverVisual(id: String, active: Bool) {
         let previous = leverVisualStates[id]
         leverVisualStates[id] = active
         let justChanged = previous != nil && previous != active
+        let target: CGFloat = active ? 0.72 : -0.62
         if let handle = root.childNode(withName: "//leverHandle") {
-            let target: CGFloat = active ? 0.72 : -0.62
-            if abs(handle.zRotation - target) > 0.02 {
+            if justChanged {
                 handle.removeAction(forKey: "leverState")
+                let pull = SKAction.group([
+                    .moveBy(x: 0, y: -30, duration: 0.10),
+                    .rotate(toAngle: target + (active ? 0.30 : -0.30), duration: 0.10)
+                ])
+                pull.timingMode = .easeIn
+                let snap = SKAction.group([
+                    .moveBy(x: 0, y: 30, duration: 0.16),
+                    .rotate(toAngle: target, duration: 0.16)
+                ])
+                snap.timingMode = .easeOut
+                handle.run(.sequence([pull, snap]), withKey: "leverState")
+            } else if handle.action(forKey: "leverState") == nil, abs(handle.zRotation - target) > 0.02 {
                 handle.run(.rotate(toAngle: target, duration: 0.22, shortestUnitArc: true), withKey: "leverState")
             }
         }
         if let glow = root.childNode(withName: "//leverGlow") as? SKShapeNode {
             glow.fillColor = UIColor(red: 0.45, green: 0.95, blue: 1.0, alpha: active ? 0.7 : 0)
         }
-        if justChanged, root.action(forKey: "leverPulse") == nil {
-            root.run(.sequence([.scale(to: 1.12, duration: 0.08), .scale(to: 1, duration: 0.12)]), withKey: "leverPulse")
+        if justChanged {
+__LEVER_AUDIO__            if root.action(forKey: "leverPulse") == nil {
+                root.run(.sequence([.scale(to: 1.12, duration: 0.08), .scale(to: 1, duration: 0.12)]), withKey: "leverPulse")
+            }
+            showLeverFlip(at: root.position)
+        }
+    }
+
+    private func showLeverFlip(at point: CGPoint) {
+        let ring = SKShapeNode(circleOfRadius: 26)
+        ring.position = point
+        ring.strokeColor = UIColor(red: 0.55, green: 0.95, blue: 1, alpha: 0.95)
+        ring.fillColor = UIColor(red: 0.55, green: 0.95, blue: 1, alpha: 0.10)
+        ring.lineWidth = 4
+        ring.zPosition = 60
+        addChild(ring)
+        ring.run(.sequence([
+            .group([.scale(to: 2.1, duration: 0.28), .fadeOut(withDuration: 0.28)]),
+            .removeFromParent()
+        ]))
+        for i in 0..<6 {
+            let spark = SKShapeNode(circleOfRadius: 4)
+            spark.position = point
+            spark.fillColor = .white
+            spark.strokeColor = .clear
+            spark.zPosition = 61
+            addChild(spark)
+            let angle = CGFloat(i) * .pi / 3
+            spark.run(.sequence([
+                .group([.moveBy(x: cos(angle) * 44, y: sin(angle) * 44, duration: 0.30), .fadeOut(withDuration: 0.30)]),
+                .removeFromParent()
+            ]))
         }
     }
 '''
 scene = replace_from(scene, "    private func setLeverVisual(id: String, active: Bool) {", lever)
+if "__LEVER_AUDIO__" in scene:
+    lever_audio = "            audio.play(.lever)\n" if has_audio else ""
+    scene = scene.replace("__LEVER_AUDIO__", lever_audio, 1)
 
 scene_path.write_text(scene)
 print("Applied directional nail combat, pogo, lever strike, door open")

@@ -5,6 +5,7 @@ library = Path("Sources/PlayerAnimationLibrary.swift").read_text()
 layout = Path("Sources/TestLocationLayout.swift").read_text()
 runtime = Path("Sources/V15RuntimeSupport.swift").read_text()
 interaction = Path("Sources/TestInteractionController.swift").read_text()
+audio = Path("Sources/GameAudio.swift").read_text()
 knight = Path("Resources/KnightArt")
 
 checks = {
@@ -21,6 +22,11 @@ checks = {
     "lever handle settles": "abs(handle.zRotation - target) > 0.02" in scene,
     "no unkeyed lever pulse": ".scale(to: 1, duration: 0.12)]))\n" not in scene,
     "lever activation idempotent": "guard !session.openedInteractions.contains(id)" in interaction,
+    "lever flip dip": ".moveBy(x: 0, y: -30" in scene,
+    "lever flip overshoot": "target + (active ? 0.30 : -0.30)" in scene,
+    "lever flip fx": "showLeverFlip" in scene,
+    "lever flip sfx": "audio.play(.lever)" in scene,
+    "lever sound synth": "case lever" in audio,
     "shaft doorway": "CGRect(x: 5320, y: 340, width: 56, height: 930)" in layout,
     "shortcut door in wall": "CGRect(x: 5320, y: 90, width: 56, height: 250)" in layout,
     "grub enemy": "enemy_grub.png" in runtime,

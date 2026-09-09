@@ -56,6 +56,8 @@ jobs:
           bash Tests/run-v14-logic-tests.sh
           python3 Tests/test-v14-integration.py
           grep -q '<key>CFBundleShortVersionString</key><string>1.4</string>' Info.plist
+      - name: Audit level reachability
+        run: python3 Tests/test-level-audit.py
       - name: Apply and test v1.5
         shell: bash
         run: |

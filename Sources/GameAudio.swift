@@ -10,6 +10,7 @@ enum GameSound: String, CaseIterable {
     case dash
     case heal
     case healComplete
+    case lever
 }
 
 final class GameAudio {
@@ -77,6 +78,7 @@ final class GameAudio {
         case .dash: return 0.74
         case .heal: return 0.48
         case .healComplete: return 0.62
+        case .lever: return 0.80
         }
     }
 
@@ -92,6 +94,7 @@ final class GameAudio {
         case .dash: duration = 0.22
         case .heal: duration = 1.02
         case .healComplete: duration = 0.34
+        case .lever: duration = 0.30
         }
 
         let count = Int(Double(sampleRate) * duration)
@@ -149,6 +152,13 @@ final class GameAudio {
                     + sine(t, freq: 783.99) * exp(-t * 7) * 0.1
                 let sparkle = n * exp(-t * 30) * 0.04
                 value = chime + sparkle
+            case .lever:
+                let clackDown = n * exp(-t * 60) * 0.30
+                let thunk = sine(t, freq: 130) * exp(-t * 20) * 0.30
+                let upT = max(0, t - 0.11)
+                let clackUp = t > 0.11 ? n * exp(-upT * 55) * 0.26 : 0
+                let ping = t > 0.11 ? sine(upT, freq: 880) * exp(-upT * 25) * 0.12 : 0
+                value = clackDown + thunk + clackUp + ping
             }
             let clipped = max(-1, min(1, value * (sound == .heal ? 1 : env)))
             samples[i] = Int16(clipped * Double(Int16.max - 1))
