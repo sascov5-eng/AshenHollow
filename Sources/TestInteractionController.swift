@@ -13,6 +13,7 @@ final class TestInteractionController {
     func activateLever(id: String) -> Bool {
         guard let lever = layout.interactions.first(where: { $0.id == id && ($0.kind == .lever || $0.kind == .shortcutLever) }),
               let linked = lever.linkedID else { return false }
+        guard !session.openedInteractions.contains(id) else { return false }
         session.openedInteractions.insert(id)
         session.openedInteractions.insert(linked)
         return true

@@ -4,6 +4,7 @@ scene = Path("Sources/GameSceneV14.swift").read_text()
 library = Path("Sources/PlayerAnimationLibrary.swift").read_text()
 layout = Path("Sources/TestLocationLayout.swift").read_text()
 runtime = Path("Sources/V15RuntimeSupport.swift").read_text()
+interaction = Path("Sources/TestInteractionController.swift").read_text()
 knight = Path("Resources/KnightArt")
 
 checks = {
@@ -13,6 +14,13 @@ checks = {
     "lever strike": "strikeNearbyLevers" in scene,
     "pogo bounce": "currentDirection == .down" in scene,
     "door always opens": 'childNode(withName: "//doorBody") ?? root' in scene,
+    "door guard on body": 'body.action(forKey: "doorOpen") == nil' in scene,
+    "door skip when hidden": "!body.isHidden" in scene,
+    "lever visual state gate": "leverVisualStates" in scene,
+    "lever pulse keyed": 'withKey: "leverPulse"' in scene,
+    "lever handle settles": "abs(handle.zRotation - target) > 0.02" in scene,
+    "no unkeyed lever pulse": ".scale(to: 1, duration: 0.12)]))\n" not in scene,
+    "lever activation idempotent": "guard !session.openedInteractions.contains(id)" in interaction,
     "shaft doorway": "CGRect(x: 5320, y: 340, width: 56, height: 930)" in layout,
     "shortcut door in wall": "CGRect(x: 5320, y: 90, width: 56, height: 250)" in layout,
     "grub enemy": "enemy_grub.png" in runtime,

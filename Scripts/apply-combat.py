@@ -22,6 +22,12 @@ if "sprite.size = CGSize(width: 480, height: 480)" in scene:
 has_audio = "private let audio = GameAudio()" in scene
 audio_lines = "        audio.stop(.heal)\n        audio.play(.attack)\n" if has_audio else ""
 
+lever_state_anchor = "    private var lastAttackSequenceProcessed = 0\n"
+if lever_state_anchor not in scene:
+    raise SystemExit("combat missing lever state anchor")
+if "leverVisualStates" not in scene:
+    scene = scene.replace(lever_state_anchor, lever_state_anchor + "    private var leverVisualStates: [String: Bool] = [:]\n", 1)
+
 start_attack = f'''    private func startAttack() {{
         guard recoveryLockRemaining <= 0 else {{ return }}
         essenceController.cancelFocus()
@@ -78,8 +84,8 @@ scene = scene.replace(old_impact, new_impact, 1)
 
 door = '''    private func openDoorVisual(id: String) {
         guard let root = worldNodes[id] else { return }
-        if root.action(forKey: "doorOpen") != nil { return }
         let body = root.childNode(withName: "//doorBody") ?? root
+        guard body.action(forKey: "doorOpen") == nil, !body.isHidden else { return }
         let travel = (worldLayout.interactions.first(where: { $0.id == id })?.rect.height ?? 220) + 40
         let lift = SKAction.sequence([
             .group([.moveBy(x: 0, y: travel, duration: 0.38), .fadeAlpha(to: 0.05, duration: 0.38)]),
@@ -87,7 +93,9 @@ door = '''    private func openDoorVisual(id: String) {
         ])
         lift.timingMode = .easeInEaseOut
         body.run(lift, withKey: "doorOpen")
-        root.childNode(withName: "//doorFrame")?.run(.fadeOut(withDuration: 0.28))
+        if let frame = root.childNode(withName: "//doorFrame"), frame.alpha > 0.01 {
+            frame.run(.fadeOut(withDuration: 0.28))
+        }
         refreshCollisionRects()
     }
 '''
@@ -95,15 +103,22 @@ scene = replace_from(scene, "    private func openDoorVisual(id: String) {", doo
 
 lever = '''    private func setLeverVisual(id: String, active: Bool) {
         guard let root = worldNodes[id] else { return }
+        let previous = leverVisualStates[id]
+        leverVisualStates[id] = active
+        let justChanged = previous != nil && previous != active
         if let handle = root.childNode(withName: "//leverHandle") {
             let target: CGFloat = active ? 0.72 : -0.62
-            handle.removeAction(forKey: "leverState")
-            handle.run(.rotate(toAngle: target, duration: 0.22, shortestUnitArc: true), withKey: "leverState")
+            if abs(handle.zRotation - target) > 0.02 {
+                handle.removeAction(forKey: "leverState")
+                handle.run(.rotate(toAngle: target, duration: 0.22, shortestUnitArc: true), withKey: "leverState")
+            }
         }
         if let glow = root.childNode(withName: "//leverGlow") as? SKShapeNode {
             glow.fillColor = UIColor(red: 0.45, green: 0.95, blue: 1.0, alpha: active ? 0.7 : 0)
         }
-        root.run(.sequence([.scale(to: 1.12, duration: 0.08), .scale(to: 1, duration: 0.12)]))
+        if justChanged, root.action(forKey: "leverPulse") == nil {
+            root.run(.sequence([.scale(to: 1.12, duration: 0.08), .scale(to: 1, duration: 0.12)]), withKey: "leverPulse")
+        }
     }
 '''
 scene = replace_from(scene, "    private func setLeverVisual(id: String, active: Bool) {", lever)
